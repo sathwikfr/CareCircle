@@ -12,13 +12,13 @@ export async function POST(
   }
 
   const { id } = await params;
-  const parent = getParentById(id);
+  const parent = await getParentById(id);
   if (!parent) {
     return NextResponse.json({ error: 'Parent not found' }, { status: 404 });
   }
 
   // Create a simulated test call log
-  const newCall = addCallLog(id, {
+  const newCall = await addCallLog(id, {
     scheduledTime: 'Immediate (Test Call)',
     actualAnswerTime: 'Just now',
     status: 'answered',

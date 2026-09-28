@@ -14,7 +14,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const parent = getParentById(id);
+    const parent = await getParentById(id);
     if (!parent) {
       return NextResponse.json({ error: 'Parent profile not found' }, { status: 404 });
     }
@@ -26,7 +26,7 @@ export async function POST(
     }
 
     // Convert confirmed candidates to Medicine objects
-    const currentMeds = getMedicinesForParent(id);
+    const currentMeds = await getMedicinesForParent(id);
     const newMeds: Medicine[] = confirmedMedicines.map((m: Partial<Medicine>, idx: number) => ({
       id: m.id || `med_${Date.now()}_${idx}`,
       parentId: id,
@@ -41,7 +41,7 @@ export async function POST(
 
     // Save to parent medicines table
     const allMeds = [...currentMeds, ...newMeds];
-    setMedicinesForParent(id, allMeds);
+    await setMedicinesForParent(id, allMeds);
 
     // Audit trail confirmation
     confirmMedicineReport(reportId, newMeds.map(m => m.id));

@@ -3,14 +3,14 @@ import { prisma } from '../src/lib/prisma';
 
 async function testLiveFlow() {
   console.log('1. Creating a new real user...');
-  const user = createUser({
+  const user = await createUser({
     name: 'Sathwik Rao',
     email: 'sathwik.fr@gmail.com',
     phone: '+91 98765 43210'
   });
 
   console.log('2. Creating a parent profile for this user...');
-  const parent = createParent({
+  const parent = await createParent({
     userId: user.id,
     name: 'Lakshmi Rao',
     relationship: 'Mother',
@@ -21,7 +21,7 @@ async function testLiveFlow() {
   });
 
   console.log('3. Adding a medicine...');
-  addMedicine(parent.id, {
+  await addMedicine(parent.id, {
     name: 'Telmisartan 40mg',
     dosage: '1 tablet after breakfast',
     timeOfDay: 'morning',
