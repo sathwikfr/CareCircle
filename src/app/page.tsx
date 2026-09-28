@@ -170,7 +170,7 @@ export default function LandingPage() {
                   {audioStep === 0 && (
                     <>
                       <div style={{ background: 'var(--teal-light)', padding: '12px 14px', borderRadius: '14px 14px 14px 4px', fontSize: '0.88rem', color: 'var(--teal-deep)' }}>
-                        <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '2px', color: 'var(--teal)' }}>CareCircle AI</strong>
+                        <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '2px', color: 'var(--teal)' }}>Saathi AI</strong>
                         Namaste Amma! Good morning. Did you take your BP tablet after breakfast today?
                       </div>
                       <div style={{ background: 'var(--panel)', padding: '12px 14px', borderRadius: '14px 14px 4px 14px', fontSize: '0.88rem', alignSelf: 'flex-end', textAlign: 'right' }}>
@@ -178,7 +178,7 @@ export default function LandingPage() {
                         Namaste beta. Haan, I took it just 10 minutes ago with warm water.
                       </div>
                       <div style={{ background: 'var(--teal-light)', padding: '12px 14px', borderRadius: '14px 14px 14px 4px', fontSize: '0.88rem', color: 'var(--teal-deep)' }}>
-                        <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '2px', color: 'var(--teal)' }}>CareCircle AI</strong>
+                        <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '2px', color: 'var(--teal)' }}>Saathi AI</strong>
                         Wonderful. And how are your knees feeling? Any pain or dizziness?
                       </div>
                     </>
@@ -193,7 +193,7 @@ export default function LandingPage() {
 
                   {audioStep >= 2 && (
                     <div className="animate-fade-in" style={{ background: 'var(--teal-light)', padding: '12px 14px', borderRadius: '14px 14px 14px 4px', fontSize: '0.88rem', color: 'var(--teal-deep)' }}>
-                      <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '2px', color: 'var(--teal)' }}>CareCircle AI</strong>
+                      <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '2px', color: 'var(--teal)' }}>Saathi AI</strong>
                       Namaste Amma! Good morning. Did you take your BP tablet after breakfast today?
                     </div>
                   )}
@@ -207,7 +207,7 @@ export default function LandingPage() {
 
                   {audioStep >= 4 && (
                     <div className="animate-fade-in" style={{ background: 'var(--teal-light)', padding: '12px 14px', borderRadius: '14px 14px 14px 4px', fontSize: '0.88rem', color: 'var(--teal-deep)' }}>
-                      <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '2px', color: 'var(--teal)' }}>CareCircle AI</strong>
+                      <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '2px', color: 'var(--teal)' }}>Saathi AI</strong>
                       Wonderful! Did you go for your balcony morning walk as well?
                     </div>
                   )}
@@ -331,9 +331,9 @@ export default function LandingPage() {
                 <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'var(--teal-light)', color: 'var(--teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-serif)', fontSize: '1.3rem', fontWeight: 600, marginBottom: '20px' }}>
                   2
                 </div>
-                <h3 style={{ fontSize: '1.25rem', marginBottom: '10px' }}>CareCircle calls their phone</h3>
+                <h3 style={{ fontSize: '1.25rem', marginBottom: '10px' }}>Saathi AI calls their phone</h3>
                 <p style={{ fontSize: '0.94rem', color: 'var(--ink-muted)', lineHeight: 1.55 }}>
-                  A warm, polite AI companion calls directly. No internet, app download, or smartphone required on their end.
+                  Saathi AI calls directly with a warm, caring voice in their native language. No smartphone or internet required on their end.
                 </p>
               </div>
 
