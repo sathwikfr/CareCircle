@@ -11,7 +11,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized. Please log in.' }, { status: 401 });
     }
 
-    const freshUser = getUserById(user.id) || user;
+    const freshUser = (await getUserById(user.id)) || user;
     return NextResponse.json({
       success: true,
       user: freshUser
@@ -61,7 +61,7 @@ export async function PATCH(req: Request) {
       };
     }
 
-    const updateResult = updateUserProfile(sessionUser.id, {
+    const updateResult = await updateUserProfile(sessionUser.id, {
       name,
       email,
       phone,

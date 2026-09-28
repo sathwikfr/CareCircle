@@ -26,7 +26,7 @@ export async function POST(req: Request) {
 
     // STRICT CHECK: IF LOGIN, ACCOUNT MUST EXIST!
     if (purpose === 'login') {
-      const existingUser = getUserByPhone(cleanPhone);
+      const existingUser = await getUserByPhone(cleanPhone);
       if (!existingUser) {
         return NextResponse.json(
           {
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
 
     // IF SIGNUP, ACCOUNT MUST NOT ALREADY EXIST
     if (purpose === 'signup') {
-      const existingUser = getUserByPhone(cleanPhone);
+      const existingUser = await getUserByPhone(cleanPhone);
       if (existingUser) {
         return NextResponse.json(
           {
@@ -61,7 +61,6 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       message: `A 6-digit verification code has been sent to +91 ${cleanPhone.slice(-4).padStart(cleanPhone.length, '•')}`,
-      // In development / demo environment, return devOtp for effortless instant testing
       devOtp: process.env.NODE_ENV !== 'production' ? code : undefined
     });
   } catch (err) {

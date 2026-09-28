@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 
     // 1. LOGIN MODE: Account MUST already exist!
     if (mode === 'login') {
-      const existingUser = getUserByEmail(cleanEmail);
+      const existingUser = await getUserByEmail(cleanEmail);
       if (!existingUser) {
         return NextResponse.json(
           {
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       }
 
       // Success: Create session for existing user
-      const session = createDBSession(existingUser.id, rememberMe);
+      const session = await createDBSession(existingUser.id, rememberMe);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { passwordHash, ...user } = existingUser;
 
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
 
     // 2. SIGNUP MODE: Creates account
     if (mode === 'signup') {
-      const existingUser = getUserByEmail(cleanEmail);
+      const existingUser = await getUserByEmail(cleanEmail);
       if (existingUser) {
         return NextResponse.json(
           {
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
         );
       }
 
-      const newUser = createUser({
+      const newUser = await createUser({
         name: name || cleanEmail.split('@')[0],
         email: cleanEmail,
         phone: '+91 98765 00000',
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
       });
       newUser.emailVerified = true;
 
-      const session = createDBSession(newUser.id, rememberMe);
+      const session = await createDBSession(newUser.id, rememberMe);
 
       const response = NextResponse.json({
         success: true,

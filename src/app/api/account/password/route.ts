@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'New passwords do not match.' }, { status: 400 });
     }
 
-    const currentHash = getUserPasswordHash(sessionUser.id);
+    const currentHash = await getUserPasswordHash(sessionUser.id);
     if (!currentHash) {
       return NextResponse.json({
         error: 'No password is set for this account (you may have signed in via Google or OTP). Please use reset password or set a password.'
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     }
 
     const newHash = await hashPassword(newPassword);
-    const updated = updateUserPasswordHash(sessionUser.id, newHash);
+    const updated = await updateUserPasswordHash(sessionUser.id, newHash);
 
     if (!updated) {
       return NextResponse.json({ error: 'Failed to update password.' }, { status: 500 });

@@ -27,11 +27,11 @@ export async function POST(req: Request) {
     recordFailedAttempt(rateLimitKey);
 
     // 2. Strict Account Check (Generic Response - No Enumeration)
-    const user = getUserByEmail(cleanEmail);
+    const user = await getUserByEmail(cleanEmail);
     let resetToken: string | undefined = undefined;
 
     if (user) {
-      resetToken = createPasswordResetToken(user.id);
+      resetToken = await createPasswordResetToken(user.id);
 
       // Determine application base URL
       const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -50,11 +50,9 @@ export async function POST(req: Request) {
       console.log(`[CareCircle Auth] Forgot password requested for unregistered email ${cleanEmail} (Silently ignored, generic message returned).`);
     }
 
-    // Always respond with the same generic message to prevent account enumeration
     return NextResponse.json({
       success: true,
       message: `If an account exists for ${cleanEmail}, a secure password reset link valid for 20 minutes has been sent to your inbox.`,
-      // Provide devResetLink in development for seamless local testing
       devResetLink: (process.env.NODE_ENV !== 'production' && resetToken)
         ? `/reset-password?token=${resetToken}&email=${encodeURIComponent(cleanEmail)}`
         : undefined

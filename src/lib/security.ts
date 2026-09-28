@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { DBSession, OTPRecord, PasswordResetRecord } from './types';
+import { prisma } from './prisma';
 
 // Global maps for hot-reload persistence
 declare global {
@@ -81,11 +82,9 @@ export async function createAndStoreOtp(
   purpose: 'login' | 'signup'
 ): Promise<{ code: string; expiresAt: string }> {
   const cleanPhone = phone.replace(/\D/g, '');
-  // 6-digit random verification code
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   const salt = await bcrypt.genSalt(8);
   const codeHash = await bcrypt.hash(code, salt);
-
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 
   otps.set(cleanPhone, {
@@ -96,6 +95,19 @@ export async function createAndStoreOtp(
     purpose
   });
 
+  try {
+    await prisma.oTPRecord.create({
+      data: {
+        phone: cleanPhone,
+        codeHash,
+        expiresAt: new Date(expiresAt),
+        purpose
+      }
+    });
+  } catch (err) {
+    console.error('[Prisma OTP Create Error]:', err);
+  }
+
   return { code, expiresAt };
 }
 
@@ -105,7 +117,27 @@ export async function verifyAndConsumeOtp(
   purpose: 'login' | 'signup'
 ): Promise<{ success: boolean; error?: string }> {
   const cleanPhone = phone.replace(/\D/g, '');
-  const record = otps.get(cleanPhone);
+  let record = otps.get(cleanPhone);
+
+  if (!record) {
+    try {
+      const pRecord = await prisma.oTPRecord.findFirst({
+        where: { phone: cleanPhone, purpose },
+        orderBy: { createdAt: 'desc' }
+      });
+      if (pRecord) {
+        record = {
+          phone: pRecord.phone,
+          codeHash: pRecord.codeHash,
+          expiresAt: pRecord.expiresAt.toISOString(),
+          attempts: pRecord.attempts,
+          purpose: pRecord.purpose as any
+        };
+      }
+    } catch (err) {
+      console.error('[Prisma OTP Verify Error]:', err);
+    }
+  }
 
   if (!record) {
     return { success: false, error: 'No OTP requested for this mobile number or code has expired. Please request a new OTP.' };
@@ -136,14 +168,19 @@ export async function verifyAndConsumeOtp(
 
   // Consume on success (single-use)
   otps.delete(cleanPhone);
+  try {
+    await prisma.oTPRecord.deleteMany({ where: { phone: cleanPhone } });
+  } catch (err) {
+    console.error('[Prisma OTP Delete Error]:', err);
+  }
+
   return { success: true };
 }
 
 // 3. DATABASE SESSIONS (REVOCABLE & REMEMBER-ME)
-export function createDBSession(userId: string, rememberMe = true): DBSession {
+export async function createDBSession(userId: string, rememberMe = true): Promise<DBSession> {
   const token = 'sess_' + crypto.randomBytes(32).toString('hex');
   const now = new Date();
-  // 30 days if rememberMe, else 24 hours
   const expiryDays = rememberMe ? 30 : 1;
   const expiresAt = new Date(now.getTime() + expiryDays * 24 * 60 * 60 * 1000).toISOString();
 
@@ -157,40 +194,94 @@ export function createDBSession(userId: string, rememberMe = true): DBSession {
   };
 
   sessions.set(token, sessionObj);
+
+  try {
+    await prisma.dBSession.create({
+      data: {
+        token,
+        userId,
+        expiresAt: new Date(expiresAt),
+        rememberMe,
+        revoked: false
+      }
+    });
+  } catch (err) {
+    console.error('[Prisma Session Create Error]:', err);
+  }
+
   return sessionObj;
 }
 
-export function getDBSession(token: string): DBSession | null {
-  const session = sessions.get(token);
-  if (!session) return null;
-  if (session.revoked) return null;
-  if (new Date(session.expiresAt).getTime() < Date.now()) {
-    sessions.delete(token);
-    return null;
+export async function getDBSession(token: string): Promise<DBSession | null> {
+  const cached = sessions.get(token);
+  if (cached) {
+    if (cached.revoked) return null;
+    if (new Date(cached.expiresAt).getTime() < Date.now()) {
+      sessions.delete(token);
+      return null;
+    }
+    return cached;
   }
-  return session;
+
+  try {
+    const pSession = await prisma.dBSession.findUnique({ where: { token } });
+    if (pSession) {
+      if (pSession.revoked) return null;
+      if (pSession.expiresAt.getTime() < Date.now()) return null;
+
+      const mapped: DBSession = {
+        token: pSession.token,
+        userId: pSession.userId,
+        expiresAt: pSession.expiresAt.toISOString(),
+        createdAt: pSession.createdAt.toISOString(),
+        rememberMe: pSession.rememberMe,
+        revoked: pSession.revoked
+      };
+      sessions.set(token, mapped);
+      return mapped;
+    }
+  } catch (err) {
+    console.error('[Prisma Session Get Error]:', err);
+  }
+
+  return null;
 }
 
-export function revokeDBSession(token: string): void {
+export async function revokeDBSession(token: string): Promise<void> {
   const session = sessions.get(token);
   if (session) {
     session.revoked = true;
     sessions.set(token, session);
   }
+  try {
+    await prisma.dBSession.update({
+      where: { token },
+      data: { revoked: true }
+    });
+  } catch (err) {
+    console.error('[Prisma Session Revoke Error]:', err);
+  }
 }
 
-export function revokeAllUserSessions(userId: string): void {
+export async function revokeAllUserSessions(userId: string): Promise<void> {
   for (const session of sessions.values()) {
     if (session.userId === userId) {
       session.revoked = true;
       sessions.set(session.token, session);
     }
   }
+  try {
+    await prisma.dBSession.updateMany({
+      where: { userId },
+      data: { revoked: true }
+    });
+  } catch (err) {
+    console.error('[Prisma Revoke All Sessions Error]:', err);
+  }
 }
 
 // 4. PASSWORD RESET TOKENS (SINGLE-USE & EXPIRING)
-export function createPasswordResetToken(userId: string): string {
-  // Invalidate any existing unused reset tokens for this user
+export async function createPasswordResetToken(userId: string): Promise<string> {
   for (const [key, item] of resetTokens.entries()) {
     if (item.userId === userId && !item.used) {
       resetTokens.delete(key);
@@ -207,11 +298,41 @@ export function createPasswordResetToken(userId: string): string {
     used: false
   });
 
+  try {
+    await prisma.passwordResetRecord.create({
+      data: {
+        token,
+        userId,
+        expiresAt: new Date(expiresAt),
+        used: false
+      }
+    });
+  } catch (err) {
+    console.error('[Prisma Reset Token Create Error]:', err);
+  }
+
   return token;
 }
 
-export function verifyAndConsumePasswordResetToken(token: string): { valid: boolean; userId?: string; error?: string } {
-  const record = resetTokens.get(token);
+export async function verifyAndConsumePasswordResetToken(token: string): Promise<{ valid: boolean; userId?: string; error?: string }> {
+  let record = resetTokens.get(token);
+
+  if (!record) {
+    try {
+      const pRecord = await prisma.passwordResetRecord.findUnique({ where: { token } });
+      if (pRecord) {
+        record = {
+          token: pRecord.token,
+          userId: pRecord.userId,
+          expiresAt: pRecord.expiresAt.toISOString(),
+          used: pRecord.used
+        };
+      }
+    } catch (err) {
+      console.error('[Prisma Verify Reset Token Error]:', err);
+    }
+  }
+
   if (!record) {
     return { valid: false, error: 'Password reset link is invalid or has already been used.' };
   }
@@ -229,8 +350,17 @@ export function verifyAndConsumePasswordResetToken(token: string): { valid: bool
   record.used = true;
   resetTokens.set(token, record);
 
+  try {
+    await prisma.passwordResetRecord.update({
+      where: { token },
+      data: { used: true }
+    });
+  } catch (err) {
+    console.error('[Prisma Reset Token Mark Used Error]:', err);
+  }
+
   // Invalidate all active sessions for this user on password change
-  revokeAllUserSessions(record.userId);
+  await revokeAllUserSessions(record.userId);
 
   return { valid: true, userId: record.userId };
 }

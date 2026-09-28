@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyAndConsumePasswordResetToken } from '@/lib/security';
 import { hashPassword } from '@/lib/auth';
-import { getUserById } from '@/lib/db';
+import { getUserById, updateUserPasswordHash } from '@/lib/db';
 
 export async function POST(req: Request) {
   try {
@@ -16,20 +16,19 @@ export async function POST(req: Request) {
     }
 
     // Verify and consume token (enforces single-use and expiry)
-    const verification = verifyAndConsumePasswordResetToken(token);
+    const verification = await verifyAndConsumePasswordResetToken(token);
     if (!verification.valid || !verification.userId) {
       return NextResponse.json({ error: verification.error || 'Invalid or expired reset token.' }, { status: 400 });
     }
 
-    const user = getUserById(verification.userId);
+    const user = await getUserById(verification.userId);
     if (!user) {
       return NextResponse.json({ error: 'User account not found.' }, { status: 404 });
     }
 
     // Hash new password and update in database
     const newHash = await hashPassword(newPassword);
-    const { updateUserPasswordHash } = await import('@/lib/db');
-    updateUserPasswordHash(user.id, newHash);
+    await updateUserPasswordHash(user.id, newHash);
 
     return NextResponse.json({
       success: true,

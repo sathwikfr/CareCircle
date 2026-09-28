@@ -17,7 +17,7 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 });
   }
 
-  const res = updateScheduleSuggestionStatus(id, suggestionId, action);
+  const res = await updateScheduleSuggestionStatus(id, suggestionId, action);
   if (!res.success) {
     return NextResponse.json({ error: 'Suggestion not found' }, { status: 404 });
   }

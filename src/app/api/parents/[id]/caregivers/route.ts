@@ -18,7 +18,7 @@ export async function POST(
     return NextResponse.json({ error: 'Valid caregiver email required' }, { status: 400 });
   }
 
-  const invite = inviteCaregiver(id, email.trim(), name || 'Family Caregiver', role || 'co_manager');
+  const invite = await inviteCaregiver(id, email.trim(), name || 'Family Caregiver', role || 'co_manager');
 
   return NextResponse.json({
     success: true,

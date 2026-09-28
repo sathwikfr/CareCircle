@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     let targetUserId = sessionUser?.id;
 
     if (!targetUserId && customerEmail) {
-      const existing = getUserByEmail(customerEmail);
+      const existing = await getUserByEmail(customerEmail);
       if (existing) {
         targetUserId = existing.id;
       }
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
 
     let updatedSub = null;
     if (targetUserId) {
-      updatedSub = updateUserSubscription(targetUserId, {
+      updatedSub = await updateUserSubscription(targetUserId, {
         planId: planId as PlanId,
         razorpaySubscriptionId: razorpay_subscription_id,
         razorpayPaymentId: razorpay_payment_id,

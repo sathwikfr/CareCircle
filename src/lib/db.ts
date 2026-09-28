@@ -13,12 +13,14 @@ import {
   NotificationPreferences,
   MedicineReport,
   ExtractedMedicineCandidate,
-  ScheduledCallSlot
+  ScheduledCallSlot,
+  MedicineTimingSlot,
+  FoodRelation
 } from './types';
 import { PLANS } from './plans';
 import { prisma } from './prisma';
 
-interface DBUser extends User {
+export interface DBUser extends User {
   passwordHash?: string;
 }
 
@@ -73,33 +75,113 @@ if (!global.__carecircle_notif_prefs) global.__carecircle_notif_prefs = notifPre
 if (!global.__carecircle_medicine_reports) global.__carecircle_medicine_reports = medicineReports;
 
 export function ensureDemoDataSeeded() {
-  // No automatic fake parent seeding - database starts completely clean
+  // Database starts clean
 }
 
-// USER REPOSITORY
-export function getUserByEmail(email: string): DBUser | null {
+// Helper to map Prisma user to DBUser
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapPrismaUser(pUser: any): DBUser {
+  let sub: UserSubscription | undefined = undefined;
+  if (pUser.subscription) {
+    sub = {
+      id: pUser.subscription.id,
+      planId: (pUser.subscription.planId || 'family') as PlanId,
+      status: (pUser.subscription.status || 'active') as any,
+      startDate: pUser.subscription.startDate ? new Date(pUser.subscription.startDate).toISOString() : new Date().toISOString(),
+      trialEndsAt: pUser.subscription.trialEndsAt ? new Date(pUser.subscription.trialEndsAt).toISOString() : undefined,
+      currentPeriodEnd: pUser.subscription.currentPeriodEnd ? new Date(pUser.subscription.currentPeriodEnd).toISOString() : new Date().toISOString(),
+      cancelAtPeriodEnd: Boolean(pUser.subscription.cancelAtPeriodEnd),
+      amount: pUser.subscription.amount ?? 399,
+      paymentMethodLast4: pUser.subscription.paymentMethodLast4 || undefined,
+      paymentMethodBrand: pUser.subscription.paymentMethodBrand || undefined,
+      razorpaySubscriptionId: pUser.subscription.razorpaySubscriptionId || undefined,
+      razorpayPaymentId: pUser.subscription.razorpayPaymentId || undefined
+    };
+  }
+
+  let notif: NotificationPreferences | undefined = undefined;
+  if (pUser.notificationPreferences) {
+    notif = {
+      whatsapp: Boolean(pUser.notificationPreferences.whatsapp),
+      sms: Boolean(pUser.notificationPreferences.sms),
+      email: Boolean(pUser.notificationPreferences.email),
+      push: Boolean(pUser.notificationPreferences.push),
+      minimumAlertLevel: pUser.notificationPreferences.minimumAlertLevel ?? 1
+    };
+  }
+
+  const dbUser: DBUser = {
+    id: pUser.id,
+    name: pUser.name,
+    email: pUser.email,
+    phone: pUser.phone || '',
+    avatar: pUser.avatar || pUser.name.substring(0, 2).toUpperCase(),
+    emailVerified: Boolean(pUser.emailVerified),
+    phoneVerified: Boolean(pUser.phoneVerified),
+    createdAt: pUser.createdAt ? new Date(pUser.createdAt).toISOString() : new Date().toISOString(),
+    passwordHash: pUser.passwordHash || undefined,
+    subscription: sub,
+    notificationPreferences: notif
+  };
+
+  users.set(dbUser.id, dbUser);
+  if (notif) notifPrefs.set(dbUser.id, notif);
+  return dbUser;
+}
+
+// USER REPOSITORY (Async Prisma-backed with in-memory caching)
+export async function getUserByEmail(email: string): Promise<DBUser | null> {
   const normalized = email.toLowerCase().trim();
   for (const u of users.values()) {
     if (u.email.toLowerCase() === normalized) {
       return u;
     }
   }
+
+  try {
+    const pUser = await prisma.user.findUnique({
+      where: { email: normalized },
+      include: { subscription: true, notificationPreferences: true }
+    });
+    if (pUser) {
+      return mapPrismaUser(pUser);
+    }
+  } catch (err) {
+    console.error('[DB getUserByEmail Error]:', err);
+  }
+
   return null;
 }
 
-export function getUserByPhone(phone: string): DBUser | null {
+export async function getUserByPhone(phone: string): Promise<DBUser | null> {
   const clean = phone.replace(/\D/g, '');
   if (!clean || clean.length < 5) return null;
+
   for (const u of users.values()) {
     const userClean = (u.phone || '').replace(/\D/g, '');
     if (userClean && (userClean.endsWith(clean) || clean.endsWith(userClean))) {
       return u;
     }
   }
+
+  try {
+    const allUsers = await prisma.user.findMany({
+      include: { subscription: true, notificationPreferences: true }
+    });
+    for (const pUser of allUsers) {
+      const userClean = (pUser.phone || '').replace(/\D/g, '');
+      if (userClean && (userClean.endsWith(clean) || clean.endsWith(userClean))) {
+        return mapPrismaUser(pUser);
+      }
+    }
+  } catch (err) {
+    console.error('[DB getUserByPhone Error]:', err);
+  }
+
   return null;
 }
 
-export function getUserByEmailOrPhone(identifier: string): DBUser | null {
+export async function getUserByEmailOrPhone(identifier: string): Promise<DBUser | null> {
   if (!identifier) return null;
   const trimmed = identifier.trim();
   if (trimmed.includes('@')) {
@@ -108,142 +190,62 @@ export function getUserByEmailOrPhone(identifier: string): DBUser | null {
   return getUserByPhone(trimmed);
 }
 
-// Async background sync to Prisma PostgreSQL
-export async function syncUserToPrisma(user: DBUser) {
-  try {
-    const email = user.email.toLowerCase().trim();
-    const existing = await prisma.user.findUnique({ where: { email } });
-
-    if (existing) {
-      user.id = existing.id;
-      await prisma.user.update({
-        where: { id: existing.id },
-        data: {
-          name: user.name,
-          phone: user.phone,
-          avatar: user.avatar,
-          passwordHash: user.passwordHash || existing.passwordHash,
-          emailVerified: user.emailVerified,
-          phoneVerified: user.phoneVerified
-        }
-      });
-    } else {
-      await prisma.user.create({
-        data: {
-          id: user.id,
-          name: user.name,
-          email,
-          phone: user.phone,
-          avatar: user.avatar,
-          passwordHash: user.passwordHash,
-          emailVerified: user.emailVerified,
-          phoneVerified: user.phoneVerified,
-          createdAt: new Date(user.createdAt)
-        }
-      });
-    }
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.warn('[Prisma Sync User Error]:', msg);
+export async function getUserById(id: string): Promise<User | null> {
+  const cached = users.get(id);
+  if (cached) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash, ...user } = cached;
+    return user;
   }
-}
 
-export async function syncParentToPrisma(parent: ParentProfile) {
   try {
-    let resolvedUserId = parent.userId;
-    const user = users.get(parent.userId);
-    if (user) {
-      await syncUserToPrisma(user);
-      resolvedUserId = user.id;
-    } else {
-      const dbUser = await prisma.user.findUnique({ where: { id: parent.userId } });
-      if (dbUser) resolvedUserId = dbUser.id;
-    }
-
-    await prisma.parentProfile.upsert({
-      where: { id: parent.id },
-      create: {
-        id: parent.id,
-        userId: resolvedUserId,
-        name: parent.name,
-        relationship: parent.relationship,
-        phone: parent.phone,
-        language: parent.language,
-        timezone: parent.timezone,
-        callTime: parent.callTime,
-        isPaused: parent.isPaused,
-        pauseReason: parent.pauseReason,
-        pauseUntil: parent.pauseUntil ? new Date(parent.pauseUntil) : undefined,
-        consentGiven: parent.consentGiven,
-        consentDate: new Date(parent.consentDate),
-        isDeleted: Boolean(parent.isDeleted),
-        createdAt: new Date(parent.createdAt)
-      },
-      update: {
-        userId: resolvedUserId,
-        name: parent.name,
-        relationship: parent.relationship,
-        phone: parent.phone,
-        language: parent.language,
-        timezone: parent.timezone,
-        callTime: parent.callTime,
-        isPaused: parent.isPaused,
-        pauseReason: parent.pauseReason,
-        pauseUntil: parent.pauseUntil ? new Date(parent.pauseUntil) : undefined,
-        consentGiven: parent.consentGiven,
-        isDeleted: Boolean(parent.isDeleted)
-      }
+    const pUser = await prisma.user.findUnique({
+      where: { id },
+      include: { subscription: true, notificationPreferences: true }
     });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.warn('[Prisma Sync Parent Error]:', msg);
-  }
-}
-
-export async function syncMedicineToPrisma(parentId: string, med: Medicine) {
-  try {
-    const parent = parents.get(parentId);
-    if (parent) {
-      await syncParentToPrisma(parent);
+    if (pUser) {
+      const dbUser = mapPrismaUser(pUser);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { passwordHash, ...user } = dbUser;
+      return user;
     }
-    await prisma.medicine.upsert({
-      where: { id: med.id },
-      create: {
-        id: med.id,
-        parentId,
-        name: med.name,
-        dosage: med.dosage,
-        timeOfDay: med.timeOfDay,
-        timingSlots: med.timingSlots || [],
-        foodRelation: med.foodRelation || 'not_specified',
-        frequency: med.frequency || 'daily',
-        isActive: true
-      },
-      update: {
-        name: med.name,
-        dosage: med.dosage,
-        timeOfDay: med.timeOfDay,
-        timingSlots: med.timingSlots || [],
-        foodRelation: med.foodRelation || 'not_specified',
-        frequency: med.frequency || 'daily',
-        isActive: med.isActive
-      }
-    });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.warn('[Prisma Sync Medicine Error]:', msg);
+  } catch (err) {
+    console.error('[DB getUserById Error]:', err);
   }
+
+  return null;
 }
 
-export function createUser(userData: {
+export async function getUserPasswordHash(userId: string): Promise<string | null> {
+  const cached = users.get(userId);
+  if (cached?.passwordHash) return cached.passwordHash;
+
+  try {
+    const pUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { passwordHash: true }
+    });
+    if (pUser?.passwordHash) {
+      if (cached) cached.passwordHash = pUser.passwordHash;
+      return pUser.passwordHash;
+    }
+  } catch (err) {
+    console.error('[DB getUserPasswordHash Error]:', err);
+  }
+
+  return null;
+}
+
+export async function createUser(userData: {
   name: string;
   email: string;
   phone: string;
   passwordHash?: string;
   planId?: PlanId;
-}): User {
+}): Promise<User> {
   const id = 'usr_' + Math.random().toString(36).substring(2, 10);
   const now = new Date();
+  const email = userData.email.toLowerCase().trim();
 
   let initialSubscription: UserSubscription | undefined = undefined;
   if (userData.planId === 'free') {
@@ -268,47 +270,70 @@ export function createUser(userData: {
   const newUser: DBUser = {
     id,
     name: userData.name,
-    email: userData.email.toLowerCase().trim(),
+    email,
     phone: userData.phone,
     avatar: initials,
     emailVerified: true,
     phoneVerified: false,
     createdAt: now.toISOString(),
     passwordHash: userData.passwordHash,
-    subscription: initialSubscription
+    subscription: initialSubscription,
+    notificationPreferences: {
+      whatsapp: true,
+      sms: true,
+      email: true,
+      push: false,
+      minimumAlertLevel: 1
+    }
   };
 
   users.set(id, newUser);
-  syncUserToPrisma(newUser);
+
+  try {
+    await prisma.user.create({
+      data: {
+        id,
+        name: userData.name,
+        email,
+        phone: userData.phone,
+        avatar: initials,
+        passwordHash: userData.passwordHash,
+        emailVerified: true,
+        phoneVerified: false,
+        createdAt: now,
+        subscription: initialSubscription
+          ? {
+              create: {
+                id: initialSubscription.id,
+                planId: 'free',
+                status: 'free',
+                startDate: now,
+                currentPeriodEnd: new Date(now.getTime() + 365 * 86400000),
+                amount: 0
+              }
+            }
+          : undefined,
+        notificationPreferences: {
+          create: {
+            whatsapp: true,
+            sms: true,
+            email: true,
+            push: false,
+            minimumAlertLevel: 1
+          }
+        }
+      }
+    });
+  } catch (err) {
+    console.error('[Prisma Create User Error]:', err);
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { passwordHash, ...user } = newUser;
   return user;
 }
 
-export function getUserById(id: string): User | null {
-  const u = users.get(id);
-  if (!u) return null;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { passwordHash, ...user } = u;
-  if (!user.notificationPreferences) {
-    user.notificationPreferences = notifPrefs.get(id) || {
-      whatsapp: true,
-      sms: true,
-      email: true,
-      push: false,
-      minimumAlertLevel: 1
-    };
-  }
-  return user;
-}
-
-export function getUserPasswordHash(userId: string): string | null {
-  const u = users.get(userId);
-  return u?.passwordHash || null;
-}
-
-export function updateUserProfile(
+export async function updateUserProfile(
   userId: string,
   updates: {
     name?: string;
@@ -317,18 +342,24 @@ export function updateUserProfile(
     avatar?: string;
     notificationPreferences?: NotificationPreferences;
   }
-): { user: User; emailChanged: boolean } | null {
-  const u = users.get(userId);
+): Promise<{ user: User; emailChanged: boolean } | null> {
+  const existing = await getUserByEmail(updates.email || '') || users.get(userId);
+  let u = users.get(userId);
+  if (!u && existing?.id === userId) u = existing;
+  if (!u) {
+    const pUser = await prisma.user.findUnique({ where: { id: userId }, include: { subscription: true, notificationPreferences: true } });
+    if (pUser) u = mapPrismaUser(pUser);
+  }
   if (!u) return null;
 
   let emailChanged = false;
   if (updates.email && updates.email.toLowerCase().trim() !== u.email.toLowerCase().trim()) {
-    const existing = getUserByEmail(updates.email.toLowerCase().trim());
-    if (existing && existing.id !== userId) {
+    const conflict = await getUserByEmail(updates.email.toLowerCase().trim());
+    if (conflict && conflict.id !== userId) {
       throw new Error('An account with this email already exists.');
     }
     u.email = updates.email.toLowerCase().trim();
-    u.emailVerified = false; // Trigger re-verification
+    u.emailVerified = false;
     emailChanged = true;
   }
 
@@ -358,23 +389,68 @@ export function updateUserProfile(
   }
 
   users.set(userId, u);
-  syncUserToPrisma(u);
+
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: u.name,
+        email: u.email,
+        phone: u.phone,
+        avatar: u.avatar,
+        emailVerified: u.emailVerified
+      }
+    });
+
+    if (updates.notificationPreferences) {
+      await prisma.notificationPreferences.upsert({
+        where: { userId },
+        create: {
+          userId,
+          whatsapp: updates.notificationPreferences.whatsapp,
+          sms: updates.notificationPreferences.sms,
+          email: updates.notificationPreferences.email,
+          push: updates.notificationPreferences.push,
+          minimumAlertLevel: updates.notificationPreferences.minimumAlertLevel
+        },
+        update: {
+          whatsapp: updates.notificationPreferences.whatsapp,
+          sms: updates.notificationPreferences.sms,
+          email: updates.notificationPreferences.email,
+          push: updates.notificationPreferences.push,
+          minimumAlertLevel: updates.notificationPreferences.minimumAlertLevel
+        }
+      });
+    }
+  } catch (err) {
+    console.error('[Prisma Update User Error]:', err);
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { passwordHash, ...sanitized } = u;
   return { user: sanitized, emailChanged };
 }
 
-export function updateUserPasswordHash(userId: string, newHash: string): boolean {
-  const user = users.get(userId);
-  if (!user) return false;
-  user.passwordHash = newHash;
-  users.set(userId, user);
-  syncUserToPrisma(user);
-  return true;
+export async function updateUserPasswordHash(userId: string, newHash: string): Promise<boolean> {
+  const user = users.get(userId) || (await getUserById(userId));
+  if (user) {
+    const cached = users.get(userId);
+    if (cached) cached.passwordHash = newHash;
+  }
+
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newHash }
+    });
+    return true;
+  } catch (err) {
+    console.error('[Prisma Update Password Error]:', err);
+    return false;
+  }
 }
 
-export function updateUserSubscription(
+export async function updateUserSubscription(
   userId: string,
   details: {
     planId: PlanId;
@@ -383,10 +459,8 @@ export function updateUserSubscription(
     paymentMethodLast4?: string;
     paymentMethodBrand?: string;
   }
-): UserSubscription | null {
-  const user = users.get(userId);
-  if (!user) return null;
-
+): Promise<UserSubscription | null> {
+  const user = users.get(userId) || (await getUserByEmailOrPhone(userId));
   const plan = PLANS[details.planId];
   const now = new Date();
   const trialEnd = plan.hasTrial ? new Date(now.getTime() + plan.trialDays * 86400000) : undefined;
@@ -407,85 +481,262 @@ export function updateUserSubscription(
     razorpayPaymentId: details.razorpayPaymentId
   };
 
-  user.subscription = sub;
-  users.set(userId, user);
+  if (user) {
+    user.subscription = sub;
+    users.set(userId, user as DBUser);
+  }
 
-  prisma.userSubscription.upsert({
-    where: { userId },
-    create: {
-      id: sub.id,
-      userId,
-      planId: sub.planId,
-      status: sub.status,
-      startDate: new Date(sub.startDate),
-      trialEndsAt: sub.trialEndsAt ? new Date(sub.trialEndsAt) : undefined,
-      currentPeriodEnd: new Date(sub.currentPeriodEnd),
-      cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
-      amount: sub.amount,
-      paymentMethodLast4: sub.paymentMethodLast4,
-      paymentMethodBrand: sub.paymentMethodBrand,
-      razorpaySubscriptionId: sub.razorpaySubscriptionId,
-      razorpayPaymentId: sub.razorpayPaymentId
-    },
-    update: {
-      planId: sub.planId,
-      status: sub.status,
-      currentPeriodEnd: new Date(sub.currentPeriodEnd),
-      cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
-      amount: sub.amount
-    }
-  }).catch(err => console.warn('[Prisma Sub Error]:', err.message));
+  try {
+    await prisma.userSubscription.upsert({
+      where: { userId },
+      create: {
+        id: sub.id,
+        userId,
+        planId: sub.planId,
+        status: sub.status,
+        startDate: new Date(sub.startDate),
+        trialEndsAt: sub.trialEndsAt ? new Date(sub.trialEndsAt) : undefined,
+        currentPeriodEnd: new Date(sub.currentPeriodEnd),
+        cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+        amount: sub.amount,
+        paymentMethodLast4: sub.paymentMethodLast4,
+        paymentMethodBrand: sub.paymentMethodBrand,
+        razorpaySubscriptionId: sub.razorpaySubscriptionId,
+        razorpayPaymentId: sub.razorpayPaymentId
+      },
+      update: {
+        planId: sub.planId,
+        status: sub.status,
+        currentPeriodEnd: new Date(sub.currentPeriodEnd),
+        cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+        amount: sub.amount,
+        paymentMethodLast4: sub.paymentMethodLast4,
+        paymentMethodBrand: sub.paymentMethodBrand,
+        razorpaySubscriptionId: sub.razorpaySubscriptionId,
+        razorpayPaymentId: sub.razorpayPaymentId
+      }
+    });
 
-  const userInvoices = invoices.get(userId) || [];
-  userInvoices.unshift({
-    id: 'inv_' + Math.random().toString(36).substring(2, 8),
-    invoiceNumber: `CC-${now.getFullYear()}-${String(userInvoices.length + 1).padStart(3, '0')}`,
-    date: now.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
-    amount: plan.hasTrial ? 0 : plan.priceMonthly,
-    planName: `${plan.name} (${plan.hasTrial ? '14-Day Free Trial Auth' : 'Monthly'})`,
-    status: 'paid',
-    paymentMethod: `${details.paymentMethodBrand || 'UPI'} •••• ${details.paymentMethodLast4 || '4242'}`
-  });
-  invoices.set(userId, userInvoices);
+    await prisma.invoice.create({
+      data: {
+        id: 'inv_' + Math.random().toString(36).substring(2, 8),
+        userId,
+        invoiceNumber: `CC-${now.getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+        date: now.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
+        amount: plan.hasTrial ? 0 : plan.priceMonthly,
+        planName: `${plan.name} (${plan.hasTrial ? '14-Day Free Trial Auth' : 'Monthly'})`,
+        status: 'paid',
+        paymentMethod: `${details.paymentMethodBrand || 'UPI'} •••• ${details.paymentMethodLast4 || '4242'}`
+      }
+    });
+  } catch (err) {
+    console.error('[Prisma Update Subscription Error]:', err);
+  }
 
   return sub;
 }
 
-export function cancelSubscription(userId: string): boolean {
+export async function cancelSubscription(userId: string): Promise<boolean> {
   const user = users.get(userId);
-  if (!user || !user.subscription) return false;
-
-  user.subscription.cancelAtPeriodEnd = true;
-  user.subscription.status = 'cancelled';
-  users.set(userId, user);
-  prisma.userSubscription.update({
-    where: { userId },
-    data: { cancelAtPeriodEnd: true, status: 'cancelled' }
-  }).catch(err => console.warn('[Prisma Cancel Sub Error]:', err.message));
-  return true;
+  if (user?.subscription) {
+    user.subscription.cancelAtPeriodEnd = true;
+    user.subscription.status = 'cancelled';
+  }
+  try {
+    await prisma.userSubscription.update({
+      where: { userId },
+      data: { cancelAtPeriodEnd: true, status: 'cancelled' }
+    });
+    return true;
+  } catch (err) {
+    console.error('[Prisma Cancel Sub Error]:', err);
+    return false;
+  }
 }
 
-export function reactivateSubscription(userId: string): boolean {
+export async function reactivateSubscription(userId: string): Promise<boolean> {
   const user = users.get(userId);
-  if (!user || !user.subscription) return false;
-
-  user.subscription.cancelAtPeriodEnd = false;
-  user.subscription.status = 'active';
-  users.set(userId, user);
-  prisma.userSubscription.update({
-    where: { userId },
-    data: { cancelAtPeriodEnd: false, status: 'active' }
-  }).catch(err => console.warn('[Prisma Reactivate Sub Error]:', err.message));
-  return true;
+  if (user?.subscription) {
+    user.subscription.cancelAtPeriodEnd = false;
+    user.subscription.status = 'active';
+  }
+  try {
+    await prisma.userSubscription.update({
+      where: { userId },
+      data: { cancelAtPeriodEnd: false, status: 'active' }
+    });
+    return true;
+  } catch (err) {
+    console.error('[Prisma Reactivate Sub Error]:', err);
+    return false;
+  }
 }
 
-export function getUserInvoices(userId: string): Invoice[] {
-  return invoices.get(userId) || [];
+export async function getUserInvoices(userId: string): Promise<Invoice[]> {
+  try {
+    const pInvoices = await prisma.invoice.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
+    return pInvoices.map(inv => ({
+      id: inv.id,
+      invoiceNumber: inv.invoiceNumber,
+      date: inv.date,
+      amount: inv.amount,
+      planName: inv.planName,
+      status: inv.status as any,
+      downloadUrl: inv.downloadUrl || undefined,
+      paymentMethod: inv.paymentMethod
+    }));
+  } catch (err) {
+    console.error('[Prisma Invoices Error]:', err);
+    return invoices.get(userId) || [];
+  }
 }
 
 // PARENT REPOSITORY
-export function getParentsForUser(userId: string): ParentProfile[] {
-  ensureDemoDataSeeded();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapPrismaParent(p: any): ParentProfile {
+  const parentObj: ParentProfile = {
+    id: p.id,
+    userId: p.userId,
+    name: p.name,
+    relationship: p.relationship,
+    phone: p.phone,
+    language: p.language || 'Hindi & English',
+    timezone: p.timezone || 'Asia/Kolkata (IST)',
+    callTime: p.callTime || '08:15 AM',
+    callSchedule: p.callSchedule?.map((cs: any) => ({
+      id: cs.id,
+      time: cs.time,
+      slot: cs.slot,
+      label: cs.label,
+      linkedMedicineNames: cs.linkedMedicineNames || [],
+      linkedMedicines: cs.linkedMedicinesJson ? JSON.parse(cs.linkedMedicinesJson) : undefined,
+      isActive: cs.isActive
+    })),
+    isPaused: Boolean(p.isPaused),
+    pauseReason: p.pauseReason || undefined,
+    pauseUntil: p.pauseUntil ? new Date(p.pauseUntil).toISOString() : undefined,
+    consentGiven: Boolean(p.consentGiven),
+    consentDate: p.consentDate ? new Date(p.consentDate).toISOString() : new Date().toISOString(),
+    createdAt: p.createdAt ? new Date(p.createdAt).toISOString() : new Date().toISOString(),
+    isDeleted: Boolean(p.isDeleted)
+  };
+
+  parents.set(parentObj.id, parentObj);
+
+  if (p.medicines) {
+    const mappedMeds: Medicine[] = p.medicines.map((m: any) => ({
+      id: m.id,
+      parentId: parentObj.id,
+      name: m.name,
+      dosage: m.dosage,
+      timeOfDay: m.timeOfDay as any,
+      timingSlots: m.timingSlots as MedicineTimingSlot[],
+      foodRelation: m.foodRelation as FoodRelation,
+      frequency: m.frequency as any,
+      isActive: m.isActive
+    }));
+    medicines.set(parentObj.id, mappedMeds);
+  }
+
+  if (p.emergencyContacts) {
+    const mappedContacts: EmergencyContact[] = p.emergencyContacts.map((c: any) => ({
+      id: c.id,
+      parentId: parentObj.id,
+      name: c.name,
+      relation: c.relation,
+      phone: c.phone,
+      priority: c.priority as any
+    }));
+    contacts.set(parentObj.id, mappedContacts);
+  }
+
+  if (p.callLogs) {
+    const mappedCalls: CallLog[] = p.callLogs.map((cl: any) => ({
+      id: cl.id,
+      parentId: parentObj.id,
+      scheduledTime: cl.scheduledTime,
+      actualAnswerTime: cl.actualAnswerTime || undefined,
+      status: cl.status as any,
+      durationSeconds: cl.durationSeconds,
+      medicationConfirmed: Boolean(cl.medicationConfirmed),
+      mood: cl.mood as any,
+      summary: cl.summary,
+      notes: cl.notes || undefined
+    }));
+    calls.set(parentObj.id, mappedCalls);
+  }
+
+  if (p.alerts) {
+    const mappedAlerts: AlertRecord[] = p.alerts.map((al: any) => ({
+      id: al.id,
+      parentId: parentObj.id,
+      level: al.level as any,
+      title: al.title,
+      message: al.message,
+      channel: al.channel as any,
+      timestamp: al.timestamp,
+      status: al.status as any
+    }));
+    alerts.set(parentObj.id, mappedAlerts);
+  }
+
+  if (p.suggestions) {
+    const mappedSugg: ScheduleSuggestion[] = p.suggestions.map((sg: any) => ({
+      id: sg.id,
+      parentId: parentObj.id,
+      currentCallTime: sg.currentCallTime,
+      suggestedTime: sg.suggestedTime,
+      confidencePct: sg.confidencePct,
+      sampleSize: sg.sampleSize,
+      reason: sg.reason,
+      status: sg.status as any,
+      createdAt: sg.createdAt ? new Date(sg.createdAt).toISOString() : new Date().toISOString()
+    }));
+    suggestions.set(parentObj.id, mappedSugg);
+  }
+
+  if (p.caregivers) {
+    const mappedCg: CaregiverInvite[] = p.caregivers.map((cg: any) => ({
+      id: cg.id,
+      parentId: parentObj.id,
+      email: cg.email,
+      name: cg.name,
+      role: cg.role as any,
+      status: cg.status as any,
+      invitedAt: cg.invitedAt ? new Date(cg.invitedAt).toISOString() : new Date().toISOString()
+    }));
+    caregivers.set(parentObj.id, mappedCg);
+  }
+
+  return parentObj;
+}
+
+export async function getParentsForUser(userId: string): Promise<ParentProfile[]> {
+  try {
+    const prismaParents = await prisma.parentProfile.findMany({
+      where: { userId, isDeleted: false },
+      include: {
+        medicines: true,
+        emergencyContacts: true,
+        callSchedule: true,
+        callLogs: true,
+        alerts: true,
+        suggestions: true,
+        caregivers: true
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    if (prismaParents.length > 0) {
+      return prismaParents.map(mapPrismaParent);
+    }
+  } catch (err) {
+    console.error('[Prisma getParentsForUser Error]:', err);
+  }
+
   const list: ParentProfile[] = [];
   for (const p of parents.values()) {
     if (!p.isDeleted && p.userId === userId) {
@@ -495,13 +746,33 @@ export function getParentsForUser(userId: string): ParentProfile[] {
   return list;
 }
 
-export function getParentById(id: string): ParentProfile | null {
-  const p = parents.get(id);
-  if (!p || p.isDeleted) return null;
-  return p;
+export async function getParentById(id: string): Promise<ParentProfile | null> {
+  try {
+    const p = await prisma.parentProfile.findUnique({
+      where: { id },
+      include: {
+        medicines: true,
+        emergencyContacts: true,
+        callSchedule: true,
+        callLogs: true,
+        alerts: true,
+        suggestions: true,
+        caregivers: true
+      }
+    });
+    if (p && !p.isDeleted) {
+      return mapPrismaParent(p);
+    }
+  } catch (err) {
+    console.error('[Prisma getParentById Error]:', err);
+  }
+
+  const cached = parents.get(id);
+  if (!cached || cached.isDeleted) return null;
+  return cached;
 }
 
-export function createParent(data: {
+export async function createParent(data: {
   userId: string;
   name: string;
   relationship: string;
@@ -511,8 +782,11 @@ export function createParent(data: {
   callTime?: string;
   callSchedule?: ScheduledCallSlot[];
   consentGiven: boolean;
-}): ParentProfile {
+}): Promise<ParentProfile> {
   const id = 'parent_' + Math.random().toString(36).substring(2, 10);
+  const now = new Date();
+  const callTime = data.callTime || (data.callSchedule && data.callSchedule[0]?.time) || '08:15 AM';
+
   const newParent: ParentProfile = {
     id,
     userId: data.userId,
@@ -521,124 +795,517 @@ export function createParent(data: {
     phone: data.phone,
     language: data.language || 'Hindi & English',
     timezone: data.timezone || 'Asia/Kolkata (IST)',
-    callTime: data.callTime || (data.callSchedule && data.callSchedule[0]?.time) || '08:15 AM',
-    callSchedule: data.callSchedule || (data.callTime ? [{ id: 'slot_1', time: data.callTime, slot: 'morning', label: 'Daily Call', isActive: true }] : undefined),
+    callTime,
+    callSchedule: data.callSchedule || [{ id: 'slot_1', time: callTime, slot: 'morning', label: 'Daily Call', isActive: true }],
     isPaused: false,
     consentGiven: data.consentGiven,
-    consentDate: new Date().toISOString(),
-    createdAt: new Date().toISOString()
+    consentDate: now.toISOString(),
+    createdAt: now.toISOString()
   };
 
   parents.set(id, newParent);
-  syncParentToPrisma(newParent);
 
-  medicines.set(id, []);
-  contacts.set(id, []);
-  calls.set(id, []);
-  alerts.set(id, [
-    {
-      id: 'alt_' + Math.random().toString(36).substring(2, 8),
-      parentId: id,
-      level: 1,
-      title: 'Profile Created & Scheduled',
-      message: `Parent profile for ${data.name} created. First check-in call scheduled for tomorrow at ${newParent.callTime}.`,
-      channel: 'whatsapp',
-      timestamp: 'Just now',
-      status: 'sent'
+  try {
+    await prisma.parentProfile.create({
+      data: {
+        id,
+        userId: data.userId,
+        name: data.name,
+        relationship: data.relationship,
+        phone: data.phone,
+        language: newParent.language,
+        timezone: newParent.timezone,
+        callTime: newParent.callTime,
+        consentGiven: true,
+        consentDate: now,
+        callSchedule: {
+          create: (newParent.callSchedule || []).map(slot => ({
+            id: slot.id,
+            time: slot.time,
+            slot: slot.slot,
+            label: slot.label,
+            linkedMedicineNames: slot.linkedMedicineNames || [],
+            linkedMedicinesJson: slot.linkedMedicines ? JSON.stringify(slot.linkedMedicines) : undefined,
+            isActive: slot.isActive
+          }))
+        },
+        alerts: {
+          create: {
+            id: 'alt_' + Math.random().toString(36).substring(2, 8),
+            level: 1,
+            title: 'Profile Created & Scheduled',
+            message: `Parent profile for ${data.name} created. First check-in call scheduled for tomorrow at ${newParent.callTime}.`,
+            channel: 'whatsapp',
+            timestamp: 'Just now',
+            status: 'sent'
+          }
+        }
+      }
+    });
+  } catch (err) {
+    console.error('[Prisma Create Parent Error]:', err);
+  }
+
+  return newParent;
+}
+
+export async function updateParent(
+  id: string,
+  updates: Partial<ParentProfile>
+): Promise<ParentProfile | null> {
+  const p = await getParentById(id);
+  if (!p) return null;
+  const updated = { ...p, ...updates };
+  parents.set(id, updated);
+
+  try {
+    await prisma.parentProfile.update({
+      where: { id },
+      data: {
+        name: updates.name,
+        relationship: updates.relationship,
+        phone: updates.phone,
+        language: updates.language,
+        timezone: updates.timezone,
+        callTime: updates.callTime,
+        isPaused: updates.isPaused,
+        pauseReason: updates.pauseReason,
+        pauseUntil: updates.pauseUntil ? new Date(updates.pauseUntil) : undefined
+      }
+    });
+  } catch (err) {
+    console.error('[Prisma Update Parent Error]:', err);
+  }
+
+  return updated;
+}
+
+export async function pauseParentCalls(
+  id: string,
+  isPaused: boolean,
+  pauseReason?: string,
+  pauseUntil?: string
+): Promise<ParentProfile | null> {
+  return updateParent(id, { isPaused, pauseReason, pauseUntil });
+}
+
+export async function deleteParentSoft(id: string): Promise<boolean> {
+  const p = parents.get(id);
+  if (p) p.isDeleted = true;
+  parents.delete(id);
+
+  try {
+    await prisma.parentProfile.update({
+      where: { id },
+      data: { isDeleted: true }
+    });
+    return true;
+  } catch (err) {
+    console.error('[Prisma Delete Parent Error]:', err);
+    return false;
+  }
+}
+
+// MEDICINES
+export async function getMedicinesForParent(parentId: string): Promise<Medicine[]> {
+  try {
+    const pMeds = await prisma.medicine.findMany({
+      where: { parentId, isActive: true },
+      orderBy: { createdAt: 'asc' }
+    });
+    if (pMeds.length > 0) {
+      const mapped = pMeds.map(m => ({
+        id: m.id,
+        parentId,
+        name: m.name,
+        dosage: m.dosage,
+        timeOfDay: m.timeOfDay as any,
+        timingSlots: m.timingSlots as MedicineTimingSlot[],
+        foodRelation: m.foodRelation as FoodRelation,
+        frequency: m.frequency as any,
+        isActive: m.isActive
+      }));
+      medicines.set(parentId, mapped);
+      return mapped;
     }
-  ]);
-  suggestions.set(id, []);
-  caregivers.set(id, []);
-  notifPrefs.set(id, {
+  } catch (err) {
+    console.error('[Prisma getMedicines Error]:', err);
+  }
+
+  return medicines.get(parentId) || [];
+}
+
+export async function setMedicinesForParent(parentId: string, meds: Medicine[]): Promise<Medicine[]> {
+  medicines.set(parentId, meds);
+
+  try {
+    for (const med of meds) {
+      await prisma.medicine.upsert({
+        where: { id: med.id },
+        create: {
+          id: med.id,
+          parentId,
+          name: med.name,
+          dosage: med.dosage,
+          timeOfDay: med.timeOfDay,
+          timingSlots: med.timingSlots || [],
+          foodRelation: med.foodRelation || 'not_specified',
+          frequency: med.frequency || 'daily',
+          isActive: med.isActive
+        },
+        update: {
+          name: med.name,
+          dosage: med.dosage,
+          timeOfDay: med.timeOfDay,
+          timingSlots: med.timingSlots || [],
+          foodRelation: med.foodRelation || 'not_specified',
+          frequency: med.frequency || 'daily',
+          isActive: med.isActive
+        }
+      });
+    }
+  } catch (err) {
+    console.error('[Prisma setMedicines Error]:', err);
+  }
+
+  return meds;
+}
+
+export async function addMedicine(parentId: string, medData: Omit<Medicine, 'id' | 'parentId'>): Promise<Medicine> {
+  const id = 'med_' + Math.random().toString(36).substring(2, 9);
+  const newMed: Medicine = {
+    id,
+    parentId,
+    ...medData
+  };
+
+  const current = medicines.get(parentId) || [];
+  current.push(newMed);
+  medicines.set(parentId, current);
+
+  try {
+    await prisma.medicine.create({
+      data: {
+        id,
+        parentId,
+        name: medData.name,
+        dosage: medData.dosage,
+        timeOfDay: medData.timeOfDay,
+        timingSlots: medData.timingSlots || [],
+        foodRelation: medData.foodRelation || 'not_specified',
+        frequency: medData.frequency || 'daily',
+        isActive: true
+      }
+    });
+  } catch (err) {
+    console.error('[Prisma Add Medicine Error]:', err);
+  }
+
+  return newMed;
+}
+
+export async function toggleMedicineStatus(parentId: string, medicineId: string): Promise<Medicine | null> {
+  const current = medicines.get(parentId) || (await getMedicinesForParent(parentId));
+  const med = current.find(m => m.id === medicineId);
+  if (!med) return null;
+
+  med.isActive = !med.isActive;
+  medicines.set(parentId, current);
+
+  try {
+    await prisma.medicine.update({
+      where: { id: medicineId },
+      data: { isActive: med.isActive }
+    });
+  } catch (err) {
+    console.error('[Prisma Toggle Medicine Error]:', err);
+  }
+
+  return med;
+}
+
+// EMERGENCY CONTACTS
+export async function getEmergencyContacts(parentId: string): Promise<EmergencyContact[]> {
+  try {
+    const list = await prisma.emergencyContact.findMany({ where: { parentId } });
+    if (list.length > 0) {
+      const mapped = list.map(c => ({
+        id: c.id,
+        parentId,
+        name: c.name,
+        relation: c.relation,
+        phone: c.phone,
+        priority: c.priority as any
+      }));
+      contacts.set(parentId, mapped);
+      return mapped;
+    }
+  } catch (err) {
+    console.error('[Prisma Contacts Error]:', err);
+  }
+  return contacts.get(parentId) || [];
+}
+
+export async function setEmergencyContacts(parentId: string, list: EmergencyContact[]): Promise<EmergencyContact[]> {
+  contacts.set(parentId, list);
+  try {
+    for (const c of list) {
+      await prisma.emergencyContact.upsert({
+        where: { id: c.id },
+        create: {
+          id: c.id,
+          parentId,
+          name: c.name,
+          relation: c.relation,
+          phone: c.phone,
+          priority: c.priority
+        },
+        update: {
+          name: c.name,
+          relation: c.relation,
+          phone: c.phone,
+          priority: c.priority
+        }
+      });
+    }
+  } catch (err) {
+    console.error('[Prisma setContacts Error]:', err);
+  }
+  return list;
+}
+
+// CALL LOGS
+export async function getCallLogsForParent(parentId: string): Promise<CallLog[]> {
+  try {
+    const list = await prisma.callLog.findMany({
+      where: { parentId },
+      orderBy: { createdAt: 'desc' }
+    });
+    if (list.length > 0) {
+      const mapped = list.map(cl => ({
+        id: cl.id,
+        parentId,
+        scheduledTime: cl.scheduledTime,
+        actualAnswerTime: cl.actualAnswerTime || undefined,
+        status: cl.status as any,
+        durationSeconds: cl.durationSeconds,
+        medicationConfirmed: Boolean(cl.medicationConfirmed),
+        mood: cl.mood as any,
+        summary: cl.summary,
+        notes: cl.notes || undefined
+      }));
+      calls.set(parentId, mapped);
+      return mapped;
+    }
+  } catch (err) {
+    console.error('[Prisma CallLogs Error]:', err);
+  }
+  return calls.get(parentId) || [];
+}
+
+export async function addCallLog(parentId: string, log: Omit<CallLog, 'id' | 'parentId'>): Promise<CallLog> {
+  const id = 'call_' + Math.random().toString(36).substring(2, 9);
+  const newLog: CallLog = {
+    id,
+    parentId,
+    ...log
+  };
+
+  const current = calls.get(parentId) || [];
+  current.unshift(newLog);
+  calls.set(parentId, current);
+
+  try {
+    await prisma.callLog.create({
+      data: {
+        id,
+        parentId,
+        scheduledTime: log.scheduledTime,
+        actualAnswerTime: log.actualAnswerTime,
+        status: log.status,
+        durationSeconds: log.durationSeconds,
+        medicationConfirmed: log.medicationConfirmed,
+        mood: log.mood,
+        summary: log.summary,
+        notes: log.notes
+      }
+    });
+  } catch (err) {
+    console.error('[Prisma addCallLog Error]:', err);
+  }
+
+  return newLog;
+}
+
+// SCHEDULE SUGGESTIONS
+export async function getScheduleSuggestionsForParent(parentId: string): Promise<ScheduleSuggestion[]> {
+  try {
+    const list = await prisma.scheduleSuggestion.findMany({ where: { parentId } });
+    if (list.length > 0) {
+      const mapped = list.map(sg => ({
+        id: sg.id,
+        parentId,
+        currentCallTime: sg.currentCallTime,
+        suggestedTime: sg.suggestedTime,
+        confidencePct: sg.confidencePct,
+        sampleSize: sg.sampleSize,
+        reason: sg.reason,
+        status: sg.status as any,
+        createdAt: sg.createdAt.toISOString()
+      }));
+      suggestions.set(parentId, mapped);
+      return mapped;
+    }
+  } catch (err) {
+    console.error('[Prisma Suggestions Error]:', err);
+  }
+  return suggestions.get(parentId) || [];
+}
+
+export async function updateScheduleSuggestionStatus(
+  parentId: string,
+  suggestionId: string,
+  status: 'accepted' | 'dismissed'
+): Promise<{ success: boolean; updatedCallTime?: string }> {
+  try {
+    const item = await prisma.scheduleSuggestion.findUnique({ where: { id: suggestionId } });
+    if (!item) return { success: false };
+
+    await prisma.scheduleSuggestion.update({
+      where: { id: suggestionId },
+      data: { status }
+    });
+
+    if (status === 'accepted') {
+      await prisma.parentProfile.update({
+        where: { id: parentId },
+        data: { callTime: item.suggestedTime }
+      });
+      return { success: true, updatedCallTime: item.suggestedTime };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('[Prisma Update Suggestion Error]:', err);
+    return { success: false };
+  }
+}
+
+// ALERTS
+export async function getAlertsForParent(parentId: string): Promise<AlertRecord[]> {
+  try {
+    const list = await prisma.alertRecord.findMany({
+      where: { parentId },
+      orderBy: { createdAt: 'desc' }
+    });
+    if (list.length > 0) {
+      const mapped = list.map(al => ({
+        id: al.id,
+        parentId,
+        level: al.level as any,
+        title: al.title,
+        message: al.message,
+        channel: al.channel as any,
+        timestamp: al.timestamp,
+        status: al.status as any
+      }));
+      alerts.set(parentId, mapped);
+      return mapped;
+    }
+  } catch (err) {
+    console.error('[Prisma Alerts Error]:', err);
+  }
+  return alerts.get(parentId) || [];
+}
+
+// CAREGIVERS
+export async function getCaregiversForParent(parentId: string): Promise<CaregiverInvite[]> {
+  try {
+    const list = await prisma.caregiverInvite.findMany({ where: { parentId } });
+    if (list.length > 0) {
+      const mapped = list.map(cg => ({
+        id: cg.id,
+        parentId,
+        email: cg.email,
+        name: cg.name,
+        role: cg.role as any,
+        status: cg.status as any,
+        invitedAt: cg.invitedAt.toISOString()
+      }));
+      caregivers.set(parentId, mapped);
+      return mapped;
+    }
+  } catch (err) {
+    console.error('[Prisma Caregivers Error]:', err);
+  }
+  return caregivers.get(parentId) || [];
+}
+
+export async function inviteCaregiver(parentId: string, email: string, name: string, role: 'viewer' | 'co_manager'): Promise<CaregiverInvite> {
+  const id = 'cg_' + Math.random().toString(36).substring(2, 9);
+  const now = new Date();
+  const newInvite: CaregiverInvite = {
+    id,
+    parentId,
+    email,
+    name,
+    role,
+    status: 'pending',
+    invitedAt: now.toISOString()
+  };
+
+  const list = caregivers.get(parentId) || [];
+  list.push(newInvite);
+  caregivers.set(parentId, list);
+
+  try {
+    await prisma.caregiverInvite.create({
+      data: {
+        id,
+        parentId,
+        email,
+        name,
+        role,
+        status: 'pending',
+        invitedAt: now
+      }
+    });
+  } catch (err) {
+    console.error('[Prisma inviteCaregiver Error]:', err);
+  }
+
+  return newInvite;
+}
+
+// NOTIFICATION PREFERENCES
+export async function getNotificationPreferences(userIdOrParentId: string): Promise<NotificationPreferences> {
+  try {
+    const pref = await prisma.notificationPreferences.findUnique({
+      where: { userId: userIdOrParentId }
+    });
+    if (pref) {
+      return {
+        whatsapp: Boolean(pref.whatsapp),
+        sms: Boolean(pref.sms),
+        email: Boolean(pref.email),
+        push: Boolean(pref.push),
+        minimumAlertLevel: pref.minimumAlertLevel
+      };
+    }
+  } catch (err) {
+    console.error('[Prisma getNotifPrefs Error]:', err);
+  }
+
+  return notifPrefs.get(userIdOrParentId) || {
     whatsapp: true,
     sms: true,
     email: true,
     push: false,
     minimumAlertLevel: 1
-  });
-
-  return newParent;
-}
-
-export function updateParent(
-  id: string,
-  updates: Partial<ParentProfile>
-): ParentProfile | null {
-  const p = parents.get(id);
-  if (!p) return null;
-  const updated = { ...p, ...updates };
-  parents.set(id, updated);
-  syncParentToPrisma(updated);
-  return updated;
-}
-
-export function pauseParentCalls(
-  id: string,
-  isPaused: boolean,
-  pauseReason?: string,
-  pauseUntil?: string
-): ParentProfile | null {
-  const p = parents.get(id);
-  if (!p) return null;
-  p.isPaused = isPaused;
-  p.pauseReason = pauseReason;
-  p.pauseUntil = pauseUntil;
-  parents.set(id, p);
-  syncParentToPrisma(p);
-  return p;
-}
-
-export function deleteParentSoft(id: string): boolean {
-  const p = parents.get(id);
-  if (!p) return false;
-  p.isDeleted = true;
-  parents.delete(id);
-  medicines.delete(id);
-  contacts.delete(id);
-  calls.delete(id);
-  alerts.delete(id);
-  suggestions.delete(id);
-  caregivers.delete(id);
-  notifPrefs.delete(id);
-
-  prisma.parentProfile.delete({ where: { id } }).catch(err => console.warn('[Prisma Delete Parent Error]:', err.message));
-  return true;
-}
-
-// MEDICINES REPOSITORY
-export function getMedicinesForParent(parentId: string): Medicine[] {
-  return medicines.get(parentId) || [];
-}
-
-export function setMedicinesForParent(parentId: string, meds: Medicine[]): Medicine[] {
-  medicines.set(parentId, meds);
-  meds.forEach(m => syncMedicineToPrisma(parentId, m));
-  return meds;
-}
-
-export function addMedicine(parentId: string, medData: Omit<Medicine, 'id' | 'parentId'>): Medicine {
-  const current = medicines.get(parentId) || [];
-  const newMed: Medicine = {
-    id: 'med_' + Math.random().toString(36).substring(2, 9),
-    parentId,
-    ...medData
   };
-  current.push(newMed);
-  medicines.set(parentId, current);
-  syncMedicineToPrisma(parentId, newMed);
-  return newMed;
 }
 
-export function toggleMedicineStatus(parentId: string, medicineId: string): Medicine | null {
-  const current = medicines.get(parentId) || [];
-  const med = current.find(m => m.id === medicineId);
-  if (!med) return null;
-  med.isActive = !med.isActive;
-  medicines.set(parentId, current);
-  return med;
-}
-
-// MEDICINE REPORTS & AI EXTRACTION AUDIT
+// MEDICINE REPORTS
 export function createMedicineReport(reportData: {
   parentId?: string;
   userId?: string;
@@ -693,115 +1360,3 @@ export function confirmMedicineReport(
   medicineReports.set(reportId, r);
   return r;
 }
-
-// EMERGENCY CONTACTS
-export function getEmergencyContacts(parentId: string): EmergencyContact[] {
-  return contacts.get(parentId) || [];
-}
-
-export function setEmergencyContacts(parentId: string, list: EmergencyContact[]): EmergencyContact[] {
-  contacts.set(parentId, list);
-  return list;
-}
-
-export function addEmergencyContact(parentId: string, contactData: Omit<EmergencyContact, 'id' | 'parentId'>): EmergencyContact {
-  const current = contacts.get(parentId) || [];
-  const newContact: EmergencyContact = {
-    id: 'emg_' + Math.random().toString(36).substring(2, 9),
-    parentId,
-    ...contactData
-  };
-  current.push(newContact);
-  contacts.set(parentId, current);
-  return newContact;
-}
-
-// CALL LOGS
-export function getCallLogsForParent(parentId: string): CallLog[] {
-  return calls.get(parentId) || [];
-}
-
-export function addCallLog(parentId: string, log: Omit<CallLog, 'id' | 'parentId'>): CallLog {
-  const current = calls.get(parentId) || [];
-  const newLog: CallLog = {
-    id: 'call_' + Math.random().toString(36).substring(2, 9),
-    parentId,
-    ...log
-  };
-  current.unshift(newLog);
-  calls.set(parentId, current);
-  return newLog;
-}
-
-// SCHEDULE SUGGESTIONS
-export function getScheduleSuggestionsForParent(parentId: string): ScheduleSuggestion[] {
-  return suggestions.get(parentId) || [];
-}
-
-export function updateScheduleSuggestionStatus(
-  parentId: string,
-  suggestionId: string,
-  status: 'accepted' | 'dismissed'
-): { success: boolean; updatedCallTime?: string } {
-  const list = suggestions.get(parentId) || [];
-  const item = list.find(s => s.id === suggestionId);
-  if (!item) return { success: false };
-
-  item.status = status;
-  suggestions.set(parentId, list);
-
-  if (status === 'accepted') {
-    const parent = parents.get(parentId);
-    if (parent) {
-      parent.callTime = item.suggestedTime;
-      parents.set(parentId, parent);
-      return { success: true, updatedCallTime: item.suggestedTime };
-    }
-  }
-
-  return { success: true };
-}
-
-// ALERTS
-export function getAlertsForParent(parentId: string): AlertRecord[] {
-  return alerts.get(parentId) || [];
-}
-
-// CAREGIVERS
-export function getCaregiversForParent(parentId: string): CaregiverInvite[] {
-  return caregivers.get(parentId) || [];
-}
-
-export function inviteCaregiver(parentId: string, email: string, name: string, role: 'viewer' | 'co_manager'): CaregiverInvite {
-  const list = caregivers.get(parentId) || [];
-  const newInvite: CaregiverInvite = {
-    id: 'cg_' + Math.random().toString(36).substring(2, 9),
-    parentId,
-    email,
-    name,
-    role,
-    status: 'pending',
-    invitedAt: new Date().toISOString()
-  };
-  list.push(newInvite);
-  caregivers.set(parentId, list);
-  return newInvite;
-}
-
-// NOTIFICATION PREFERENCES
-export function getNotificationPreferences(parentId: string): NotificationPreferences {
-  return notifPrefs.get(parentId) || {
-    whatsapp: true,
-    sms: true,
-    email: true,
-    push: false,
-    minimumAlertLevel: 1
-  };
-}
-
-export function updateNotificationPreferences(parentId: string, prefs: NotificationPreferences): NotificationPreferences {
-  notifPrefs.set(parentId, prefs);
-  return prefs;
-}
-
-

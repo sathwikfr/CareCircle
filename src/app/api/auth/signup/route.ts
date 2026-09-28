@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getUserByEmail, getUserByPhone, createUser } from '@/lib/db';
 import { hashPassword, AUTH_COOKIE_NAME } from '@/lib/auth';
+import { createDBSession } from '@/lib/security';
 
 export async function POST(req: Request) {
   try {
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const existing = getUserByEmail(email);
+    const existing = await getUserByEmail(email);
     if (existing) {
       return NextResponse.json(
         {
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
 
     const cleanPhone = phone ? phone.replace(/\D/g, '') : '';
     if (cleanPhone && cleanPhone.length >= 10) {
-      const existingPhone = getUserByPhone(cleanPhone);
+      const existingPhone = await getUserByPhone(cleanPhone);
       if (existingPhone) {
         return NextResponse.json(
           {
@@ -55,7 +56,7 @@ export async function POST(req: Request) {
       passwordHash = await hashPassword(password);
     }
 
-    const user = createUser({
+    const user = await createUser({
       name: name.trim(),
       email: email.trim(),
       phone: phone || '+91 98000 00000',
@@ -63,8 +64,7 @@ export async function POST(req: Request) {
       planId: planId || undefined
     });
 
-    const { createDBSession } = await import('@/lib/security');
-    const session = createDBSession(user.id, true);
+    const session = await createDBSession(user.id, true);
 
     // Send Welcome & Verification Email
     const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';

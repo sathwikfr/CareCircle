@@ -15,7 +15,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const invoices = getUserInvoices(user.id);
+  const invoices = await getUserInvoices(user.id);
   const currentPlan = user.subscription?.planId ? PLANS[user.subscription.planId] : null;
 
   return NextResponse.json({
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     const { action, newPlanId, reason } = await req.json();
 
     if (action === 'cancel') {
-      const ok = cancelSubscription(user.id);
+      const ok = await cancelSubscription(user.id);
       console.log(`User ${user.id} cancelled subscription. Reason: ${reason || 'Not specified'}`);
 
       // Dispatch Cancellation Email
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     }
 
     if (action === 'reactivate') {
-      const ok = reactivateSubscription(user.id);
+      const ok = await reactivateSubscription(user.id);
       return NextResponse.json({
         success: ok,
         message: 'Your subscription has been successfully reactivated.'
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Invalid plan selected' }, { status: 400 });
       }
 
-      const updated = updateUserSubscription(user.id, {
+      const updated = await updateUserSubscription(user.id, {
         planId: newPlanId as PlanId,
         paymentMethodBrand: user.subscription?.paymentMethodBrand || 'UPI AutoPay',
         paymentMethodLast4: user.subscription?.paymentMethodLast4 || '4242'

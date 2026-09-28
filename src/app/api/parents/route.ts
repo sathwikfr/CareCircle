@@ -13,7 +13,7 @@ export async function GET() {
   const user = await getSessionUser();
   const userId = user?.id || 'usr_demo_123';
 
-  const list = getParentsForUser(userId);
+  const list = await getParentsForUser(userId);
   const plan = user?.subscription?.planId ? PLANS[user.subscription.planId] : PLANS.family;
 
   return NextResponse.json({
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     }
 
     // Check plan limits
-    const existing = getParentsForUser(user.id);
+    const existing = await getParentsForUser(user.id);
     const plan = user.subscription?.planId ? PLANS[user.subscription.planId] : PLANS.free;
     if (existing.length >= plan.parentsIncluded) {
       return NextResponse.json(
@@ -73,7 +73,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const parent = createParent({
+    const parent = await createParent({
       userId: user.id,
       name: name.trim(),
       relationship: relationship || 'Mother',
@@ -96,7 +96,7 @@ export async function POST(req: Request) {
         frequency: m.frequency || 'daily',
         isActive: true
       }));
-      setMedicinesForParent(parent.id, formattedMeds);
+      await setMedicinesForParent(parent.id, formattedMeds);
     }
 
     // Add emergency contacts if provided
@@ -109,10 +109,10 @@ export async function POST(req: Request) {
         phone: c.phone || user.phone,
         priority: i === 0 ? 'primary' : 'secondary'
       }));
-      setEmergencyContacts(parent.id, formattedContacts);
+      await setEmergencyContacts(parent.id, formattedContacts);
     } else {
       // Default to user as primary emergency contact
-      setEmergencyContacts(parent.id, [
+      await setEmergencyContacts(parent.id, [
         {
           id: 'emg_default_' + parent.id,
           parentId: parent.id,

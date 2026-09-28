@@ -28,7 +28,7 @@ export async function GET(
   }
 
   const { id } = await params;
-  const parent = getParentById(id);
+  const parent = await getParentById(id);
   if (!parent) {
     return NextResponse.json({ error: 'Parent profile not found.' }, { status: 404 });
   }
@@ -38,13 +38,13 @@ export async function GET(
     return NextResponse.json({ error: 'Forbidden: You do not have permission to access this parent profile.' }, { status: 403 });
   }
 
-  const medicines = getMedicinesForParent(id);
-  const emergencyContacts = getEmergencyContacts(id);
-  const callLogs = getCallLogsForParent(id);
-  const alerts = getAlertsForParent(id);
-  const suggestions = getScheduleSuggestionsForParent(id);
-  const caregivers = getCaregiversForParent(id);
-  const notifPrefs = getNotificationPreferences(id);
+  const medicines = await getMedicinesForParent(id);
+  const emergencyContacts = await getEmergencyContacts(id);
+  const callLogs = await getCallLogsForParent(id);
+  const alerts = await getAlertsForParent(id);
+  const suggestions = await getScheduleSuggestionsForParent(id);
+  const caregivers = await getCaregiversForParent(id);
+  const notifPrefs = await getNotificationPreferences(id);
 
   return NextResponse.json({
     parent,
@@ -68,7 +68,7 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const parent = getParentById(id);
+  const parent = await getParentById(id);
   if (!parent) {
     return NextResponse.json({ error: 'Parent profile not found.' }, { status: 404 });
   }
@@ -82,22 +82,22 @@ export async function PATCH(
   const { action, updates, pauseReason, pauseUntil } = body;
 
   if (action === 'pause') {
-    const updated = pauseParentCalls(id, true, pauseReason || 'Travel / Vacation', pauseUntil);
+    const updated = await pauseParentCalls(id, true, pauseReason || 'Travel / Vacation', pauseUntil);
     return NextResponse.json({ success: true, parent: updated, message: 'Calls paused successfully.' });
   }
 
   if (action === 'resume') {
-    const updated = pauseParentCalls(id, false);
+    const updated = await pauseParentCalls(id, false);
     return NextResponse.json({ success: true, parent: updated, message: 'Calls resumed successfully.' });
   }
 
   if (action === 'delete') {
-    deleteParentSoft(id);
+    await deleteParentSoft(id);
     return NextResponse.json({ success: true, message: 'Parent profile archived safely. Past call logs remain exported.' });
   }
 
   if (action === 'update' && updates) {
-    const updated = updateParent(id, updates);
+    const updated = await updateParent(id, updates);
     return NextResponse.json({ success: true, parent: updated, message: 'Parent settings updated.' });
   }
 
@@ -114,7 +114,7 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const parent = getParentById(id);
+  const parent = await getParentById(id);
   if (!parent) {
     return NextResponse.json({ error: 'Parent profile not found.' }, { status: 404 });
   }
@@ -123,6 +123,6 @@ export async function DELETE(
     return NextResponse.json({ error: 'Forbidden: You do not have permission to delete this parent profile.' }, { status: 403 });
   }
 
-  deleteParentSoft(id);
+  await deleteParentSoft(id);
   return NextResponse.json({ success: true, message: 'Parent profile permanently removed.' });
 }

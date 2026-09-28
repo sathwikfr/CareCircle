@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { User } from './types';
 import { getDBSession } from './security';
+import { getUserById } from './db';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'carecircle-secret-key-development-secure-token-2025';
 export const AUTH_COOKIE_NAME = 'carecircle_session';
@@ -34,20 +35,18 @@ export async function getSessionUser(): Promise<User | null> {
     const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
     if (!token) return null;
 
-    const { getUserById } = await import('./db');
-
     // 1. Check DB-backed session token
     if (token.startsWith('sess_')) {
-      const dbSession = getDBSession(token);
+      const dbSession = await getDBSession(token);
       if (!dbSession) return null; // Revoked or expired session
-      return getUserById(dbSession.userId);
+      return await getUserById(dbSession.userId);
     }
 
     // 2. Check JWT token
     const payload = verifyToken(token);
     if (!payload) return null;
 
-    return getUserById(payload.userId);
+    return await getUserById(payload.userId);
   } catch {
     return null;
   }

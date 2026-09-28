@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 
     // 1. Strict Existence Check for Login
     if (purpose === 'login') {
-      const existingUser = getUserByPhone(cleanPhone);
+      const existingUser = await getUserByPhone(cleanPhone);
       if (!existingUser) {
         return NextResponse.json(
           {
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       }
 
       // Success: Create DB Session
-      const session = createDBSession(existingUser.id, rememberMe);
+      const session = await createDBSession(existingUser.id, rememberMe);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { passwordHash, ...user } = existingUser;
 
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
 
     // 2. Signup Verification
     if (purpose === 'signup') {
-      const existingUser = getUserByPhone(cleanPhone);
+      const existingUser = await getUserByPhone(cleanPhone);
       if (existingUser) {
         return NextResponse.json(
           { error: 'An account with this mobile number already exists. Please log in instead.' },
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
       }
 
       // Create new user (Sign up action only)
-      const newUser = createUser({
+      const newUser = await createUser({
         name: name || 'Caregiver',
         email: `${cleanPhone}@carecircle.user`,
         phone: `+91 ${cleanPhone}`,
@@ -80,7 +80,7 @@ export async function POST(req: Request) {
       });
       newUser.phoneVerified = true;
 
-      const session = createDBSession(newUser.id, rememberMe);
+      const session = await createDBSession(newUser.id, rememberMe);
 
       const response = NextResponse.json({
         success: true,

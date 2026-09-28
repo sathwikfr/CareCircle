@@ -19,7 +19,7 @@ export async function POST(
     return NextResponse.json({ error: 'Medicine name is required' }, { status: 400 });
   }
 
-  const newMed = addMedicine(id, {
+  const newMed = await addMedicine(id, {
     name: name.trim(),
     dosage: dosage || '1 tablet',
     timeOfDay: timeOfDay || 'morning',
@@ -44,7 +44,7 @@ export async function PATCH(
   const { id } = await params;
   const { medicineId } = await req.json();
 
-  const updated = toggleMedicineStatus(id, medicineId);
+  const updated = await toggleMedicineStatus(id, medicineId);
   if (!updated) {
     return NextResponse.json({ error: 'Medicine not found' }, { status: 404 });
   }

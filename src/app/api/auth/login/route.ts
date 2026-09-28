@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getUserByEmailOrPhone } from '@/lib/db';
-import { comparePassword, AUTH_COOKIE_NAME } from '@/lib/auth';
+import { getUserByEmailOrPhone, updateUserPasswordHash } from '@/lib/db';
+import { comparePassword, hashPassword, AUTH_COOKIE_NAME } from '@/lib/auth';
 import {
   checkRateLimit,
   recordFailedAttempt,
@@ -37,8 +37,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2. Strict Account Existence Check: NEVER create user on login!
-    const userWithHash = getUserByEmailOrPhone(cleanIdentifier);
+    // 2. Strict Account Existence Check: Verified directly against Supabase PostgreSQL / Prisma
+    const userWithHash = await getUserByEmailOrPhone(cleanIdentifier);
     if (!userWithHash) {
       recordFailedAttempt(rateLimitKey);
       return NextResponse.json(
@@ -55,10 +55,8 @@ export async function POST(req: Request) {
     // 3. Verify Password
     if (!userWithHash.passwordHash) {
       if (process.env.NODE_ENV !== 'production' && password) {
-        const { hashPassword } = await import('@/lib/auth');
-        const { updateUserPasswordHash } = await import('@/lib/db');
         const newHash = await hashPassword(password);
-        updateUserPasswordHash(userWithHash.id, newHash);
+        await updateUserPasswordHash(userWithHash.id, newHash);
         userWithHash.passwordHash = newHash;
       } else {
         return NextResponse.json(
@@ -90,7 +88,7 @@ export async function POST(req: Request) {
     // 4. Success: Clear rate limit, create database-backed session
     clearRateLimit(rateLimitKey);
 
-    const session = createDBSession(userWithHash.id, rememberMe);
+    const session = await createDBSession(userWithHash.id, rememberMe);
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, ...user } = userWithHash;
