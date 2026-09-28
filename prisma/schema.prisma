@@ -1,0 +1,280 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                      String                  @id @default(uuid())
+  name                    String
+  email                   String                  @unique
+  phone                   String?
+  avatar                  String?
+  passwordHash            String?
+  emailVerified           Boolean                 @default(false)
+  phoneVerified           Boolean                 @default(false)
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+
+  subscription            UserSubscription?
+  notificationPreferences NotificationPreferences?
+  sessions                DBSession[]
+  parents                 ParentProfile[]
+  invoices                Invoice[]
+  medicineReports         MedicineReport[]
+}
+
+model DBSession {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  rememberMe Boolean  @default(true)
+  revoked    Boolean  @default(false)
+
+  @@index([userId])
+}
+
+model OTPRecord {
+  id        String   @id @default(uuid())
+  phone     String
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  purpose   String   @default("login")
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+}
+
+model PasswordResetRecord {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model OAuthAccount {
+  id        String   @id @default(uuid())
+  userId    String
+  provider  String   @default("google")
+  email     String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model UserSubscription {
+  id                     String    @id @default(uuid())
+  userId                 String    @unique
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId                 String    @default("family")
+  status                 String    @default("trialing") // trialing, active, past_due, cancelled, free
+  startDate              DateTime  @default(now())
+  trialEndsAt            DateTime?
+  currentPeriodEnd       DateTime
+  cancelAtPeriodEnd      Boolean   @default(false)
+  amount                 Int       @default(399)
+  paymentMethodLast4     String?
+  paymentMethodBrand     String?
+  razorpaySubscriptionId String?
+  razorpayPaymentId      String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+}
+
+model Invoice {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoiceNumber String
+  date          String
+  amount        Int
+  planName      String
+  status        String   @default("paid")
+  downloadUrl   String?
+  paymentMethod String
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+}
+
+model ParentProfile {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  relationship String
+  phone        String
+  language     String   @default("Hindi & English")
+  timezone     String   @default("Asia/Kolkata (IST)")
+  callTime     String   @default("09:00 AM")
+  isPaused     Boolean  @default(false)
+  pauseReason  String?
+  pauseUntil   DateTime?
+  consentGiven Boolean  @default(true)
+  consentDate  DateTime @default(now())
+  isDeleted    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  callSchedule      ScheduledCallSlot[]
+  medicines         Medicine[]
+  emergencyContacts EmergencyContact[]
+  callLogs          CallLog[]
+  alerts            AlertRecord[]
+  suggestions       ScheduleSuggestion[]
+  caregivers        CaregiverInvite[]
+  medicineReports   MedicineReport[]
+
+  @@index([userId])
+}
+
+model ScheduledCallSlot {
+  id                  String        @id @default(uuid())
+  parentId            String
+  parent              ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  time                String
+  slot                String        // morning, afternoon, evening, bedtime, wellness, custom
+  label               String
+  linkedMedicineNames String[]
+  linkedMedicinesJson String?       // Serialized JSON for LinkedMedicineDetail[]
+  isActive            Boolean       @default(true)
+  createdAt           DateTime      @default(now())
+
+  @@index([parentId])
+}
+
+model Medicine {
+  id           String        @id @default(uuid())
+  parentId     String
+  parent       ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  name         String
+  dosage       String
+  timeOfDay    String        @default("morning")
+  timingSlots  String[]
+  foodRelation String        @default("not_specified")
+  frequency    String        @default("daily")
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([parentId])
+}
+
+model EmergencyContact {
+  id        String        @id @default(uuid())
+  parentId  String
+  parent    ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  name      String
+  relation  String
+  phone     String
+  priority  String        @default("primary")
+  createdAt DateTime      @default(now())
+
+  @@index([parentId])
+}
+
+model CallLog {
+  id                  String        @id @default(uuid())
+  parentId            String
+  parent              ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  scheduledTime       String
+  actualAnswerTime    String?
+  status              String        @default("scheduled")
+  durationSeconds     Int           @default(0)
+  medicationConfirmed Boolean       @default(false)
+  mood                String        @default("cheerful")
+  summary             String
+  notes               String?
+  createdAt           DateTime      @default(now())
+
+  @@index([parentId])
+}
+
+model AlertRecord {
+  id        String        @id @default(uuid())
+  parentId  String
+  parent    ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  level     Int           @default(1)
+  title     String
+  message   String
+  channel   String        @default("whatsapp")
+  timestamp String
+  status    String        @default("sent")
+  createdAt DateTime      @default(now())
+
+  @@index([parentId])
+}
+
+model ScheduleSuggestion {
+  id              String        @id @default(uuid())
+  parentId        String
+  parent          ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  currentCallTime String
+  suggestedTime   String
+  confidencePct   Int           @default(90)
+  sampleSize      Int           @default(7)
+  reason          String
+  status          String        @default("pending")
+  createdAt       DateTime      @default(now())
+
+  @@index([parentId])
+}
+
+model CaregiverInvite {
+  id        String        @id @default(uuid())
+  parentId  String
+  parent    ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  email     String
+  name      String
+  role      String        @default("viewer")
+  status    String        @default("pending")
+  invitedAt DateTime      @default(now())
+
+  @@index([parentId])
+}
+
+model NotificationPreferences {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  whatsapp           Boolean  @default(true)
+  sms                Boolean  @default(true)
+  email              Boolean  @default(true)
+  push               Boolean  @default(false)
+  minimumAlertLevel  Int      @default(1)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model MedicineReport {
+  id                    String         @id @default(uuid())
+  parentId              String?
+  parent                ParentProfile? @relation(fields: [parentId], references: [id], onDelete: SetNull)
+  userId                String?
+  user                  User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fileName              String
+  fileType              String
+  fileUrl               String?
+  uploadedAt            DateTime       @default(now())
+  rawExtractionJson     String         // JSON text
+  batchConfidence       String?
+  batchQualityWarning   String?
+  confirmedAt           DateTime?
+  confirmedMedicineIds  String[]
+  status                String         @default("draft")
+
+  @@index([parentId])
+  @@index([userId])
+}

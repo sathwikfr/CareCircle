@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CareCircle — Stay close, even from far away</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #111827;
+    --ink-muted: #4b5563;
+    --ink-subtle: #9ca3af;
+    --paper: #fcfbf9;
+    --panel: #f4f3ef;
+    --panel-elevated: #ffffff;
+    --blue: #1665f8;
+    --blue-hover: #0d52db;
+    --blue-deep: #0c1f4a;
+    --blue-light: #eff5ff;
+    --blue-soft: rgba(22, 101, 248, 0.08);
+    --blue-glow: rgba(22, 101, 248, 0.28);
+    --gold: #d97706;
+    --gold-soft: #fef3c7;
+    --line: #e7e5df;
+    --line-subtle: #f0eee8;
+    --green-live: #10b981;
+    --card-shadow: 0 16px 36px -10px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.03);
+    box-sizing: border-box;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+  }
+
+  .wrap {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 0 28px;
+    width: 100%;
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  /* HEADER */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    background: rgba(252, 251, 249, 0.92);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 72px;
+  }
+
+  .brand {
+    font-family: 'Fraunces', serif;
+    font-size: 1.4rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+
+  .brand-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--blue), #3b82f6);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 0.85rem;
+    box-shadow: 0 2px 8px var(--blue-glow);
+  }
+
+  .brand span { color: var(--blue); }
+
+  nav.links {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+
+  nav.links a {
+    color: var(--ink-muted);
+    transition: color 0.2s ease;
+  }
+  nav.links a:hover { color: var(--blue); }
+
+  .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  /* BUTTONS */
+  .btn {
+    padding: 13px 28px;
+    border-radius: 9999px;
+    font-size: 0.96rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .btn-primary {
+    background: var(--blue);
+    color: #ffffff;
+    box-shadow: 0 8px 24px -4px var(--blue-glow);
+  }
+  .btn-primary:hover {
+    background: var(--blue-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px -4px rgba(22, 101, 248, 0.45);
+  }
+  .btn-ghost {
+    border-color: var(--line);
+    color: var(--ink);
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  }
+  .btn-ghost:hover {
+    border-color: var(--blue);
+    color: var(--blue);
+    transform: translateY(-2px);
+  }
+  .btn-sm {
+    padding: 9px 20px;
+    font-size: 0.88rem;
+  }
+
+  /* HERO SECTION */
+  .hero {
+    padding: 84px 0 100px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -200px;
+    right: -100px;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(22, 101, 248, 0.08) 0%, rgba(22, 101, 248, 0.02) 60%, transparent 80%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 64px;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    border-radius: 9999px;
+    background: #ffffff;
+    border: 1px solid var(--line);
+    font-size: 0.84rem;
+    font-weight: 500;
+    color: var(--blue);
+    margin-bottom: 22px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  }
+  .hero-pill-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--blue);
+    box-shadow: 0 0 8px var(--blue);
+  }
+
+  .hero h1 {
+    font-size: clamp(2.4rem, 4.6vw, 3.8rem);
+    line-height: 1.12;
+    letter-spacing: -0.025em;
+    color: #0f172a;
+  }
+
+  .hero p.lead {
+    font-size: 1.18rem;
+    max-width: 48ch;
+    margin-top: 22px;
+    color: var(--ink-muted);
+    line-height: 1.6;
+  }
+
+  .cta-row {
+    display: flex;
+    gap: 16px;
+    margin-top: 36px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .hero-trust {
+    margin-top: 36px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 0.88rem;
+    color: var(--ink-muted);
+  }
+
+  .hero-trust-avatars {
+    display: flex;
+  }
+  .hero-trust-avatars span {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 2px solid var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: -8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .hero-trust-avatars span:first-child { margin-left: 0; background: #e09f58; color: #201306; }
+  .hero-trust-avatars span:nth-child(2) { background: var(--blue); color: #fff; }
+  .hero-trust-avatars span:nth-child(3) { background: #3b82f6; color: #fff; }
+
+  /* CALL CARD MOCKUP - Clean White Card with Royal Blue Accents */
+  .call-card-wrapper {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .call-card {
+    background: #ffffff;
+    color: #0f172a;
+    border-radius: 20px;
+    padding: 26px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 20px 48px -12px rgba(15, 23, 42, 0.12), 0 4px 14px rgba(0, 0, 0, 0.04);
+    border: 1px solid #e2e8f0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .call-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .caller-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .caller-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.1rem;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  .caller-avatar .pulse-indicator {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #10b981;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  }
+
+  .caller-info h4 {
+    color: #0f172a;
+    font-size: 1.05rem;
+    margin: 0;
+  }
+  .caller-info p {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin: 0;
+  }
+
+  .call-timer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    padding: 5px 12px;
+    border-radius: 12px;
+    background: #eff6ff;
+    border: 1px solid #dbeafe;
+    font-family: monospace;
+    color: #1665f8;
+    font-weight: 600;
+  }
+
+  .bubbles-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .bubble-group {
+    display: flex;
+    flex-direction: column;
+  }
+  .bubble-speaker {
+    font-size: 0.72rem;
+    color: #64748b;
+    margin-bottom: 3px;
+    padding: 0 4px;
+  }
+  .bubble-group.me .bubble-speaker {
+    text-align: right;
+  }
+
+  .bubble {
+    border-radius: 14px;
+    padding: 12px 16px;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    position: relative;
+    max-width: 90%;
+  }
+
+  .bubble.me {
+    background: #fef3c7;
+    color: #78350f;
+    border: 1px solid #fde68a;
+    font-weight: 500;
+    align-self: flex-end;
+    border-bottom-right-radius: 3px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  }
+  .bubble.bot {
+    background: #f8fafc;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+    border-bottom-left-radius: 3px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  }
+
+  .call-summary-chip {
+    margin-top: 18px;
+    padding: 11px 15px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    font-size: 0.82rem;
+    color: #1d4ed8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+  }
+  .call-summary-chip svg {
+    flex-shrink: 0;
+    color: #1665f8;
+  }
+
+  .call-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid #f1f5f9;
+    font-size: 0.8rem;
+    color: #64748b;
+  }
+
+  .interactive-demo-btn {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1665f8;
+    font-size: 0.8rem;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    font-weight: 600;
+  }
+  .interactive-demo-btn:hover {
+    background: #dbeafe;
+    transform: translateY(-1px);
+  }
+
+  /* PROBLEM SECTION */
+  section.problem {
+    padding: 84px 0;
+    border-top: 1px solid var(--line);
+    background: #ffffff;
+  }
+  .problem-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: center;
+  }
+  .problem h2 {
+    font-size: clamp(2rem, 3.5vw, 2.6rem);
+    line-height: 1.15;
+    color: #0f172a;
+  }
+  .problem p.body-text {
+    color: var(--ink-muted);
+    font-size: 1.05rem;
+    margin-top: 18px;
+    line-height: 1.6;
+  }
+
+  .stat-cards {
+    display: grid;
+    gap: 18px;
+  }
+  .stat-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .stat-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--blue);
+    box-shadow: 0 8px 24px -6px var(--blue-soft);
+  }
+  .stat-card-number {
+    font-family: 'Fraunces', serif;
+    font-size: 2.2rem;
+    font-weight: 600;
+    color: var(--blue);
+    line-height: 1;
+    min-width: 90px;
+  }
+  .stat-card-text {
+    font-size: 0.95rem;
+    color: var(--ink-muted);
+    line-height: 1.45;
+  }
+
+  /* HOW IT WORKS */
+  section.how {
+    padding: 96px 0;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .section-header {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto 56px;
+  }
+  .section-header h2 {
+    font-size: clamp(2rem, 3.5vw, 2.6rem);
+    margin-bottom: 14px;
+    color: #0f172a;
+  }
+  .section-header p.sub {
+    color: var(--ink-muted);
+    font-size: 1.05rem;
+  }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+  }
+  .step {
+    padding: 34px 28px;
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid var(--line);
+    position: relative;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+  .step:hover {
+    transform: translateY(-4px);
+    border-color: var(--blue);
+    box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.08);
+  }
+  .step .num-badge {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--blue-light);
+    color: var(--blue);
+    font-family: 'Fraunces', serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    border: 1px solid rgba(22, 101, 248, 0.15);
+  }
+  .step h3 {
+    font-size: 1.3rem;
+    margin-bottom: 12px;
+    color: #0f172a;
+  }
+  .step p {
+    font-size: 0.95rem;
+    color: var(--ink-muted);
+    line-height: 1.55;
+  }
+
+  /* PLANS SECTION */
+  section.plans {
+    padding: 100px 0;
+    background: var(--paper);
+  }
+  .plan-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+    align-items: stretch;
+  }
+  .plan {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 36px 30px;
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    position: relative;
+  }
+  .plan:hover {
+    transform: translateY(-4px);
+    border-color: var(--blue);
+    box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.08);
+  }
+  .plan.featured {
+    border-color: var(--blue);
+    background: #ffffff;
+    box-shadow: 0 0 0 2px var(--blue), 0 20px 48px -12px rgba(22, 101, 248, 0.15);
+  }
+  .plan-badge {
+    position: absolute;
+    top: -12px;
+    right: 24px;
+    background: var(--blue);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 14px;
+    border-radius: 9999px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    box-shadow: 0 4px 12px var(--blue-glow);
+  }
+  .plan h3 {
+    font-size: 1.35rem;
+    color: #0f172a;
+  }
+  .plan-desc {
+    font-size: 0.88rem;
+    color: var(--ink-muted);
+    margin-top: 6px;
+  }
+  .plan .price {
+    font-family: 'Fraunces', serif;
+    font-size: 2.6rem;
+    font-weight: 600;
+    margin: 20px 0 6px;
+    color: #0f172a;
+  }
+  .plan .price span {
+    font-size: 0.92rem;
+    font-family: 'Inter', sans-serif;
+    color: var(--ink-muted);
+    font-weight: 400;
+  }
+  .plan ul {
+    list-style: none;
+    padding: 0;
+    margin: 24px 0 32px;
+    display: grid;
+    gap: 12px;
+    font-size: 0.93rem;
+    flex: 1;
+  }
+  .plan ul li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: var(--ink-muted);
+  }
+  .plan ul li svg {
+    color: var(--blue);
+    flex-shrink: 0;
+    margin-top: 3px;
+  }
+  .plan .btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  /* FOOTER */
+  footer {
+    padding: 48px 0;
+    border-top: 1px solid var(--line);
+    background: #ffffff;
+  }
+  .footer-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+    font-size: 0.88rem;
+    color: var(--ink-muted);
+  }
+
+  /* RESPONSIVE DESIGN */
+  @media (max-width: 960px) {
+    .hero-grid {
+      grid-template-columns: 1fr;
+      gap: 48px;
+    }
+    .call-card {
+      max-width: 100%;
+    }
+    .problem-grid {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+    .steps {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    .plan-grid {
+      grid-template-columns: 1fr;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+  }
+
+  @media (max-width: 680px) {
+    .nav nav.links { display: none; }
+    .hero { padding: 48px 0 64px; }
+    .wrap { padding: 0 20px; }
+    .stat-card { flex-direction: column; gap: 8px; }
+    .stat-card-number { min-width: auto; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a href="#" class="brand">
+      <span class="brand-badge">♥</span>
+      Care<span>Circle</span>
+    </a>
+    <nav class="links">
+      <a href="#how">How it works</a>
+      <a href="#problem">Why phone calls</a>
+      <a href="#plans">Plans</a>
+      <a href="#">FAQ</a>
+    </nav>
+    <div class="nav-actions">
+      <a href="#plans" class="btn btn-primary btn-sm">Get started</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="hero-pill">
+        <span class="hero-pill-dot"></span>
+        AI Voice Companion for Indian Families
+      </div>
+      <h1>A daily call for your parents. Peace of mind for you.</h1>
+      <p class="lead">CareCircle checks in on aging parents every day by telephone — medicine, mood, and how they're truly doing — and only alerts you when something needs attention.</p>
+      
+      <div class="cta-row">
+        <a href="#plans" class="btn btn-primary">See plans</a>
+        <a href="#how" class="btn btn-ghost">How it works</a>
+      </div>
+
+      <div class="hero-trust">
+        <div class="hero-trust-avatars">
+          <span>RK</span>
+          <span>SP</span>
+          <span>AN</span>
+        </div>
+        <div>
+          <strong>Trusted by 1,200+ families</strong> across India & overseas.
+        </div>
+      </div>
+    </div>
+
+    <div class="call-card-wrapper">
+      <div class="call-card">
+        <div class="call-card-header">
+          <div class="caller-profile">
+            <div class="caller-avatar">
+              A
+              <div class="pulse-indicator"></div>
+            </div>
+            <div class="caller-info">
+              <h4>Amma (Bangalore)</h4>
+              <p>Daily Morning Check-in · Hindi / English</p>
+            </div>
+          </div>
+          <div class="call-timer" id="callTimer">
+            ● 02:14
+          </div>
+        </div>
+
+        <div class="bubbles-container" id="bubblesContainer">
+          <div class="bubble-group">
+            <span class="bubble-speaker">CareCircle Assistant</span>
+            <div class="bubble bot">Namaste Amma! Good morning. Did you take your BP tablet after breakfast?</div>
+          </div>
+          <div class="bubble-group me">
+            <span class="bubble-speaker">Amma</span>
+            <div class="bubble me">Namaste beta. Haan, I took it just 10 minutes ago.</div>
+          </div>
+          <div class="bubble-group">
+            <span class="bubble-speaker">CareCircle Assistant</span>
+            <div class="bubble bot">Wonderful. And how are your knees feeling today? Any joint pain or dizziness?</div>
+          </div>
+          <div class="bubble-group me">
+            <span class="bubble-speaker">Amma</span>
+            <div class="bubble me">A little stiffness, but I went for a 15-minute walk in the balcony.</div>
+          </div>
+        </div>
+
+        <div class="call-summary-chip">
+          <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M12.736 3.97a.75.75 0 0 1 1.028 1.06l-6.5 7a.75.75 0 0 1-1.062.02l-3-3a.75.75 0 0 1 1.04-1.08l2.47 2.47 5.98-6.47z"/>
+          </svg>
+          <span>BP Tablet Confirmed · Mood: Cheerful & Active</span>
+        </div>
+
+        <div class="call-card-footer">
+          <span>Scheduled: Daily at 9:00 AM</span>
+          <button class="interactive-demo-btn" id="simulateCallBtn">
+            ▶ Replay audio
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="problem" id="problem">
+  <div class="wrap problem-grid">
+    <div>
+      <h2>You can't call three times a day. We can.</h2>
+      <p class="body-text">Reminder apps require elderly parents to unlock smartphones, open notifications, and type on screens. Most miss them or find it stressful.</p>
+      <p class="body-text">CareCircle uses an ordinary telephone call — something every parent has known how to answer for fifty years.</p>
+    </div>
+    <div class="stat-cards">
+      <div class="stat-card">
+        <div class="stat-card-number">72%</div>
+        <div class="stat-card-text">of adult children working in metros or abroad experience constant anxiety regarding aging parents living alone.</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-number">1 in 3</div>
+        <div class="stat-card-text">seniors accidentally skip or double-dose vital chronic medications (BP, diabetes) at least once every week.</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-number">4 Calls</div>
+        <div class="stat-card-text">is the average number of unanswered calls before distant family members realize something urgent happened.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="how" id="how">
+  <div class="wrap">
+    <div class="section-header">
+      <h2>How CareCircle works</h2>
+      <p class="sub">Set up once in 3 minutes. The calls, check-ins, and family summaries happen seamlessly.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="num-badge">1</div>
+        <h3>Set up their routine</h3>
+        <p>Add your parent's medicine schedule, call timings, preferred language (English, Hindi, Tamil, Telugu, etc.), and emergency family contacts.</p>
+      </div>
+      <div class="step">
+        <div class="num-badge">2</div>
+        <h3>CareCircle calls their phone</h3>
+        <p>A warm, polite, native-speaking AI assistant calls directly. No smartphone apps or internet connection required on their end.</p>
+      </div>
+      <div class="step">
+        <div class="num-badge">3</div>
+        <h3>You stay informed quietly</h3>
+        <p>Receive a gentle WhatsApp summary after every call. If a medicine is missed or your parent reports feeling unwell, you are alerted instantly.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="plans" id="plans">
+  <div class="wrap">
+    <div class="section-header">
+      <h2>Simple, transparent plans</h2>
+      <p class="sub">Start free with one parent. Upgrade anytime your family needs more care.</p>
+    </div>
+    <div class="plan-grid">
+      <div class="plan">
+        <h3>Free Starter</h3>
+        <p class="plan-desc">Essential peace of mind for one parent</p>
+        <div class="price">₹0</div>
+        <ul>
+          <li>
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.75.75 0 0 1 1.028 1.06l-6.5 7a.75.75 0 0 1-1.062.02l-3-3a.75.75 0 0 1 1.04-1.08l2.47 2.47 5.98-6.47z"/></svg>
+            1 parent profile
+          </li>
+          <li>
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.75.75 0 0 1 1.028 1.06l-6.5 7a.75.75 0 0 1-1.062.02l-3-3a.75.75 0 0 1 1.04-1.08l2.47 2.47 5.98-6.47z"/></svg>
+            1 daily medicine reminder call
+          </li>
+          <li>
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.75.75 0 0 1 1.028 1.06l-6.5 7a.75.75 0 0 1-1.062.02l-3-3a.75.75 0 0 1 1.04-1.08l2.47 2.47 5.98-6.47z"/></svg>
+            Basic SMS alerts
+          </li>
+          <li>
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.75.75 0 0 1 1.028 1.06l-6.5 7a.75.75 0 0 1-1.062.02l-3-3a.75.75 0 0 1 1.04-1.08l2.47 2.47 5.98-6.47z"/></svg>
+            Missed medication warnings
+          </li>
+        </ul>
+        <a href="#" class="btn btn-ghost">Get started</a>
+      </div>
+
+      <div class="plan featured">
+        <span class="plan-badge">Most Popular</span>
+        <h3>Family Care</h3>
+        <p class="plan-desc">Complete holistic check-ins for both parents</p>
+        <div class="price">₹399<span>/month</span></div>
+        <ul>
+          <li>
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.75.75 0 0 1 1.028 1.06l-6.5 7a.75.75 0 0 1-1.062.02l-3-3a.75.75 0 0 1 1.04-1.08l2.47 2.47 5.98-6.47z"/></svg>
+            Up to 2 parents
+          </li>
+          <li>
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.75.75 0 0 1 1.028 1.06l-6.5 7a.75.75 0 0 1-1.062.02l-3-3a.75.75 0 0 1 1.04-1.08l2.47 2.47 5.98-6.47z"/></svg>
+            Natural conversational voice check-ins
+          </li>
+          <li>
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.75.75 0 0 1 1.028 1.06l-6.5 7a.75.75 0 0 1-1.062.02l-3-3a.75.75 0 0 1 1.04-1.08l2.47 2.47 5.98-6.47z"/></svg>
+            Regional Indian language support
+          </li>
+          <li>
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.75.75 0 0 1 1.028 1.06l-6.5 7a.75.75 0 0 1-1.062.02l-3-3a.75.75 0 0 1 1.04-1.08l2.47 2.47 5.98-6.47z"/></svg>
+            Weekly health & mood trend reports
+          </li>
+          <li>
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.75.75 0 0 1 1.028 1.06l-6.5 7a.75.75 0 0 1-1.062.02l-3-3a.75.75 0 0 1 1.04-1.08l2.47 2.47 5.98-6.47z"/></svg>
+            Instant WhatsApp caregiver notifications
+          </li>
+        </ul>
+        <a href="#" class="btn btn-primary">Start 14-day free trial</a>
+      </div>
+
+      <div class="plan">
+        <h3>Extended Family</h3>
+        <p class="plan-desc">For large or multi-generational households</p>
+        <div class="price">₹699<span>/month</span></div>
+        <ul>
+          <li>
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.75.75 0 0 1 1.028 1.06l-6.5 7a.75.75 0 0 1-1.062.02l-3-3a.75.75 0 0 1 1.04-1.08l2.47 2.47 5.98-6.47z"/></svg>
+            Up to 5 parents / elder relatives
+          </li>
+          <li>
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.75.75 0 0 1 1.028 1.06l-6.5 7a.75.75 0 0 1-1.062.02l-3-3a.75.75 0 0 1 1.04-1.08l2.47 2.47 5.98-6.47z"/></svg>
+            Everything in Family Care
+          </li>
+          <li>
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.75.75 0 0 1 1.028 1.06l-6.5 7a.75.75 0 0 1-1.062.02l-3-3a.75.75 0 0 1 1.04-1.08l2.47 2.47 5.98-6.47z"/></svg>
+            Multiple siblings & caregivers notified
+          </li>
+          <li>
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.75.75 0 0 1 1.028 1.06l-6.5 7a.75.75 0 0 1-1.062.02l-3-3a.75.75 0 0 1 1.04-1.08l2.47 2.47 5.98-6.47z"/></svg>
+            Priority emergency response routing
+          </li>
+        </ul>
+        <a href="#" class="btn btn-ghost">Get started</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-inner">
+    <div>
+      <strong>CareCircle</strong> — Warm AI care companion for families living apart.
+    </div>
+    <div>
+      Designed with care for parents. Not a substitute for medical advice or emergency 112 services.
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Interactive Replay Demo
+  const simulateCallBtn = document.getElementById('simulateCallBtn');
+  const bubblesContainer = document.getElementById('bubblesContainer');
+  const callTimer = document.getElementById('callTimer');
+
+  let isPlaying = false;
+  simulateCallBtn.addEventListener('click', () => {
+    if (isPlaying) return;
+    isPlaying = true;
+    simulateCallBtn.innerHTML = '⏳ Playing...';
+    simulateCallBtn.style.opacity = '0.7';
+
+    bubblesContainer.innerHTML = '<div style="text-align:center; padding: 24px; font-size:0.85rem; color:#64748b;">Connecting call to Amma...</div>';
+    callTimer.textContent = '● Calling...';
+
+    setTimeout(() => {
+      callTimer.textContent = '● 00:03';
+      bubblesContainer.innerHTML = `
+        <div class="bubble-group">
+          <span class="bubble-speaker">CareCircle Assistant</span>
+          <div class="bubble bot">Namaste Amma! Good morning. Did you take your BP tablet after breakfast?</div>
+        </div>
+      `;
+    }, 1200);
+
+    setTimeout(() => {
+      callTimer.textContent = '● 00:09';
+      bubblesContainer.innerHTML += `
+        <div class="bubble-group me">
+          <span class="bubble-speaker">Amma</span>
+          <div class="bubble me">Namaste beta. Haan, I took it just 10 minutes ago.</div>
+        </div>
+      `;
+    }, 2800);
+
+    setTimeout(() => {
+      callTimer.textContent = '● 00:16';
+      bubblesContainer.innerHTML += `
+        <div class="bubble-group">
+          <span class="bubble-speaker">CareCircle Assistant</span>
+          <div class="bubble bot">Wonderful. And how are your knees feeling today? Any joint pain or dizziness?</div>
+        </div>
+      `;
+    }, 4500);
+
+    setTimeout(() => {
+      callTimer.textContent = '● 00:23';
+      bubblesContainer.innerHTML += `
+        <div class="bubble-group me">
+          <span class="bubble-speaker">Amma</span>
+          <div class="bubble me">A little stiffness, but I went for a 15-minute walk in the balcony.</div>
+        </div>
+      `;
+    }, 6200);
+
+    setTimeout(() => {
+      callTimer.textContent = '● 02:14';
+      simulateCallBtn.innerHTML = '▶ Replay audio';
+      simulateCallBtn.style.opacity = '1';
+      isPlaying = false;
+    }, 7200);
+  });
+</script>
+
+</body>
+</html>
