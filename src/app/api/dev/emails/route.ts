@@ -52,7 +52,7 @@ export async function POST(req: Request) {
         to,
         name: 'Sathwik Rao',
         planName: 'Family Care (Most Popular)',
-        amount: 1499,
+        amount: 1299,
         invoiceNumber: `CC-2025-${Math.floor(1000 + Math.random() * 9000)}`,
         date: new Date().toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
         nextBillingDate: 'Oct 27, 2026',

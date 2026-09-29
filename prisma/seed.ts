@@ -31,7 +31,7 @@ async function main() {
           trialEndsAt: new Date(Date.now() + 9 * 86400000),
           currentPeriodEnd: new Date(Date.now() + 9 * 86400000),
           cancelAtPeriodEnd: false,
-          amount: 1499,
+          amount: 1299,
           paymentMethodBrand: 'UPI / HDFC',
           paymentMethodLast4: '4242',
           razorpaySubscriptionId: 'sub_demo_rzp_9901'

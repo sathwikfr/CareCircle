@@ -84,7 +84,7 @@ model UserSubscription {
   trialEndsAt            DateTime?
   currentPeriodEnd       DateTime
   cancelAtPeriodEnd      Boolean   @default(false)
-  amount                 Int       @default(399)
+  amount                 Int       @default(1299)
   paymentMethodLast4     String?
   paymentMethodBrand     String?
   razorpaySubscriptionId String?
