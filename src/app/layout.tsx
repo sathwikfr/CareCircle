@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Fraunces, Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
@@ -7,6 +7,8 @@ const fraunces = Fraunces({
   subsets: ['latin'],
   variable: '--font-fraunces',
   display: 'swap',
+  axes: ['opsz', 'SOFT'],
+  style: ['normal', 'italic'],
 });
 
 const inter = Inter({
@@ -17,8 +19,12 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'CareCircle — Stay close, even from far away',
-  description: 'AI Care-companion product for aging parents. Daily warm telephone check-in calls, medication tracking, and quiet peace of mind for Indian families.',
+  description: 'A daily phone call for your parents, in their language. Saathi checks on medicines and wellbeing, and you see every call on your CareCircle dashboard.',
   keywords: ['carecircle', 'elder care', 'ai voice companion', 'parents check-in', 'medication reminder', 'india elder care']
+};
+
+export const viewport: Viewport = {
+  themeColor: '#f8f4ec',
 };
 
 export default function RootLayout({
@@ -29,6 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
       <body>
+        <a href="#main" className="skip-link">Skip to content</a>
         <AuthProvider>
           {children}
         </AuthProvider>

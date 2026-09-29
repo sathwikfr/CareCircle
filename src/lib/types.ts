@@ -11,6 +11,8 @@ export interface Plan {
   popular?: boolean;
   features: string[];
   parentsIncluded: number;
+  /** Max scheduled Saathi calls per parent per day (controls call cost). */
+  callsPerDay: number;
   razorpayPlanId?: string;
 }
 
@@ -152,12 +154,20 @@ export interface CallLog {
   parentId: string;
   scheduledTime: string;
   actualAnswerTime?: string;
-  status: 'answered' | 'unanswered' | 'busy' | 'scheduled';
+  /**
+   * scheduled: logged, not dialed yet · placed: sent to the calling service, waiting for the result ·
+   * answered / unanswered / busy: final outcome · failed: could not be placed or no result received.
+   */
+  status: 'answered' | 'unanswered' | 'busy' | 'scheduled' | 'placed' | 'failed';
   durationSeconds: number;
   medicationConfirmed: boolean;
   mood: 'cheerful' | 'calm' | 'anxious' | 'unwell' | 'neutral';
   summary: string;
   notes?: string;
+  createdAt?: string;
+  slot?: string;
+  attemptNumber?: number;
+  failureReason?: string;
 }
 
 export interface AlertRecord {
@@ -169,6 +179,7 @@ export interface AlertRecord {
   channel: 'whatsapp' | 'sms' | 'email';
   timestamp: string;
   status: 'sent' | 'read' | 'resolved';
+  createdAt?: string;
 }
 
 export interface ScheduleSuggestion {

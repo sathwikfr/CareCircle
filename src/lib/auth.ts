@@ -1,11 +1,9 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { User } from './types';
 import { getDBSession } from './security';
 import { getUserById } from './db';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'carecircle-secret-key-development-secure-token-2025';
 export const AUTH_COOKIE_NAME = 'carecircle_session';
 
 export async function hashPassword(password: string): Promise<string> {
@@ -17,37 +15,26 @@ export async function comparePassword(plain: string, hashed: string): Promise<bo
   return bcrypt.compare(plain, hashed);
 }
 
-export function signToken(payload: { userId: string; email: string; name: string }): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
+export async function getSessionToken(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return cookieStore.get(AUTH_COOKIE_NAME)?.value || null;
 }
 
-export function verifyToken(token: string): { userId: string; email: string; name: string } | null {
-  try {
-    return jwt.verify(token, JWT_SECRET) as { userId: string; email: string; name: string };
-  } catch {
-    return null;
-  }
-}
-
+/**
+ * Resolves the logged-in user from the database-backed session cookie.
+ * Only opaque `sess_` tokens are accepted; they are revocable and checked
+ * against the DBSession table on every request.
+ */
 export async function getSessionUser(): Promise<User | null> {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
-    if (!token) return null;
+    const token = await getSessionToken();
+    if (!token || !token.startsWith('sess_')) return null;
 
-    // 1. Check DB-backed session token
-    if (token.startsWith('sess_')) {
-      const dbSession = await getDBSession(token);
-      if (!dbSession) return null; // Revoked or expired session
-      return await getUserById(dbSession.userId);
-    }
-
-    // 2. Check JWT token
-    const payload = verifyToken(token);
-    if (!payload) return null;
-
-    return await getUserById(payload.userId);
-  } catch {
+    const dbSession = await getDBSession(token);
+    if (!dbSession) return null;
+    return await getUserById(dbSession.userId);
+  } catch (err) {
+    console.error('[auth] getSessionUser failed:', err);
     return null;
   }
 }

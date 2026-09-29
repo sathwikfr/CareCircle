@@ -3,13 +3,12 @@
 import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
-import { CheckoutStepper } from '@/components/CheckoutStepper';
+import { AuthShell, PasswordField, PhoneField, StrengthMeter } from '@/components/auth/AuthUI';
 import { useAuth } from '@/context/AuthContext';
+import { GoogleSignInButton, isGoogleSignInEnabled } from '@/components/GoogleSignInButton';
 import { getPlan } from '@/lib/plans';
 import { PlanId } from '@/lib/types';
-import { Eye, EyeOff, AlertCircle, ArrowRight, X, Phone, UserCheck, ShieldCheck } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, Phone, Mail, UserCheck, MessageSquareCode } from 'lucide-react';
 
 function SignUpContent() {
   const router = useRouter();
@@ -40,30 +39,11 @@ function SignUpContent() {
 
   // Google signup state
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
-  const [googleEmailInput, setGoogleEmailInput] = useState('');
-  const [googleNameInput, setGoogleNameInput] = useState('');
 
   // Error handling
   const [errorMessage, setErrorMessage] = useState('');
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [accountExists, setAccountExists] = useState(false);
-
-  // Password strength calculation
-  const getPasswordStrength = () => {
-    if (!password) return { label: '', score: 0, color: '#e5e7eb' };
-    let score = 0;
-    if (password.length >= 8) score += 1;
-    if (/[A-Z]/.test(password)) score += 1;
-    if (/[0-9]/.test(password)) score += 1;
-    if (/[^A-Za-z0-9]/.test(password)) score += 1;
-
-    if (score <= 1) return { label: 'Weak', score: 1, color: '#ef4444' };
-    if (score <= 3) return { label: 'Good', score: 2, color: 'var(--gold)' };
-    return { label: 'Strong', score: 3, color: 'var(--green)' };
-  };
-
-  const strength = getPasswordStrength();
 
   // 1. Standard Signup
   const handleSubmit = async (e: React.FormEvent) => {
@@ -202,16 +182,15 @@ function SignUpContent() {
     }
   };
 
-  // 4. Google Signup Direct
-  const handleGoogleSignupDirect = async (emailToUse: string, nameToUse: string) => {
+  // 4. Google Signup (verified Google ID token)
+  const handleGoogleCredential = async (credential: string) => {
     setGoogleLoading(true);
     setErrorMessage('');
     setErrorCode(null);
     setAccountExists(false);
 
-    const result = await signupWithGoogle(emailToUse, nameToUse || 'Google User');
+    const result = await signupWithGoogle(credential);
     setGoogleLoading(false);
-    setShowGoogleModal(false);
 
     if (result.success) {
       router.push(`/checkout/confirm?plan=${planParam}`);
@@ -224,512 +203,247 @@ function SignUpContent() {
     }
   };
 
+  const switchMode = (mode: 'standard' | 'otp') => {
+    setSignupMode(mode);
+    setErrorMessage('');
+    setAccountExists(false);
+  };
+
   return (
-    <div className="wrap-narrow" style={{ padding: '40px 20px 80px' }}>
-      <CheckoutStepper currentStep={1} />
+    <>
+      <p style={{ fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-subtle)', marginBottom: '10px' }}>
+        Step 1 of 4 · Your account
+      </p>
+      <h1 className="auth-title">Create your account</h1>
+      <p className="auth-sub">It takes a couple of minutes. Next, you&apos;ll add your parent.</p>
 
-      <div className="card" style={{ maxWidth: '520px', margin: '0 auto', boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}>
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div className="badge badge-teal" style={{ marginBottom: '10px' }}>
-            Selected: {selectedPlan.name} {selectedPlan.priceMonthly > 0 ? `(₹${selectedPlan.priceMonthly}/mo)` : '(₹0)'}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          padding: '14px 16px',
+          marginBottom: '24px',
+          background: 'var(--panel-elevated)',
+          border: '1px solid var(--line-subtle)',
+          borderRadius: 'var(--r-md)',
+          boxShadow: 'var(--shadow-xs)'
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: '0.94rem' }}>{selectedPlan.name}</div>
+          <div style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>
+            {selectedPlan.priceMonthly > 0
+              ? `${selectedPlan.trialDays}-day free trial, then ₹${selectedPlan.priceMonthly}/month`
+              : 'Free forever · 1 parent'}
           </div>
-          <h2 style={{ fontSize: '1.9rem', marginBottom: '8px', color: 'var(--ink)' }}>Create your CareCircle account</h2>
-          <p style={{ fontSize: '0.92rem', color: 'var(--ink-muted)' }}>
-            Start your setup to bring daily loving check-in calls to your parents.
-          </p>
         </div>
+        <Link href="/#plans" className="btn btn-ghost btn-sm">Change</Link>
+      </div>
 
-        {/* GOOGLE SIGN UP BUTTON */}
-        <button
-          onClick={() => setShowGoogleModal(true)}
-          disabled={googleLoading || loading}
-          className="btn btn-ghost btn-block"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '12px',
-            padding: '12px',
-            borderRadius: '12px',
-            marginBottom: '18px',
-            fontSize: '0.95rem',
-            border: '1px solid var(--line)'
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24">
-            <path
-              fill="#EA4335"
-              d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"
-            />
-            <path
-              fill="#4285F4"
-              d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.8s.2-2.1.4-2.8L1.9 6.3C.7 8.7 0 10.8 0 12s.7 3.3 1.9 5.7l3.7-2.9z"
-            />
-            <path
-              fill="#34A853"
-              d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16c1.8 3.7 5.6 7 10.1 7z"
-            />
-          </svg>
-          {googleLoading ? 'Setting up Google account...' : 'Continue with Google'}
+      {isGoogleSignInEnabled && (
+        <>
+          <GoogleSignInButton mode="signup" onCredential={handleGoogleCredential} disabled={googleLoading || loading} />
+          <div className="or-divider">or</div>
+        </>
+      )}
+
+      <div className="segmented" role="group" aria-label="Sign-up method" style={{ marginBottom: '24px' }}>
+        <button type="button" aria-pressed={signupMode === 'standard'} onClick={() => switchMode('standard')}>
+          <Mail size={15} /> Email
         </button>
+        <button type="button" aria-pressed={signupMode === 'otp'} onClick={() => switchMode('otp')}>
+          <Phone size={15} /> Mobile OTP
+        </button>
+      </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', margin: '18px 0', color: 'var(--ink-subtle)', fontSize: '0.84rem' }}>
-          <div style={{ flex: 1, height: '1px', background: 'var(--line)' }} />
-          <span>or sign up with email / phone</span>
-          <div style={{ flex: 1, height: '1px', background: 'var(--line)' }} />
-        </div>
-
-        {/* SIGNUP TABS */}
-        <div
-          style={{
-            display: 'flex',
-            background: 'var(--panel)',
-            padding: '4px',
-            borderRadius: '10px',
-            marginBottom: '20px',
-            border: '1px solid var(--line)'
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              setSignupMode('standard');
-              setErrorMessage('');
-              setAccountExists(false);
-            }}
-            style={{
-              flex: 1,
-              padding: '8px 12px',
-              borderRadius: '7px',
-              border: 'none',
-              fontSize: '0.88rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              background: signupMode === 'standard' ? '#fff' : 'transparent',
-              color: signupMode === 'standard' ? 'var(--ink)' : 'var(--ink-muted)',
-              boxShadow: signupMode === 'standard' ? '0 2px 4px rgba(0,0,0,0.06)' : 'none',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <UserCheck size={16} /> Email & Password
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setSignupMode('otp');
-              setErrorMessage('');
-              setAccountExists(false);
-            }}
-            style={{
-              flex: 1,
-              padding: '8px 12px',
-              borderRadius: '7px',
-              border: 'none',
-              fontSize: '0.88rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              background: signupMode === 'otp' ? '#fff' : 'transparent',
-              color: signupMode === 'otp' ? 'var(--ink)' : 'var(--ink-muted)',
-              boxShadow: signupMode === 'otp' ? '0 2px 4px rgba(0,0,0,0.06)' : 'none',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Phone size={16} /> Quick Mobile OTP
-          </button>
-        </div>
-
-        {/* ACCOUNT ALREADY EXISTS ALERT */}
-        {accountExists && (
-          <div
-            style={{
-              background: '#eff6ff',
-              border: '1px solid #3b82f6',
-              borderRadius: '12px',
-              padding: '16px',
-              marginBottom: '20px',
-              display: 'flex',
-              gap: '12px',
-              alignItems: 'flex-start'
-            }}
-          >
-            <ShieldCheck size={22} style={{ color: '#2563eb', flexShrink: 0, marginTop: '2px' }} />
-            <div>
-              <div style={{ fontWeight: 700, color: '#1e40af', fontSize: '0.94rem', marginBottom: '4px' }}>
-                Account Already Exists
-              </div>
-              <p style={{ margin: '0 0 10px', fontSize: '0.86rem', color: '#1e3a8a', lineHeight: 1.45 }}>
-                {errorMessage || 'An account with this email or phone number is already registered.'}
-              </p>
-              <Link
-                href={`/login?identifier=${encodeURIComponent(email || phone || otpPhone)}&redirect=/checkout/confirm?plan=${planParam}`}
-                className="btn btn-primary btn-sm"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '0.84rem'
-                }}
-              >
-                Log In to Your Account <ArrowRight size={14} />
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {/* GENERAL ERROR MESSAGE */}
-        {errorMessage && !accountExists && (
-          <div className="alert-box error" style={{ marginBottom: '20px' }}>
-            <AlertCircle size={18} style={{ flexShrink: 0 }} />
-            <span>{errorMessage}</span>
-          </div>
-        )}
-
-        {/* MODE 1: STANDARD EMAIL & PASSWORD SIGNUP */}
-        {signupMode === 'standard' && (
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label">Full Name</label>
-              <input
-                type="text"
-                placeholder="e.g. Sathwik Rao"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="form-input"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Email Address</label>
-              <input
-                type="email"
-                placeholder="you@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="form-input"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">
-                <span>Mobile Number</span>
-                <span className="form-hint">For urgent care alerts & call summaries</span>
-              </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <span
-                  style={{
-                    padding: '13px 14px',
-                    background: 'var(--panel)',
-                    border: '1px solid var(--line)',
-                    borderRadius: '12px',
-                    fontSize: '0.94rem',
-                    fontWeight: 600,
-                    color: 'var(--ink)'
-                  }}
-                >
-                  +91
-                </span>
-                <input
-                  type="tel"
-                  placeholder="98765 43210"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="form-input"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Create Password</label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Minimum 8 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="form-input"
-                  style={{ paddingRight: '44px' }}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'var(--ink-muted)'
-                  }}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-
-              {/* PASSWORD STRENGTH METER */}
-              {password && (
-                <div style={{ marginTop: '8px' }}>
-                  <div style={{ display: 'flex', gap: '4px', height: '4px', marginBottom: '6px' }}>
-                    {[1, 2, 3].map((level) => (
-                      <div
-                        key={level}
-                        style={{
-                          flex: 1,
-                          borderRadius: '2px',
-                          background: strength.score >= level ? strength.color : '#e2e8f0',
-                          transition: 'background 0.2s ease'
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: strength.color, fontWeight: 600 }}>
-                    <span>Password strength: {strength.label}</span>
-                    {strength.score < 3 && <span style={{ color: 'var(--ink-muted)' }}>Include letters, numbers & symbols</span>}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', margin: '18px 0 24px', lineHeight: 1.5 }}>
-              By creating an account, you agree to CareCircle&apos;s{' '}
-              <a href="#" style={{ color: 'var(--teal)', textDecoration: 'underline' }}>Terms of Service</a> and{' '}
-              <a href="#" style={{ color: 'var(--teal)', textDecoration: 'underline' }}>Privacy Policy</a>.
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary btn-block btn-lg"
-            >
-              {loading ? 'Creating your account...' : 'Continue to Plan Confirmation'} <ArrowRight size={18} />
-            </button>
-          </form>
-        )}
-
-        {/* MODE 2: QUICK MOBILE OTP SIGNUP */}
-        {signupMode === 'otp' && (
+      {accountExists && (
+        <div className="notice blue" role="alert">
+          <UserCheck size={20} />
           <div>
-            {!otpSent ? (
-              <form onSubmit={handleSendOtpSignup}>
-                <div className="form-group">
-                  <label className="form-label">Full Name</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Sathwik Rao"
-                    value={otpName}
-                    onChange={(e) => setOtpName(e.target.value)}
-                    className="form-input"
-                    required
-                  />
-                </div>
+            <strong>You already have an account</strong>
+            <p>{errorMessage || 'An account with this email or phone number already exists.'}</p>
+            <Link
+              href={`/login?identifier=${encodeURIComponent(email || phone || otpPhone)}&redirect=/checkout/confirm?plan=${planParam}`}
+              className="btn btn-primary btn-sm"
+            >
+              Log in instead <ArrowRight size={14} className="arrow" />
+            </Link>
+          </div>
+        </div>
+      )}
 
-                <div className="form-group">
-                  <label className="form-label">
-                    <span>Mobile Number</span>
-                    <span className="form-hint">We&apos;ll send an instant verification code</span>
-                  </label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <span
-                      style={{
-                        padding: '13px 14px',
-                        background: 'var(--panel)',
-                        border: '1px solid var(--line)',
-                        borderRadius: '12px',
-                        fontSize: '0.94rem',
-                        fontWeight: 600,
-                        color: 'var(--ink)'
-                      }}
-                    >
-                      +91
-                    </span>
-                    <input
-                      type="tel"
-                      placeholder="98765 43210"
-                      value={otpPhone}
-                      onChange={(e) => setOtpPhone(e.target.value)}
-                      className="form-input"
-                      required
-                    />
-                  </div>
-                </div>
+      {errorMessage && !accountExists && (
+        <div className="alert-box error" role="alert">
+          <AlertCircle size={18} />
+          <span>{errorMessage}</span>
+        </div>
+      )}
 
-                <button
-                  type="submit"
-                  disabled={otpLoading}
-                  className="btn btn-primary btn-block btn-lg"
-                  style={{ marginTop: '12px' }}
-                >
-                  {otpLoading ? 'Sending verification code...' : 'Send Verification Code'} <ArrowRight size={18} />
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyOtpSignup}>
-                <div style={{ background: 'var(--teal-light)', padding: '12px 14px', borderRadius: '10px', marginBottom: '16px', fontSize: '0.86rem', color: 'var(--teal-deep)' }}>
-                  Verification code sent to <strong>+91 {otpPhone}</strong>.{' '}
+      {signupMode === 'standard' && (
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="form-group">
+            <label className="form-label" htmlFor="name">Your name</label>
+            <input
+              id="name"
+              type="text"
+              placeholder="e.g. Priya Sharma"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="form-input"
+              autoComplete="name"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="form-input"
+              autoComplete="email"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="phone">Your mobile number</label>
+            <PhoneField id="phone" value={phone} onChange={setPhone} />
+            <span className="form-hint">So we can reach you if something needs your attention.</span>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="new-password">Password</label>
+            <PasswordField
+              id="new-password"
+              value={password}
+              onChange={setPassword}
+              show={showPassword}
+              onToggle={() => setShowPassword(!showPassword)}
+              placeholder="At least 8 characters"
+              autoComplete="new-password"
+            />
+            <StrengthMeter password={password} />
+          </div>
+
+          <button type="submit" disabled={loading} className="btn btn-primary btn-block btn-lg" style={{ marginTop: '8px' }}>
+            {loading ? <><span className="spinner" /> Creating your account…</> : <>Continue <ArrowRight size={18} className="arrow" /></>}
+          </button>
+        </form>
+      )}
+
+      {signupMode === 'otp' && (
+        <div>
+          {!otpSent ? (
+            <form onSubmit={handleSendOtpSignup} noValidate>
+              <div className="form-group">
+                <label className="form-label" htmlFor="otpName">Your name</label>
+                <input
+                  id="otpName"
+                  type="text"
+                  placeholder="e.g. Priya Sharma"
+                  value={otpName}
+                  onChange={(e) => setOtpName(e.target.value)}
+                  className="form-input"
+                  autoComplete="name"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="otpPhone">Your mobile number</label>
+                <PhoneField id="otpPhone" value={otpPhone} onChange={setOtpPhone} />
+                <span className="form-hint">We&apos;ll text you a 6-digit code.</span>
+              </div>
+
+              <button type="submit" disabled={otpLoading} className="btn btn-primary btn-block btn-lg" style={{ marginTop: '8px' }}>
+                {otpLoading ? <><span className="spinner" /> Sending code…</> : <>Send code <ArrowRight size={18} className="arrow" /></>}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyOtpSignup} noValidate>
+              <div className="notice teal">
+                <MessageSquareCode size={20} />
+                <div>
+                  Code sent to <b>+91 {otpPhone}</b>.{' '}
                   <button
                     type="button"
+                    className="link-btn"
                     onClick={() => {
                       setOtpSent(false);
                       setOtpCode('');
                       setDevOtpNotice(null);
                     }}
-                    style={{ background: 'none', border: 'none', color: 'var(--teal)', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
                   >
                     Change number
                   </button>
                 </div>
+              </div>
 
-                {devOtpNotice && (
-                  <div style={{ background: '#ecfdf5', border: '1px solid #10b981', padding: '10px 14px', borderRadius: '8px', marginBottom: '16px', fontSize: '0.84rem', color: '#065f46', fontWeight: 600 }}>
-                    {devOtpNotice}
-                  </div>
-                )}
-
-                <div className="form-group">
-                  <label className="form-label">Enter 6-Digit Code</label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    placeholder="123456"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                    className="form-input"
-                    style={{ fontSize: '1.4rem', letterSpacing: '6px', textAlign: 'center', fontWeight: 700 }}
-                    required
-                    autoFocus
-                  />
+              {devOtpNotice && (
+                <div className="alert-box success" style={{ fontWeight: 600 }}>
+                  <CheckCircle2 size={18} />
+                  <span>{devOtpNotice}</span>
                 </div>
+              )}
 
-                <button
-                  type="submit"
-                  disabled={otpLoading || otpCode.length !== 6}
-                  className="btn btn-primary btn-block btn-lg"
-                  style={{ marginTop: '12px' }}
-                >
-                  {otpLoading ? 'Verifying & creating account...' : 'Verify & Continue'} <ArrowRight size={18} />
-                </button>
-              </form>
-            )}
-          </div>
-        )}
+              <div className="form-group">
+                <label className="form-label" htmlFor="otpCode">6-digit code</label>
+                <input
+                  id="otpCode"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  placeholder="••••••"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                  className="form-input otp-input"
+                  required
+                  autoFocus
+                />
+              </div>
 
-        <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.9rem', color: 'var(--ink-muted)' }}>
-          Already have a CareCircle account?{' '}
-          <Link href={`/login?redirect=/checkout/confirm?plan=${planParam}`} style={{ color: 'var(--teal)', fontWeight: 600 }}>
-            Log in here
-          </Link>
-        </div>
-      </div>
-
-      {/* GOOGLE SIGN UP MODAL */}
-      {showGoogleModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.55)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 999,
-            padding: '20px'
-          }}
-        >
-          <div
-            className="card"
-            style={{
-              maxWidth: '440px',
-              width: '100%',
-              position: 'relative',
-              animation: 'fadeIn 0.2s ease',
-              background: '#fff'
-            }}
-          >
-            <button
-              onClick={() => setShowGoogleModal(false)}
-              style={{
-                position: 'absolute',
-                top: '18px',
-                right: '18px',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--ink-muted)'
-              }}
-            >
-              <X size={20} />
-            </button>
-
-            <h3 style={{ fontSize: '1.3rem', marginBottom: '8px' }}>Google One-Click Sign Up</h3>
-            <p style={{ fontSize: '0.88rem', color: 'var(--ink-muted)', marginBottom: '18px' }}>
-              Create a new CareCircle account linked to your Google identity.
-            </p>
-
-            <div className="form-group">
-              <label className="form-label">Full Name</label>
-              <input
-                type="text"
-                placeholder="Your Full Name"
-                value={googleNameInput}
-                onChange={(e) => setGoogleNameInput(e.target.value)}
-                className="form-input"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Google Email</label>
-              <input
-                type="email"
-                placeholder="your.google@gmail.com"
-                value={googleEmailInput}
-                onChange={(e) => setGoogleEmailInput(e.target.value)}
-                className="form-input"
-              />
-            </div>
-
-            <button
-              type="button"
-              disabled={!googleEmailInput.includes('@') || googleLoading}
-              onClick={() => handleGoogleSignupDirect(googleEmailInput, googleNameInput)}
-              className="btn btn-primary btn-block btn-lg"
-              style={{ marginTop: '14px' }}
-            >
-              {googleLoading ? 'Creating account...' : 'Create Account with Google'}
-            </button>
-          </div>
+              <button
+                type="submit"
+                disabled={otpLoading || otpCode.length !== 6}
+                className="btn btn-primary btn-block btn-lg"
+                style={{ marginTop: '8px' }}
+              >
+                {otpLoading ? <><span className="spinner" /> Verifying…</> : <>Verify & continue <ArrowRight size={18} className="arrow" /></>}
+              </button>
+            </form>
+          )}
         </div>
       )}
-    </div>
+
+      <p style={{ fontSize: '0.8rem', color: 'var(--ink-subtle)', marginTop: '18px', textAlign: 'center', lineHeight: 1.5 }}>
+        By continuing you agree to CareCircle&apos;s terms of service and privacy policy.
+      </p>
+
+      <p className="auth-foot" style={{ marginTop: '16px' }}>
+        Already have an account?{' '}
+        <Link href={`/login?redirect=/checkout/confirm?plan=${planParam}`} className="link">
+          Log in
+        </Link>
+      </p>
+    </>
   );
 }
 
 export default function SignUpPage() {
   return (
-    <>
-      <Navbar />
-      <main>
-        <Suspense fallback={<div style={{ textAlign: 'center', padding: '60px' }}>Loading...</div>}>
-          <SignUpContent />
-        </Suspense>
-      </main>
-      <Footer />
-    </>
+    <AuthShell
+      asideTitle={<>Tomorrow morning, someone will <em>ask how they&apos;re doing.</em></>}
+    >
+      <Suspense fallback={<div className="skeleton" style={{ height: '520px' }} />}>
+        <SignUpContent />
+      </Suspense>
+    </AuthShell>
   );
 }

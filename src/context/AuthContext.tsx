@@ -17,8 +17,8 @@ interface AuthContextType {
   loading: boolean;
   login: (emailOrPhone: string, password?: string, rememberMe?: boolean) => Promise<AuthResult>;
   loginWithOtp: (phone: string, code: string, rememberMe?: boolean) => Promise<AuthResult>;
-  loginWithGoogle: (email: string, rememberMe?: boolean) => Promise<AuthResult>;
-  signupWithGoogle: (email: string, name?: string, rememberMe?: boolean) => Promise<AuthResult>;
+  loginWithGoogle: (credential: string, rememberMe?: boolean) => Promise<AuthResult>;
+  signupWithGoogle: (credential: string, rememberMe?: boolean) => Promise<AuthResult>;
   signup: (userData: { name: string; email: string; phone: string; password?: string; planId?: PlanId }) => Promise<AuthResult>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -98,12 +98,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const loginWithGoogle = async (email: string, rememberMe: boolean = true): Promise<AuthResult> => {
+  const loginWithGoogle = async (credential: string, rememberMe: boolean = true): Promise<AuthResult> => {
     try {
       const res = await fetch('/api/auth/google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, mode: 'login', rememberMe })
+        body: JSON.stringify({ credential, mode: 'login', rememberMe })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           error: data.error || 'Google login failed',
           code: data.code,
           notFound: data.notFound || data.code === 'ACCOUNT_NOT_FOUND',
-          enteredIdentifier: data.enteredEmail || email
+          enteredIdentifier: data.enteredEmail
         };
       }
       setUser(data.user);
@@ -122,12 +122,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signupWithGoogle = async (email: string, name?: string, rememberMe: boolean = true): Promise<AuthResult> => {
+  const signupWithGoogle = async (credential: string, rememberMe: boolean = true): Promise<AuthResult> => {
     try {
       const res = await fetch('/api/auth/google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, name, mode: 'signup', rememberMe })
+        body: JSON.stringify({ credential, mode: 'signup', rememberMe })
       });
       const data = await res.json();
       if (!res.ok) {

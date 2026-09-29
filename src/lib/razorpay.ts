@@ -2,8 +2,48 @@ import crypto from 'crypto';
 import { PlanId } from './types';
 import { PLANS } from './plans';
 
-export const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_CareCircle2025';
-export const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'secret_CareCircleSandboxKey2025';
+/**
+ * Razorpay configuration.
+ *  - Live/test-mode Razorpay: RAZORPAY_KEY_ID (or NEXT_PUBLIC_RAZORPAY_KEY_ID),
+ *    RAZORPAY_KEY_SECRET, and real plan ids in RAZORPAY_PLAN_ID_FAMILY /
+ *    RAZORPAY_PLAN_ID_EXTENDED (created in the Razorpay dashboard).
+ *  - Without real keys, a local sandbox is available ONLY under `next dev`.
+ *    Production never falls back to sandbox.
+ */
+const PLACEHOLDER = /demo|CareCircle|xxxx|your_/i;
+
+export function getRazorpayKeyId(): string {
+  return process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '';
+}
+
+function getRazorpayKeySecret(): string {
+  return process.env.RAZORPAY_KEY_SECRET || '';
+}
+
+export function isRazorpayConfigured(): boolean {
+  const id = getRazorpayKeyId();
+  const secret = getRazorpayKeySecret();
+  return Boolean(id && secret && !PLACEHOLDER.test(id) && !PLACEHOLDER.test(secret));
+}
+
+export function isSandboxAllowed(): boolean {
+  return !isRazorpayConfigured() && process.env.NODE_ENV === 'development';
+}
+
+const SANDBOX_PREFIX = 'sub_sandbox_';
+
+function getRazorpayPlanId(planId: PlanId): string | undefined {
+  if (planId === 'family') return process.env.RAZORPAY_PLAN_ID_FAMILY || PLANS.family.razorpayPlanId;
+  if (planId === 'extended') return process.env.RAZORPAY_PLAN_ID_EXTENDED || PLANS.extended.razorpayPlanId;
+  return undefined;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getClient(): any {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const Razorpay = require('razorpay');
+  return new Razorpay({ key_id: getRazorpayKeyId(), key_secret: getRazorpayKeySecret() });
+}
 
 export interface CreateSubscriptionResult {
   subscriptionId: string;
@@ -14,90 +54,130 @@ export interface CreateSubscriptionResult {
   isSandbox: boolean;
 }
 
+export class PaymentsUnavailableError extends Error {}
+
 export async function createSubscriptionServer(
   planId: PlanId,
-  customerEmail: string,
-  customerName: string,
-  customerPhone?: string
+  customer: { userId: string; email: string; name: string; phone?: string }
 ): Promise<CreateSubscriptionResult> {
   const plan = PLANS[planId];
   if (!plan || plan.priceMonthly === 0) {
     throw new Error('Free plan does not require a Razorpay subscription.');
   }
 
-  // If live Razorpay credentials are present and not default placeholder, instantiate official Razorpay client
-  if (
-    process.env.RAZORPAY_KEY_ID &&
-    process.env.RAZORPAY_KEY_SECRET &&
-    !process.env.RAZORPAY_KEY_ID.includes('CareCircle')
-  ) {
-    try {
-      // Dynamic import to prevent build failures if razorpay native module has issues in edge
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const Razorpay = require('razorpay');
-      const instance = new Razorpay({
-        key_id: process.env.RAZORPAY_KEY_ID,
-        key_secret: process.env.RAZORPAY_KEY_SECRET
-      });
+  if (isRazorpayConfigured()) {
+    const rzpPlanId = getRazorpayPlanId(planId);
+    if (!rzpPlanId) throw new PaymentsUnavailableError('Razorpay plan id is not configured for this plan.');
 
-      const response = await instance.subscriptions.create({
-        plan_id: plan.razorpayPlanId || 'plan_default',
-        total_count: 12,
-        quantity: 1,
-        customer_notify: 1,
-        notes: {
-          customer_email: customerEmail,
-          customer_name: customerName,
-          customer_phone: customerPhone || ''
-        }
-      });
+    const response = await getClient().subscriptions.create({
+      plan_id: rzpPlanId,
+      total_count: 120,
+      quantity: 1,
+      customer_notify: 1,
+      ...(plan.hasTrial ? { start_at: Math.floor(Date.now() / 1000) + plan.trialDays * 86400 } : {}),
+      notes: {
+        carecircle_user_id: customer.userId,
+        carecircle_plan_id: planId,
+        customer_email: customer.email
+      }
+    });
 
-      return {
-        subscriptionId: response.id,
-        planId,
-        amount: plan.priceMonthly,
-        currency: 'INR',
-        keyId: process.env.RAZORPAY_KEY_ID,
-        isSandbox: false
-      };
-    } catch (err) {
-      console.warn('Razorpay SDK subscription call failed, falling back to secure sandbox test mode:', err);
-    }
+    return {
+      subscriptionId: response.id,
+      planId,
+      amount: plan.priceMonthly,
+      currency: 'INR',
+      keyId: getRazorpayKeyId(),
+      isSandbox: false
+    };
   }
 
-  // High-fidelity sandbox / test subscription generator for instant demonstration & testing
-  const mockSubId = `sub_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 7)}`;
-  return {
-    subscriptionId: mockSubId,
-    planId,
-    amount: plan.priceMonthly,
-    currency: 'INR',
-    keyId: RAZORPAY_KEY_ID,
-    isSandbox: true
-  };
+  if (isSandboxAllowed()) {
+    // Sandbox ids are bound to the user so they can't be replayed for another account.
+    const tag = crypto
+      .createHmac('sha256', 'carecircle-dev-sandbox')
+      .update(`${customer.userId}|${planId}`)
+      .digest('hex')
+      .slice(0, 16);
+    return {
+      subscriptionId: `${SANDBOX_PREFIX}${planId}_${tag}`,
+      planId,
+      amount: plan.priceMonthly,
+      currency: 'INR',
+      keyId: 'rzp_test_sandbox',
+      isSandbox: true
+    };
+  }
+
+  throw new PaymentsUnavailableError('Online payments are not configured yet. Please try again later.');
 }
 
-export function verifySubscriptionSignatureServer(
-  paymentId: string,
-  subscriptionId: string,
-  signature: string
-): boolean {
-  if (!paymentId || !subscriptionId) return false;
+function safeEqualHex(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && crypto.timingSafeEqual(ab, bb);
+}
 
-  // In sandbox demo mode, accept test signature format
-  if (subscriptionId.startsWith('sub_') && (signature.startsWith('sig_test_') || signature.length >= 8)) {
-    return true;
+/**
+ * Verifies a checkout result and that the subscription belongs to this user
+ * and plan. Returns an error message when verification fails.
+ */
+export async function verifySubscriptionPayment(params: {
+  paymentId: string;
+  subscriptionId: string;
+  signature: string;
+  userId: string;
+  planId: PlanId;
+}): Promise<{ ok: true; isSandbox: boolean } | { ok: false; error: string }> {
+  const { paymentId, subscriptionId, signature, userId, planId } = params;
+
+  if (subscriptionId.startsWith(SANDBOX_PREFIX)) {
+    if (!isSandboxAllowed()) return { ok: false, error: 'Sandbox payments are disabled.' };
+    const expected = crypto
+      .createHmac('sha256', 'carecircle-dev-sandbox')
+      .update(`${userId}|${planId}`)
+      .digest('hex')
+      .slice(0, 16);
+    if (subscriptionId !== `${SANDBOX_PREFIX}${planId}_${expected}`) {
+      return { ok: false, error: 'Sandbox subscription does not match this account.' };
+    }
+    return { ok: true, isSandbox: true };
   }
 
-  try {
-    const expectedSignature = crypto
-      .createHmac('sha256', RAZORPAY_KEY_SECRET)
-      .update(`${paymentId}|${subscriptionId}`)
-      .digest('hex');
-
-    return expectedSignature === signature;
-  } catch (err) {
-    console.error('Error verifying Razorpay signature:', err);
-    return false;
+  if (!isRazorpayConfigured()) {
+    return { ok: false, error: 'Online payments are not configured.' };
   }
+
+  // Razorpay subscription signature: HMAC_SHA256(payment_id + "|" + subscription_id, key_secret)
+  const expectedSignature = crypto
+    .createHmac('sha256', getRazorpayKeySecret())
+    .update(`${paymentId}|${subscriptionId}`)
+    .digest('hex');
+  if (!signature || !safeEqualHex(expectedSignature, signature)) {
+    return { ok: false, error: 'Invalid payment signature.' };
+  }
+
+  // Make sure this subscription was created for this user and plan.
+  const sub = await getClient().subscriptions.fetch(subscriptionId);
+  if (sub?.notes?.carecircle_user_id !== userId || sub?.notes?.carecircle_plan_id !== planId) {
+    return { ok: false, error: 'This subscription does not belong to your account.' };
+  }
+
+  return { ok: true, isSandbox: false };
+}
+
+export function verifyWebhookSignature(rawBody: string, signature: string | null): boolean {
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET || '';
+  if (!secret || PLACEHOLDER.test(secret) || !signature) return false;
+  const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+  return safeEqualHex(expected, signature);
+}
+
+/**
+ * Cancels a real Razorpay subscription (at the end of the current cycle by
+ * default). Sandbox ids and unconfigured environments are a no-op.
+ */
+export async function cancelRazorpaySubscription(subscriptionId: string | undefined, atCycleEnd = true): Promise<void> {
+  if (!subscriptionId || subscriptionId.startsWith(SANDBOX_PREFIX) || !isRazorpayConfigured()) return;
+  await getClient().subscriptions.cancel(subscriptionId, atCycleEnd);
 }

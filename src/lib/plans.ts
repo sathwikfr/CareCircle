@@ -4,57 +4,58 @@ export const PLANS: Record<PlanId, Plan> = {
   free: {
     id: 'free',
     name: 'Free Starter',
-    tagline: 'Essential peace of mind for one parent',
+    tagline: 'A daily check-in call for one parent',
     priceMonthly: 0,
     currency: '₹',
     hasTrial: false,
     trialDays: 0,
     parentsIncluded: 1,
+    callsPerDay: 1,
     features: [
-      '1 parent profile',
-      '1 daily medicine reminder call',
-      'Basic SMS alerts for missed check-ins',
-      'Missed medication warnings to family',
-      'Standard telephone calling (no app needed)'
+      '1 parent',
+      '1 check-in call a day',
+      'Medicine confirmation on every call',
+      'Call history on your dashboard',
+      'Works on any phone, no app needed'
     ]
   },
   family: {
     id: 'family',
     name: 'Family Care',
-    tagline: 'Complete holistic check-ins for both parents',
+    tagline: 'Check-ins for both parents, at the times that suit them',
     priceMonthly: 399,
     currency: '₹',
     hasTrial: true,
     trialDays: 14,
     popular: true,
     parentsIncluded: 2,
+    callsPerDay: 3,
     razorpayPlanId: 'plan_carecircle_family_399',
     features: [
-      'Up to 2 parents / elder relatives',
-      'Natural conversational voice check-ins',
-      'Regional Indian language support (Hindi, Tamil, Telugu, Kannada, Bengali, etc.)',
-      'Weekly health & mood trend reports',
-      'Instant WhatsApp caregiver notifications & summaries',
-      'Custom call timings (morning, evening, bedtime)'
+      'Up to 2 parents or elder relatives',
+      'Calls timed to their medicines (morning, afternoon, evening, bedtime)',
+      '9 Indian languages, including Hindi, Tamil, Telugu and Bengali',
+      'Medicine and mood trends on your dashboard',
+      'Alerts when something needs your attention',
+      'Pause calls anytime (travel, hospital stay)'
     ]
   },
   extended: {
     id: 'extended',
     name: 'Extended Family',
-    tagline: 'For large or multi-generational households',
+    tagline: 'For larger families caring for several elders',
     priceMonthly: 699,
     currency: '₹',
     hasTrial: true,
     trialDays: 14,
     parentsIncluded: 5,
+    callsPerDay: 3,
     razorpayPlanId: 'plan_carecircle_extended_699',
     features: [
-      'Up to 5 parents / elder relatives',
-      'Everything included in Family Care',
-      'Multiple siblings & caregivers notified concurrently',
-      'Priority emergency response escalation',
-      'Dedicated relationship concierge',
-      'Doctor appointment reminder coordination'
+      'Up to 5 parents or elder relatives',
+      'Everything in Family Care',
+      'Invite siblings to share the care',
+      'Priority support'
     ]
   }
 };
@@ -64,4 +65,15 @@ export function getPlan(planId: string | null | undefined): Plan {
     return PLANS[planId];
   }
   return PLANS.family; // Default to popular plan
+}
+
+/**
+ * The plan whose limits apply right now. Users without a subscription, and
+ * cancelled subscriptions whose paid period has ended, fall back to Free.
+ */
+export function getEffectivePlan(subscription?: { planId: PlanId; status: string; currentPeriodEnd: string } | null): Plan {
+  if (!subscription) return PLANS.free;
+  const periodOver = new Date(subscription.currentPeriodEnd).getTime() < Date.now();
+  if (subscription.status === 'cancelled' && periodOver) return PLANS.free;
+  return PLANS[subscription.planId] || PLANS.free;
 }

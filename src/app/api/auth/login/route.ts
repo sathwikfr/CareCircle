@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getUserByEmailOrPhone, updateUserPasswordHash } from '@/lib/db';
-import { comparePassword, hashPassword, AUTH_COOKIE_NAME } from '@/lib/auth';
+import { getUserByEmailOrPhone } from '@/lib/db';
+import { comparePassword, AUTH_COOKIE_NAME } from '@/lib/auth';
 import {
   checkRateLimit,
   recordFailedAttempt,
@@ -54,27 +54,18 @@ export async function POST(req: Request) {
 
     // 3. Verify Password
     if (!userWithHash.passwordHash) {
-      if (process.env.NODE_ENV !== 'production' && password) {
-        const newHash = await hashPassword(password);
-        await updateUserPasswordHash(userWithHash.id, newHash);
-        userWithHash.passwordHash = newHash;
-      } else {
-        return NextResponse.json(
-          {
-            error: 'This account was created with Google or Phone OTP. Please log in using that method or set a password.',
-            code: 'AUTH_METHOD_MISMATCH',
-            accountEmail: userWithHash.email
-          },
-          { status: 401 }
-        );
-      }
+      return NextResponse.json(
+        {
+          error: 'This account was created with Google or Phone OTP. Please log in using that method, or use "Forgot password?" to set a password.',
+          code: 'AUTH_METHOD_MISMATCH',
+          accountEmail: userWithHash.email
+        },
+        { status: 401 }
+      );
     }
 
     const isPasswordValid = await comparePassword(password, userWithHash.passwordHash);
-    // Allow Password123 for demo seeded accounts in dev mode
-    const isDevMatch = process.env.NODE_ENV !== 'production' && password === 'Password123';
-
-    if (!isPasswordValid && !isDevMatch) {
+    if (!isPasswordValid) {
       recordFailedAttempt(rateLimitKey);
       return NextResponse.json(
         {
@@ -96,8 +87,7 @@ export async function POST(req: Request) {
     const response = NextResponse.json({
       success: true,
       message: 'Logged in successfully',
-      user,
-      sessionToken: session.token
+      user
     });
 
     const maxAgeSeconds = rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60; // 30 days vs 1 day

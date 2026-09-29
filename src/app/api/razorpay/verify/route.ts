@@ -1,87 +1,62 @@
 import { NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/auth';
-import { verifySubscriptionSignatureServer } from '@/lib/razorpay';
-import { updateUserSubscription, getUserByEmail } from '@/lib/db';
+import { requireUser } from '@/lib/access';
+import { verifySubscriptionPayment } from '@/lib/razorpay';
+import { updateUserSubscription } from '@/lib/db';
 import { PlanId } from '@/lib/types';
 import { PLANS } from '@/lib/plans';
 
 export async function POST(req: Request) {
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
+  const { user } = auth;
+
   try {
-    const body = await req.json();
-    const {
-      razorpay_payment_id,
-      razorpay_subscription_id,
-      razorpay_signature,
-      planId,
-      customerEmail,
-      paymentMethodBrand,
-      paymentMethodLast4
-    } = body;
+    const { razorpay_payment_id, razorpay_subscription_id, razorpay_signature, planId, paymentMethodBrand } = await req.json();
 
     if (!razorpay_payment_id || !razorpay_subscription_id) {
-      return NextResponse.json(
-        { error: 'Missing payment or subscription identifiers.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing payment or subscription identifiers.' }, { status: 400 });
     }
 
-    if (!planId || !PLANS[planId as PlanId]) {
+    const plan = PLANS[planId as PlanId];
+    if (!plan || plan.priceMonthly === 0) {
       return NextResponse.json({ error: 'Invalid plan.' }, { status: 400 });
     }
 
-    // Server-side cryptographic signature check
-    const isValid = verifySubscriptionSignatureServer(
-      razorpay_payment_id,
-      razorpay_subscription_id,
-      razorpay_signature || ''
-    );
+    const verification = await verifySubscriptionPayment({
+      paymentId: String(razorpay_payment_id),
+      subscriptionId: String(razorpay_subscription_id),
+      signature: String(razorpay_signature || ''),
+      userId: user.id,
+      planId: planId as PlanId
+    });
 
-    if (!isValid) {
-      return NextResponse.json(
-        { error: 'Invalid payment signature. Verification failed.' },
-        { status: 400 }
-      );
+    if (!verification.ok) {
+      return NextResponse.json({ error: verification.error }, { status: 400 });
     }
 
-    // Determine target user (from authenticated session or lookup by email)
-    const sessionUser = await getSessionUser();
-    let targetUserId = sessionUser?.id;
+    const updatedSub = await updateUserSubscription(user.id, {
+      planId: planId as PlanId,
+      razorpaySubscriptionId: String(razorpay_subscription_id),
+      razorpayPaymentId: String(razorpay_payment_id),
+      paymentMethodBrand: verification.isSandbox ? 'Sandbox (no charge)' : (paymentMethodBrand || 'Razorpay').toString().slice(0, 40)
+    });
 
-    if (!targetUserId && customerEmail) {
-      const existing = await getUserByEmail(customerEmail);
-      if (existing) {
-        targetUserId = existing.id;
-      }
-    }
-
-    let updatedSub = null;
-    if (targetUserId) {
-      updatedSub = await updateUserSubscription(targetUserId, {
-        planId: planId as PlanId,
-        razorpaySubscriptionId: razorpay_subscription_id,
-        razorpayPaymentId: razorpay_payment_id,
-        paymentMethodBrand: paymentMethodBrand || 'UPI AutoPay',
-        paymentMethodLast4: paymentMethodLast4 || '4242'
-      });
-
-      // Dispatch Payment Receipt Email
-      const emailToNotify = sessionUser?.email || customerEmail;
-      if (emailToNotify) {
-        const { sendPaymentReceiptEmail } = await import('@/lib/email');
-        const plan = PLANS[planId as PlanId];
-        const nextMonth = new Date(Date.now() + 30 * 86400000).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
-        sendPaymentReceiptEmail({
-          to: emailToNotify,
-          name: sessionUser?.name || 'Caregiver',
-          planName: plan.name,
-          amount: plan.priceMonthly,
-          invoiceNumber: `CC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-          date: new Date().toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
-          nextBillingDate: nextMonth,
-          paymentMethod: paymentMethodBrand || 'UPI AutoPay'
-        }).catch(err => console.error('[Razorpay Verify] Failed to dispatch receipt email:', err));
-      }
-    }
+    const { sendPaymentReceiptEmail } = await import('@/lib/email');
+    const firstChargeDate = new Date(Date.now() + (plan.hasTrial ? plan.trialDays : 30) * 86400000).toLocaleDateString('en-IN', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+    sendPaymentReceiptEmail({
+      to: user.email,
+      name: user.name,
+      planName: plan.name,
+      amount: plan.hasTrial ? 0 : plan.priceMonthly,
+      invoiceNumber: `CC-${new Date().getFullYear()}-${String(razorpay_payment_id).slice(-6).toUpperCase()}`,
+      date: new Date().toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
+      nextBillingDate: firstChargeDate,
+      paymentMethod: verification.isSandbox ? 'Sandbox (no charge)' : 'Razorpay'
+    }).catch(err => console.error('[Razorpay Verify] Failed to dispatch receipt email:', err));
 
     return NextResponse.json({
       success: true,
@@ -90,8 +65,8 @@ export async function POST(req: Request) {
       receiptDetails: {
         paymentId: razorpay_payment_id,
         subscriptionId: razorpay_subscription_id,
-        planName: PLANS[planId as PlanId].name,
-        amount: PLANS[planId as PlanId].priceMonthly,
+        planName: plan.name,
+        amount: plan.priceMonthly,
         timestamp: new Date().toISOString()
       }
     });

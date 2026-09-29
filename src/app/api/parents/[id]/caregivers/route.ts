@@ -1,28 +1,39 @@
 import { NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/auth';
 import { inviteCaregiver } from '@/lib/db';
+import { requireOwnedParent } from '@/lib/access';
 
-export async function POST(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const user = await getSessionUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+type Ctx = { params: Promise<{ id: string }> };
 
+export async function POST(req: Request, { params }: Ctx) {
   const { id } = await params;
-  const { email, name, role } = await req.json();
+  const access = await requireOwnedParent(id);
+  if (!access.ok) return access.response;
 
-  if (!email || !email.includes('@')) {
-    return NextResponse.json({ error: 'Valid caregiver email required' }, { status: 400 });
+  try {
+    const { email, name, role } = await req.json();
+
+    if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return NextResponse.json({ error: 'Valid caregiver email required' }, { status: 400 });
+    }
+    if (email.trim().toLowerCase() === access.user.email.toLowerCase()) {
+      return NextResponse.json({ error: 'You already manage this parent.' }, { status: 400 });
+    }
+
+    const invite = await inviteCaregiver(
+      id,
+      email,
+      (name || 'Family Caregiver').toString().slice(0, 120),
+      role === 'viewer' ? 'viewer' : 'co_manager'
+    );
+
+    return NextResponse.json({
+      success: true,
+      // Invitation emails and invitee access are not built yet; say so plainly.
+      message: `${invite.email} has been added as a pending caregiver for ${access.parent.name}. Invitation emails are coming soon.`,
+      invite
+    });
+  } catch (err) {
+    const message = err instanceof Error && err.message.includes('already been invited') ? err.message : 'Failed to invite caregiver';
+    return NextResponse.json({ error: message }, { status: 400 });
   }
-
-  const invite = await inviteCaregiver(id, email.trim(), name || 'Family Caregiver', role || 'co_manager');
-
-  return NextResponse.json({
-    success: true,
-    message: `Invitation link dispatched to ${email}. They can join this parent’s dashboard.`,
-    invite
-  });
 }

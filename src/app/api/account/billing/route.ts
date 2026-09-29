@@ -1,88 +1,114 @@
 import { NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/auth';
+import { requireUser } from '@/lib/access';
 import {
   getUserInvoices,
   cancelSubscription,
   reactivateSubscription,
-  updateUserSubscription
+  updateUserSubscription,
+  getParentsForUser
 } from '@/lib/db';
 import { PlanId } from '@/lib/types';
-import { PLANS } from '@/lib/plans';
+import { PLANS, getEffectivePlan } from '@/lib/plans';
+import { cancelRazorpaySubscription } from '@/lib/razorpay';
 
 export async function GET() {
-  const user = await getSessionUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
+  const { user } = auth;
 
   const invoices = await getUserInvoices(user.id);
-  const currentPlan = user.subscription?.planId ? PLANS[user.subscription.planId] : null;
 
   return NextResponse.json({
     user,
     subscription: user.subscription || null,
-    currentPlan,
+    currentPlan: getEffectivePlan(user.subscription),
     invoices
   });
 }
 
 export async function POST(req: Request) {
-  const user = await getSessionUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireUser();
+  if (!auth.ok) return auth.response;
+  const { user } = auth;
 
   try {
     const { action, newPlanId, reason } = await req.json();
 
     if (action === 'cancel') {
+      if (!user.subscription || user.subscription.planId === 'free') {
+        return NextResponse.json({ error: 'There is no paid subscription to cancel.' }, { status: 400 });
+      }
+      await cancelRazorpaySubscription(user.subscription.razorpaySubscriptionId, true);
       const ok = await cancelSubscription(user.id);
       console.log(`User ${user.id} cancelled subscription. Reason: ${reason || 'Not specified'}`);
 
-      // Dispatch Cancellation Email
-      if (user.email) {
-        const { sendSubscriptionCancelledEmail } = await import('@/lib/email');
-        const planName = user.subscription?.planId ? PLANS[user.subscription.planId].name : 'Family Care';
-        const accessUntil = user.subscription?.currentPeriodEnd
-          ? new Date(user.subscription.currentPeriodEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })
-          : 'the end of your current cycle';
+      const plan = PLANS[user.subscription.planId];
+      const accessUntil = new Date(user.subscription.currentPeriodEnd).toLocaleDateString('en-IN', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
 
-        sendSubscriptionCancelledEmail({
-          to: user.email,
-          name: user.name,
-          planName,
-          accessUntil
-        }).catch(err => console.error('[Billing] Failed to dispatch cancellation email:', err));
-      }
+      const { sendSubscriptionCancelledEmail } = await import('@/lib/email');
+      sendSubscriptionCancelledEmail({
+        to: user.email,
+        name: user.name,
+        planName: plan.name,
+        accessUntil
+      }).catch(err => console.error('[Billing] Failed to dispatch cancellation email:', err));
 
       return NextResponse.json({
         success: ok,
-        message: 'Your subscription has been scheduled to cancel at the end of your billing cycle. Amma & Appa’s calls will continue uninterrupted until then.'
+        message: `Your subscription will end on ${accessUntil}. Check-in calls continue until then.`
       });
     }
 
     if (action === 'reactivate') {
       const ok = await reactivateSubscription(user.id);
-      return NextResponse.json({
-        success: ok,
-        message: 'Your subscription has been successfully reactivated.'
-      });
+      if (!ok) {
+        return NextResponse.json(
+          { error: 'This subscription can no longer be reactivated. Please choose a plan again.' },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json({ success: true, message: 'Your subscription has been reactivated.' });
     }
 
     if (action === 'switch-plan') {
-      if (!newPlanId || !PLANS[newPlanId as PlanId]) {
+      const target = PLANS[newPlanId as PlanId];
+      if (!target) {
         return NextResponse.json({ error: 'Invalid plan selected' }, { status: 400 });
       }
 
-      const updated = await updateUserSubscription(user.id, {
-        planId: newPlanId as PlanId,
-        paymentMethodBrand: user.subscription?.paymentMethodBrand || 'UPI AutoPay',
-        paymentMethodLast4: user.subscription?.paymentMethodLast4 || '4242'
-      });
+      // Paid plans are only activated after a verified Razorpay checkout.
+      if (target.priceMonthly > 0) {
+        return NextResponse.json(
+          {
+            error: 'Paid plans need checkout.',
+            requiresCheckout: true,
+            checkoutUrl: `/checkout/confirm?plan=${target.id}`
+          },
+          { status: 402 }
+        );
+      }
+
+      const parents = await getParentsForUser(user.id);
+      if (parents.length > target.parentsIncluded) {
+        return NextResponse.json(
+          {
+            error: `${target.name} includes ${target.parentsIncluded} parent profile. Please archive ${parents.length - target.parentsIncluded} profile(s) before downgrading.`
+          },
+          { status: 400 }
+        );
+      }
+
+      // Downgrade to Free: stop future Razorpay charges immediately.
+      await cancelRazorpaySubscription(user.subscription?.razorpaySubscriptionId, false);
+      const updated = await updateUserSubscription(user.id, { planId: 'free' });
 
       return NextResponse.json({
         success: true,
-        message: `Plan changed successfully to ${PLANS[newPlanId as PlanId].name}.`,
+        message: `Plan changed to ${target.name}.`,
         subscription: updated
       });
     }

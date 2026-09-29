@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { useAuth } from '@/context/AuthContext';
-import { PLANS, getPlan } from '@/lib/plans';
+import { PLANS, getEffectivePlan } from '@/lib/plans';
 import { PlanId, Invoice, UserSubscription } from '@/lib/types';
 import {
   CreditCard,
@@ -58,7 +58,7 @@ export default function AccountBillingPage() {
     fetchBillingData();
   }, [user]);
 
-  const currentPlan = subscription?.planId ? PLANS[subscription.planId] : PLANS.family;
+  const currentPlan = getEffectivePlan(subscription);
 
   // Handle Plan Upgrade/Downgrade
   const handleSwitchPlan = async () => {
@@ -70,6 +70,11 @@ export default function AccountBillingPage() {
         body: JSON.stringify({ action: 'switch-plan', newPlanId: selectedNewPlan })
       });
       const data = await res.json();
+      if (data.checkoutUrl) {
+        // Paid plans go through Razorpay checkout; they can't be switched on directly.
+        window.location.href = data.checkoutUrl;
+        return;
+      }
       if (res.ok) {
         setNotification({ type: 'success', message: data.message || 'Plan updated successfully!' });
         setShowSwitchModal(false);
@@ -123,6 +128,8 @@ export default function AccountBillingPage() {
         setNotification({ type: 'success', message: data.message });
         await refreshUser();
         await fetchBillingData();
+      } else {
+        setNotification({ type: 'error', message: data.error || 'Failed to reactivate.' });
       }
     } catch {
       setNotification({ type: 'error', message: 'Failed to reactivate.' });

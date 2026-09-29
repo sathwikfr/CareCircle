@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getUserByPhone, createUser } from '@/lib/db';
+import { getUserByPhone, isPhoneRegistered, createUser } from '@/lib/db';
 import { AUTH_COOKIE_NAME } from '@/lib/auth';
 import { verifyAndConsumeOtp, createDBSession } from '@/lib/security';
+import { normalizePhone } from '@/lib/phone';
 
 export async function POST(req: Request) {
   try {
@@ -11,11 +12,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Mobile number and verification code are required.' }, { status: 400 });
     }
 
-    const cleanPhone = phone.replace(/\D/g, '');
+    const phoneResult = normalizePhone(phone);
+    if (!phoneResult.ok) {
+      return NextResponse.json({ error: phoneResult.reason }, { status: 400 });
+    }
+
+    const cleanPhone = phoneResult.e164.replace(/\D/g, '');
 
     // 1. Strict Existence Check for Login
     if (purpose === 'login') {
-      const existingUser = await getUserByPhone(cleanPhone);
+      const existingUser = await getUserByPhone(phoneResult.e164);
       if (!existingUser) {
         return NextResponse.json(
           {
@@ -58,8 +64,7 @@ export async function POST(req: Request) {
 
     // 2. Signup Verification
     if (purpose === 'signup') {
-      const existingUser = await getUserByPhone(cleanPhone);
-      if (existingUser) {
+      if (await isPhoneRegistered(phoneResult.e164)) {
         return NextResponse.json(
           { error: 'An account with this mobile number already exists. Please log in instead.' },
           { status: 409 }
@@ -75,10 +80,9 @@ export async function POST(req: Request) {
       const newUser = await createUser({
         name: name || 'Caregiver',
         email: `${cleanPhone}@carecircle.user`,
-        phone: `+91 ${cleanPhone}`,
-        planId: 'family'
+        phone: phoneResult.e164,
+        phoneVerified: true
       });
-      newUser.phoneVerified = true;
 
       const session = await createDBSession(newUser.id, rememberMe);
 

@@ -3,15 +3,16 @@
 import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
+import { AuthShell, Modal, PasswordField, PhoneField } from '@/components/auth/AuthUI';
 import { useAuth } from '@/context/AuthContext';
-import { Eye, EyeOff, AlertCircle, ArrowRight, CheckCircle2, X, Phone, KeyRound, ShieldAlert } from 'lucide-react';
+import { GoogleSignInButton, isGoogleSignInEnabled } from '@/components/GoogleSignInButton';
+import { safeRedirectPath } from '@/lib/redirect';
+import { AlertCircle, ArrowRight, CheckCircle2, Phone, KeyRound, SearchX, MessageSquareCode } from 'lucide-react';
 
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || searchParams.get('callbackUrl') || '/dashboard';
+  const redirectUrl = safeRedirectPath(searchParams.get('redirect') || searchParams.get('callbackUrl'));
 
   const { login, loginWithOtp, loginWithGoogle } = useAuth();
 
@@ -34,8 +35,6 @@ function LoginContent() {
 
   // Google Login state
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
-  const [googleEmailInput, setGoogleEmailInput] = useState('');
 
   // Status & Error messaging
   const [errorMessage, setErrorMessage] = useState('');
@@ -152,16 +151,15 @@ function LoginContent() {
     }
   };
 
-  // 4. Google Login
-  const handleGoogleLoginDirect = async (emailToUse: string) => {
+  // 4. Google Login (verified Google ID token)
+  const handleGoogleCredential = async (credential: string) => {
     setGoogleLoading(true);
     setErrorMessage('');
     setErrorCode(null);
     setAccountNotFound(false);
 
-    const result = await loginWithGoogle(emailToUse, rememberMe);
+    const result = await loginWithGoogle(credential, rememberMe);
     setGoogleLoading(false);
-    setShowGoogleModal(false);
 
     if (result.success) {
       router.push(redirectUrl);
@@ -172,14 +170,6 @@ function LoginContent() {
         setAccountNotFound(true);
       }
     }
-  };
-
-  const handleDemoFill = () => {
-    setActiveTab('password');
-    setEmailOrPhone('demo@carecircle.in');
-    setPassword('Password123');
-    setAccountNotFound(false);
-    setErrorMessage('');
   };
 
   const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
@@ -214,685 +204,261 @@ function LoginContent() {
 
   const enteredIdentifier = activeTab === 'password' ? emailOrPhone : otpPhone;
 
+  const switchTab = (tab: 'password' | 'otp') => {
+    setActiveTab(tab);
+    setErrorMessage('');
+    setAccountNotFound(false);
+  };
+
+  const openForgot = () => {
+    setForgotEmail(emailOrPhone.includes('@') ? emailOrPhone : '');
+    setShowForgotModal(true);
+  };
+
+  const closeForgot = () => {
+    setShowForgotModal(false);
+    setForgotSuccess('');
+    setForgotError('');
+  };
+
+  const rememberCheckbox = (id: string) => (
+    <label htmlFor={id} className="checkbox-group" style={{ margin: '4px 0 22px', alignItems: 'center' }}>
+      <input
+        type="checkbox"
+        id={id}
+        checked={rememberMe}
+        onChange={(e) => setRememberMe(e.target.checked)}
+        style={{ width: '18px', height: '18px', accentColor: 'var(--teal)', cursor: 'pointer' }}
+      />
+      Keep me logged in for 30 days
+    </label>
+  );
+
   return (
-    <div className="wrap-narrow" style={{ padding: '50px 20px 80px' }}>
-      <div className="card" style={{ maxWidth: '480px', margin: '0 auto', boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}>
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '1.9rem', marginBottom: '8px', color: 'var(--ink)' }}>Welcome back</h2>
-          <p style={{ fontSize: '0.92rem', color: 'var(--ink-muted)' }}>
-            Log in to manage your parents&apos; CareCircle check-in routines.
-          </p>
-        </div>
+    <>
+      <h1 className="auth-title">Welcome back</h1>
+      <p className="auth-sub">Log in to see how your parents are doing.</p>
 
-        {/* DEMO FILL SHORTCUT */}
-        <div
-          onClick={handleDemoFill}
-          style={{
-            background: 'var(--teal-light)',
-            border: '1px dashed var(--teal)',
-            padding: '10px 14px',
-            borderRadius: '10px',
-            marginBottom: '18px',
-            fontSize: '0.82rem',
-            color: 'var(--teal-deep)',
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}
-        >
-          <span>👉 Quick Demo Account: <strong>demo@carecircle.in</strong></span>
-          <span style={{ fontWeight: 600, textDecoration: 'underline' }}>Auto-fill</span>
-        </div>
+      {isGoogleSignInEnabled && (
+        <>
+          <GoogleSignInButton mode="signin" onCredential={handleGoogleCredential} disabled={googleLoading || loading} />
+          <div className="or-divider">or</div>
+        </>
+      )}
 
-        {/* GOOGLE OAUTH BUTTON */}
-        <button
-          onClick={() => setShowGoogleModal(true)}
-          disabled={googleLoading || loading}
-          className="btn btn-ghost btn-block"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '12px',
-            padding: '12px',
-            borderRadius: '12px',
-            marginBottom: '18px',
-            fontSize: '0.95rem',
-            border: '1px solid var(--line)'
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24">
-            <path
-              fill="#EA4335"
-              d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"
-            />
-            <path
-              fill="#4285F4"
-              d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.8s.2-2.1.4-2.8L1.9 6.3C.7 8.7 0 10.8 0 12s.7 3.3 1.9 5.7l3.7-2.9z"
-            />
-            <path
-              fill="#34A853"
-              d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16c1.8 3.7 5.6 7 10.1 7z"
-            />
-          </svg>
-          {googleLoading ? 'Signing in with Google...' : 'Continue with Google'}
+      <div className="segmented" role="group" aria-label="Login method" style={{ marginBottom: '24px' }}>
+        <button type="button" aria-pressed={activeTab === 'password'} onClick={() => switchTab('password')}>
+          <KeyRound size={15} /> Password
         </button>
+        <button type="button" aria-pressed={activeTab === 'otp'} onClick={() => switchTab('otp')}>
+          <Phone size={15} /> Phone OTP
+        </button>
+      </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', margin: '18px 0', color: 'var(--ink-subtle)', fontSize: '0.84rem' }}>
-          <div style={{ flex: 1, height: '1px', background: 'var(--line)' }} />
-          <span>or choose login method</span>
-          <div style={{ flex: 1, height: '1px', background: 'var(--line)' }} />
-        </div>
-
-        {/* AUTH METHOD TABS */}
-        <div
-          style={{
-            display: 'flex',
-            background: 'var(--panel)',
-            padding: '4px',
-            borderRadius: '10px',
-            marginBottom: '20px',
-            border: '1px solid var(--line)'
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('password');
-              setErrorMessage('');
-              setAccountNotFound(false);
-            }}
-            style={{
-              flex: 1,
-              padding: '8px 12px',
-              borderRadius: '7px',
-              border: 'none',
-              fontSize: '0.88rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              background: activeTab === 'password' ? '#fff' : 'transparent',
-              color: activeTab === 'password' ? 'var(--ink)' : 'var(--ink-muted)',
-              boxShadow: activeTab === 'password' ? '0 2px 4px rgba(0,0,0,0.06)' : 'none',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <KeyRound size={16} /> Password
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('otp');
-              setErrorMessage('');
-              setAccountNotFound(false);
-            }}
-            style={{
-              flex: 1,
-              padding: '8px 12px',
-              borderRadius: '7px',
-              border: 'none',
-              fontSize: '0.88rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              background: activeTab === 'otp' ? '#fff' : 'transparent',
-              color: activeTab === 'otp' ? 'var(--ink)' : 'var(--ink-muted)',
-              boxShadow: activeTab === 'otp' ? '0 2px 4px rgba(0,0,0,0.06)' : 'none',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Phone size={16} /> Phone OTP
-          </button>
-        </div>
-
-        {/* EXPLICIT ACCOUNT NOT FOUND REJECTION PROMPT */}
-        {accountNotFound && (
-          <div
-            style={{
-              background: '#fef3c7',
-              border: '1px solid #f59e0b',
-              borderRadius: '12px',
-              padding: '16px',
-              marginBottom: '20px',
-              display: 'flex',
-              gap: '12px',
-              alignItems: 'flex-start'
-            }}
-          >
-            <ShieldAlert size={22} style={{ color: '#d97706', flexShrink: 0, marginTop: '2px' }} />
-            <div>
-              <div style={{ fontWeight: 700, color: '#92400e', fontSize: '0.94rem', marginBottom: '4px' }}>
-                No account found
-              </div>
-              <p style={{ margin: '0 0 10px', fontSize: '0.86rem', color: '#78350f', lineHeight: 1.45 }}>
-                {errorMessage || 'There is no registered CareCircle account matching this email or phone.'}
-              </p>
-              <Link
-                href={`/signup?identifier=${encodeURIComponent(enteredIdentifier)}&plan=family`}
-                className="btn btn-primary btn-sm"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: '#92400e',
-                  borderColor: '#92400e',
-                  color: '#fff',
-                  padding: '7px 14px',
-                  fontSize: '0.84rem'
-                }}
-              >
-                Sign up for CareCircle now <ArrowRight size={14} />
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {/* GENERAL ERROR / WRONG PASSWORD */}
-        {errorMessage && !accountNotFound && (
-          <div className="alert-box error" style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
-            <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
-            <div style={{ flex: 1, fontSize: '0.88rem' }}>
-              <div>{errorMessage}</div>
-              {errorCode === 'INCORRECT_PASSWORD' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setForgotEmail(emailOrPhone.includes('@') ? emailOrPhone : '');
-                    setShowForgotModal(true);
-                  }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--teal)',
-                    fontSize: '0.82rem',
-                    fontWeight: 700,
-                    textDecoration: 'underline',
-                    padding: 0,
-                    marginTop: '6px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Forgot your password? Reset it here →
-                </button>
-              )}
-              {errorCode === 'AUTH_METHOD_MISMATCH' && (
-                <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    onClick={() => handleGoogleLoginDirect(emailOrPhone)}
-                    className="btn btn-primary btn-sm"
-                    style={{ fontSize: '0.82rem', padding: '6px 12px' }}
-                  >
-                    Log in with Google →
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setForgotEmail(emailOrPhone.includes('@') ? emailOrPhone : '');
-                      setShowForgotModal(true);
-                    }}
-                    className="btn btn-ghost btn-sm"
-                    style={{ fontSize: '0.82rem', padding: '6px 12px', background: '#fff' }}
-                  >
-                    Set a Password →
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 1: PASSWORD LOGIN FORM */}
-        {activeTab === 'password' && (
-          <form onSubmit={handlePasswordSubmit}>
-            <div className="form-group">
-              <label className="form-label">Email or Phone Number</label>
-              <input
-                type="text"
-                placeholder="e.g. demo@carecircle.in or 9876543210"
-                value={emailOrPhone}
-                onChange={(e) => setEmailOrPhone(e.target.value)}
-                className="form-input"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '7px' }}>
-                <label className="form-label" style={{ margin: 0 }}>Password</label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setForgotEmail(emailOrPhone.includes('@') ? emailOrPhone : '');
-                    setShowForgotModal(true);
-                  }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--teal)',
-                    fontSize: '0.82rem',
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Forgot password?
-                </button>
-              </div>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="form-input"
-                  style={{ paddingRight: '44px' }}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'var(--ink-muted)'
-                  }}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-
-            {/* REMEMBER ME CHECKBOX */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '14px 0 20px' }}>
-              <input
-                type="checkbox"
-                id="rememberMe"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                style={{ width: '16px', height: '16px', accentColor: 'var(--teal)', cursor: 'pointer' }}
-              />
-              <label htmlFor="rememberMe" style={{ fontSize: '0.86rem', color: 'var(--ink-muted)', cursor: 'pointer', userSelect: 'none' }}>
-                Remember me on this browser (30 days)
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary btn-block btn-lg"
-            >
-              {loading ? 'Verifying account...' : 'Log in with Password'} <ArrowRight size={18} />
-            </button>
-          </form>
-        )}
-
-        {/* TAB 2: PHONE OTP LOGIN FORM */}
-        {activeTab === 'otp' && (
+      {accountNotFound && (
+        <div className="notice amber" role="alert">
+          <SearchX size={20} />
           <div>
-            {!otpSent ? (
-              <form onSubmit={handleSendOtp}>
-                <div className="form-group">
-                  <label className="form-label">
-                    <span>Registered Mobile Number</span>
-                    <span className="form-hint">Must belong to an existing account</span>
-                  </label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <span
-                      style={{
-                        padding: '13px 14px',
-                        background: 'var(--panel)',
-                        border: '1px solid var(--line)',
-                        borderRadius: '12px',
-                        fontSize: '0.94rem',
-                        fontWeight: 600,
-                        color: 'var(--ink)'
-                      }}
-                    >
-                      +91
-                    </span>
-                    <input
-                      type="tel"
-                      placeholder="98765 43210"
-                      value={otpPhone}
-                      onChange={(e) => setOtpPhone(e.target.value)}
-                      className="form-input"
-                      required
-                    />
-                  </div>
-                </div>
+            <strong>No account found</strong>
+            <p>{errorMessage || 'There is no CareCircle account with this email or phone number.'}</p>
+            <Link
+              href={`/signup?identifier=${encodeURIComponent(enteredIdentifier)}&plan=family`}
+              className="btn btn-primary btn-sm"
+            >
+              Create an account <ArrowRight size={14} className="arrow" />
+            </Link>
+          </div>
+        </div>
+      )}
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '14px 0 20px' }}>
-                  <input
-                    type="checkbox"
-                    id="rememberMeOtp"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    style={{ width: '16px', height: '16px', accentColor: 'var(--teal)', cursor: 'pointer' }}
-                  />
-                  <label htmlFor="rememberMeOtp" style={{ fontSize: '0.86rem', color: 'var(--ink-muted)', cursor: 'pointer', userSelect: 'none' }}>
-                    Remember me on this browser (30 days)
-                  </label>
-                </div>
+      {errorMessage && !accountNotFound && (
+        <div className="alert-box error" role="alert">
+          <AlertCircle size={18} />
+          <div style={{ flex: 1 }}>
+            <div>{errorMessage}</div>
+            {errorCode === 'INCORRECT_PASSWORD' && (
+              <button type="button" className="link-btn" onClick={openForgot} style={{ marginTop: '6px', fontSize: '0.84rem' }}>
+                Forgot your password? Reset it
+              </button>
+            )}
+            {errorCode === 'AUTH_METHOD_MISMATCH' && (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={openForgot} style={{ marginTop: '10px' }}>
+                Set a password
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
-                <button
-                  type="submit"
-                  disabled={otpLoading}
-                  className="btn btn-primary btn-block btn-lg"
-                >
-                  {otpLoading ? 'Checking account & sending code...' : 'Send Verification Code'} <ArrowRight size={18} />
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyOtp}>
-                <div style={{ background: 'var(--teal-light)', padding: '12px 14px', borderRadius: '10px', marginBottom: '16px', fontSize: '0.86rem', color: 'var(--teal-deep)' }}>
-                  Verification code sent to <strong>+91 {otpPhone}</strong>.{' '}
+      {activeTab === 'password' && (
+        <form onSubmit={handlePasswordSubmit} noValidate>
+          <div className="form-group">
+            <label className="form-label" htmlFor="identifier">Email or phone number</label>
+            <input
+              id="identifier"
+              type="text"
+              placeholder="you@example.com or 98765 43210"
+              value={emailOrPhone}
+              onChange={(e) => setEmailOrPhone(e.target.value)}
+              className="form-input"
+              autoComplete="username"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <div className="form-label">
+              <label htmlFor="password">Password</label>
+              <button type="button" className="link-btn" onClick={openForgot} style={{ fontSize: '0.84rem' }}>
+                Forgot password?
+              </button>
+            </div>
+            <PasswordField
+              id="password"
+              value={password}
+              onChange={setPassword}
+              show={showPassword}
+              onToggle={() => setShowPassword(!showPassword)}
+              placeholder="Your password"
+            />
+          </div>
+
+          {rememberCheckbox('rememberMe')}
+
+          <button type="submit" disabled={loading} className="btn btn-primary btn-block btn-lg">
+            {loading ? <><span className="spinner" /> Logging in…</> : <>Log in <ArrowRight size={18} className="arrow" /></>}
+          </button>
+        </form>
+      )}
+
+      {activeTab === 'otp' && (
+        <div>
+          {!otpSent ? (
+            <form onSubmit={handleSendOtp} noValidate>
+              <div className="form-group">
+                <label className="form-label" htmlFor="otpPhone">Mobile number on your account</label>
+                <PhoneField id="otpPhone" value={otpPhone} onChange={setOtpPhone} />
+              </div>
+
+              {rememberCheckbox('rememberMeOtp')}
+
+              <button type="submit" disabled={otpLoading} className="btn btn-primary btn-block btn-lg">
+                {otpLoading ? <><span className="spinner" /> Sending code…</> : <>Send code <ArrowRight size={18} className="arrow" /></>}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyOtp} noValidate>
+              <div className="notice teal">
+                <MessageSquareCode size={20} />
+                <div>
+                  Code sent to <b>+91 {otpPhone}</b>.{' '}
                   <button
                     type="button"
+                    className="link-btn"
                     onClick={() => {
                       setOtpSent(false);
                       setOtpCode('');
                       setDevOtpNotice(null);
                     }}
-                    style={{ background: 'none', border: 'none', color: 'var(--teal)', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
                   >
                     Change
                   </button>
                 </div>
+              </div>
 
-                {devOtpNotice && (
-                  <div style={{ background: '#ecfdf5', border: '1px solid #10b981', padding: '10px 14px', borderRadius: '8px', marginBottom: '16px', fontSize: '0.84rem', color: '#065f46', fontWeight: 600 }}>
-                    {devOtpNotice}
-                  </div>
-                )}
-
-                <div className="form-group">
-                  <label className="form-label">Enter 6-Digit OTP Code</label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    placeholder="123456"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                    className="form-input"
-                    style={{ fontSize: '1.4rem', letterSpacing: '6px', textAlign: 'center', fontWeight: 700 }}
-                    required
-                    autoFocus
-                  />
+              {devOtpNotice && (
+                <div className="alert-box success" style={{ fontWeight: 600 }}>
+                  <CheckCircle2 size={18} />
+                  <span>{devOtpNotice}</span>
                 </div>
+              )}
 
-                <button
-                  type="submit"
-                  disabled={otpLoading || otpCode.length !== 6}
-                  className="btn btn-primary btn-block btn-lg"
-                  style={{ marginTop: '12px' }}
-                >
-                  {otpLoading ? 'Verifying session...' : 'Verify OTP & Log In'} <ArrowRight size={18} />
-                </button>
-              </form>
-            )}
-          </div>
-        )}
-
-        <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.9rem', color: 'var(--ink-muted)' }}>
-          Don&apos;t have an account yet?{' '}
-          <Link href={`/signup${enteredIdentifier ? `?identifier=${encodeURIComponent(enteredIdentifier)}` : ''}`} style={{ color: 'var(--teal)', fontWeight: 600 }}>
-            Sign up now
-          </Link>
-        </div>
-      </div>
-
-      {/* GOOGLE SIMULATION / SELECTOR MODAL */}
-      {showGoogleModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.55)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 999,
-            padding: '20px'
-          }}
-        >
-          <div
-            className="card"
-            style={{
-              maxWidth: '440px',
-              width: '100%',
-              position: 'relative',
-              animation: 'fadeIn 0.2s ease',
-              background: '#fff'
-            }}
-          >
-            <button
-              onClick={() => setShowGoogleModal(false)}
-              style={{
-                position: 'absolute',
-                top: '18px',
-                right: '18px',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--ink-muted)'
-              }}
-            >
-              <X size={20} />
-            </button>
-
-            <h3 style={{ fontSize: '1.3rem', marginBottom: '8px' }}>Google Sign-In</h3>
-            <p style={{ fontSize: '0.88rem', color: 'var(--ink-muted)', marginBottom: '18px' }}>
-              Select an account to log into CareCircle. Logging in will only succeed for accounts that already exist.
-            </p>
-
-            {/* Quick pre-seeded Google account buttons */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '18px' }}>
-              <button
-                type="button"
-                onClick={() => handleGoogleLoginDirect('demo@carecircle.in')}
-                className="btn btn-ghost"
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '12px 14px',
-                  borderRadius: '10px',
-                  textAlign: 'left',
-                  border: '1px solid var(--line)'
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Demo Account</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>demo@carecircle.in</div>
-                </div>
-                <span className="badge badge-teal" style={{ fontSize: '0.75rem' }}>Registered</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleGoogleLoginDirect('sathwik.fr@gmail.com')}
-                className="btn btn-ghost"
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '12px 14px',
-                  borderRadius: '10px',
-                  textAlign: 'left',
-                  border: '1px solid var(--line)'
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Sathwik Family Account</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>sathwik.fr@gmail.com</div>
-                </div>
-                <span className="badge badge-teal" style={{ fontSize: '0.75rem' }}>Registered</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleGoogleLoginDirect('unregistered.test@gmail.com')}
-                className="btn btn-ghost"
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '12px 14px',
-                  borderRadius: '10px',
-                  textAlign: 'left',
-                  border: '1px dashed #f59e0b',
-                  background: '#fef3c7'
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#92400e' }}>Test Unregistered Account</div>
-                  <div style={{ fontSize: '0.8rem', color: '#b45309' }}>unregistered.test@gmail.com</div>
-                </div>
-                <span className="badge" style={{ background: '#f59e0b', color: '#fff', fontSize: '0.75rem' }}>Should Reject</span>
-              </button>
-            </div>
-
-            {/* Custom Google Email Input */}
-            <div style={{ borderTop: '1px solid var(--line)', paddingTop: '16px' }}>
-              <label className="form-label" style={{ fontSize: '0.82rem' }}>Or enter any Google email to test:</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div className="form-group">
+                <label className="form-label" htmlFor="otpCode">6-digit code</label>
                 <input
-                  type="email"
-                  placeholder="your-google-email@gmail.com"
-                  value={googleEmailInput}
-                  onChange={(e) => setGoogleEmailInput(e.target.value)}
-                  className="form-input"
-                  style={{ fontSize: '0.88rem' }}
+                  id="otpCode"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  placeholder="••••••"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                  className="form-input otp-input"
+                  required
+                  autoFocus
                 />
-                <button
-                  type="button"
-                  disabled={!googleEmailInput.includes('@') || googleLoading}
-                  onClick={() => handleGoogleLoginDirect(googleEmailInput)}
-                  className="btn btn-primary"
-                  style={{ whiteSpace: 'nowrap' }}
-                >
-                  Continue
-                </button>
               </div>
-            </div>
-          </div>
+
+              <button
+                type="submit"
+                disabled={otpLoading || otpCode.length !== 6}
+                className="btn btn-primary btn-block btn-lg"
+                style={{ marginTop: '8px' }}
+              >
+                {otpLoading ? <><span className="spinner" /> Verifying…</> : <>Verify & log in <ArrowRight size={18} className="arrow" /></>}
+              </button>
+            </form>
+          )}
         </div>
       )}
 
-      {/* FORGOT PASSWORD MODAL */}
-      {showForgotModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 999,
-            padding: '20px'
-          }}
-        >
-          <div
-            className="card"
-            style={{
-              maxWidth: '440px',
-              width: '100%',
-              position: 'relative',
-              animation: 'fadeIn 0.2s ease'
-            }}
-          >
-            <button
-              onClick={() => {
-                setShowForgotModal(false);
-                setForgotSuccess('');
-                setForgotError('');
-              }}
-              style={{
-                position: 'absolute',
-                top: '20px',
-                right: '20px',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--ink-muted)'
-              }}
-            >
-              <X size={20} />
-            </button>
+      <p className="auth-foot">
+        New to CareCircle?{' '}
+        <Link href={`/signup${enteredIdentifier ? `?identifier=${encodeURIComponent(enteredIdentifier)}` : ''}`} className="link">
+          Create an account
+        </Link>
+      </p>
 
-            <h3 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>Reset your password</h3>
-            <p style={{ fontSize: '0.88rem', color: 'var(--ink-muted)', marginBottom: '20px' }}>
-              Enter your email address and we&apos;ll send you a secure link to create a new password.
-            </p>
+      <Modal open={showForgotModal} onClose={closeForgot} labelledBy="forgot-title">
+        <h2 id="forgot-title" style={{ fontSize: '1.5rem', marginBottom: '8px', paddingRight: '32px' }}>Reset your password</h2>
+        <p style={{ fontSize: '0.92rem', color: 'var(--ink-muted)', marginBottom: '22px' }}>
+          Enter your email and we&apos;ll send you a link to choose a new password.
+        </p>
 
-            {forgotSuccess ? (
-              <div className="alert-box success">
-                <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
-                <span>{forgotSuccess}</span>
+        {forgotSuccess ? (
+          <div className="alert-box success" role="status">
+            <CheckCircle2 size={18} />
+            <span>{forgotSuccess}</span>
+          </div>
+        ) : (
+          <form onSubmit={handleForgotPasswordSubmit} noValidate>
+            {forgotError && (
+              <div className="alert-box error" role="alert">
+                <AlertCircle size={18} />
+                <span>{forgotError}</span>
               </div>
-            ) : (
-              <form onSubmit={handleForgotPasswordSubmit}>
-                {forgotError && (
-                  <div className="alert-box error" style={{ marginBottom: '14px' }}>
-                    <AlertCircle size={18} style={{ flexShrink: 0 }} />
-                    <span>{forgotError}</span>
-                  </div>
-                )}
-                <div className="form-group">
-                  <label className="form-label">Email Address</label>
-                  <input
-                    type="email"
-                    placeholder="you@company.com"
-                    value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
-                    className="form-input"
-                    required
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={forgotLoading}
-                  className="btn btn-primary btn-block"
-                  style={{ marginTop: '10px' }}
-                >
-                  {forgotLoading ? 'Sending link...' : 'Send reset link'}
-                </button>
-              </form>
             )}
-          </div>
-        </div>
-      )}
-    </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="forgotEmail">Email address</label>
+              <input
+                id="forgotEmail"
+                type="email"
+                placeholder="you@example.com"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                className="form-input"
+                autoComplete="email"
+                autoFocus
+                required
+              />
+            </div>
+            <button type="submit" disabled={forgotLoading} className="btn btn-primary btn-block" style={{ marginTop: '6px' }}>
+              {forgotLoading ? <><span className="spinner" /> Sending…</> : 'Send reset link'}
+            </button>
+          </form>
+        )}
+      </Modal>
+    </>
   );
 }
 
 export default function LoginPage() {
   return (
-    <>
-      <Navbar />
-      <main>
-        <Suspense fallback={<div style={{ textAlign: 'center', padding: '60px' }}>Loading...</div>}>
-          <LoginContent />
-        </Suspense>
-      </main>
-      <Footer />
-    </>
+    <AuthShell>
+      <Suspense fallback={<div className="skeleton" style={{ height: '420px' }} />}>
+        <LoginContent />
+      </Suspense>
+    </AuthShell>
   );
 }

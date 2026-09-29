@@ -3,6 +3,7 @@ import { getSessionUser } from '@/lib/auth';
 import { getUserById, updateUserProfile } from '@/lib/db';
 import { sendVerificationEmail } from '@/lib/email';
 import { NotificationPreferences } from '@/lib/types';
+import { normalizePhone } from '@/lib/phone';
 
 export async function GET() {
   try {
@@ -43,8 +44,20 @@ export async function PATCH(req: Request) {
       }
     }
 
-    if (phone !== undefined && typeof phone !== 'string') {
-      return NextResponse.json({ error: 'Invalid phone format.' }, { status: 400 });
+    let normalizedPhone: string | undefined = undefined;
+    if (phone !== undefined) {
+      if (typeof phone !== 'string') {
+        return NextResponse.json({ error: 'Invalid phone format.' }, { status: 400 });
+      }
+      if (phone.trim() !== '') {
+        const phoneResult = normalizePhone(phone);
+        if (!phoneResult.ok) {
+          return NextResponse.json({ error: phoneResult.reason }, { status: 400 });
+        }
+        normalizedPhone = phoneResult.e164;
+      } else {
+        normalizedPhone = '';
+      }
     }
 
     // Validate notification preferences if provided
@@ -64,7 +77,7 @@ export async function PATCH(req: Request) {
     const updateResult = await updateUserProfile(sessionUser.id, {
       name,
       email,
-      phone,
+      phone: normalizedPhone !== undefined ? normalizedPhone : phone,
       avatar,
       notificationPreferences: cleanNotifPrefs
     });

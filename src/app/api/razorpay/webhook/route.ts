@@ -1,37 +1,64 @@
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
-import { RAZORPAY_KEY_SECRET } from '@/lib/razorpay';
+import { prisma } from '@/lib/prisma';
+import { verifyWebhookSignature } from '@/lib/razorpay';
 
+/**
+ * Razorpay webhook. Requires RAZORPAY_WEBHOOK_SECRET; unsigned or wrongly
+ * signed requests are rejected. Keeps UserSubscription in sync with the
+ * subscription lifecycle in Razorpay.
+ */
 export async function POST(req: Request) {
+  const rawBody = await req.text();
+  const signature = req.headers.get('x-razorpay-signature');
+
+  if (!verifyWebhookSignature(rawBody, signature)) {
+    return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 400 });
+  }
+
   try {
-    const rawBody = await req.text();
-    const signature = req.headers.get('x-razorpay-signature');
+    const payload = JSON.parse(rawBody || '{}');
+    const event: string = payload.event;
+    const subEntity = payload.payload?.subscription?.entity;
+    const paymentEntity = payload.payload?.payment?.entity;
+    const subscriptionId: string | undefined = subEntity?.id || paymentEntity?.subscription_id;
 
-    if (signature && process.env.RAZORPAY_WEBHOOK_SECRET) {
-      const expected = crypto
-        .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET || RAZORPAY_KEY_SECRET)
-        .update(rawBody)
-        .digest('hex');
-
-      if (expected !== signature) {
-        return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 400 });
-      }
+    if (!subscriptionId) {
+      return NextResponse.json({ status: 'ignored' });
     }
 
-    const payload = JSON.parse(rawBody || '{}');
-    const event = payload.event;
-    console.log(`[Razorpay Webhook Received] event: ${event}`, payload);
+    const current = await prisma.userSubscription.findFirst({ where: { razorpaySubscriptionId: subscriptionId } });
+    if (!current) {
+      console.warn(`[Razorpay Webhook] ${event} for unknown subscription ${subscriptionId}`);
+      return NextResponse.json({ status: 'ignored' });
+    }
+
+    const periodEnd = subEntity?.current_end ? new Date(subEntity.current_end * 1000) : undefined;
 
     switch (event) {
-      case 'subscription.charged':
       case 'subscription.activated':
-        // Subscription is active or charged successfully
+      case 'subscription.charged':
+      case 'subscription.resumed':
+        await prisma.userSubscription.update({
+          where: { id: current.id },
+          data: {
+            status: 'active',
+            cancelAtPeriodEnd: false,
+            ...(periodEnd ? { currentPeriodEnd: periodEnd } : {}),
+            ...(paymentEntity?.id ? { razorpayPaymentId: paymentEntity.id } : {})
+          }
+        });
         break;
+      case 'subscription.pending':
+      case 'subscription.halted':
       case 'payment.failed':
-        // Handle failed recurring charge
+        await prisma.userSubscription.update({ where: { id: current.id }, data: { status: 'past_due' } });
         break;
       case 'subscription.cancelled':
-        // Handle subscription cancellation
+      case 'subscription.completed':
+        await prisma.userSubscription.update({
+          where: { id: current.id },
+          data: { status: 'cancelled', cancelAtPeriodEnd: true, ...(periodEnd ? { currentPeriodEnd: periodEnd } : {}) }
+        });
         break;
       default:
         break;

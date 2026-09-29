@@ -45,6 +45,8 @@ import {
 } from 'lucide-react';
 import { ExtractedMedicineCandidate } from '@/lib/types';
 import { SAMPLE_PRESCRIPTIONS } from '@/lib/medicineExtractor';
+import { timeToMinutes, formatScheduleSummary } from '@/lib/scheduleGenerator';
+import { getEffectivePlan } from '@/lib/plans';
 
 function DashboardContent() {
   const { user } = useAuth();
@@ -100,6 +102,10 @@ function DashboardContent() {
   const fetchParents = async () => {
     try {
       const res = await fetch('/api/parents');
+      if (res.status === 401) {
+        window.location.href = '/login?redirect=/dashboard';
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setParentsList(data.parents || []);
@@ -165,7 +171,7 @@ function DashboardContent() {
         body: JSON.stringify({
           action: isPaused ? 'pause' : 'resume',
           pauseReason: isPaused ? pauseReason : undefined,
-          pauseUntil: isPaused ? `${pauseDays} days` : undefined
+          pauseUntil: isPaused ? new Date(Date.now() + Math.max(1, parseInt(pauseDays, 10) || 7) * 86400000).toISOString() : undefined
         })
       });
       const data = await res.json();
@@ -174,6 +180,8 @@ function DashboardContent() {
         setToastMessage({ text: data.message, type: 'info' });
         fetchParentDetails(selectedParentId);
         fetchParents();
+      } else {
+        setToastMessage({ text: data.error || 'Could not update calls', type: 'error' });
       }
     } catch {
       setToastMessage({ text: 'Error updating pause status', type: 'error' });
@@ -197,12 +205,17 @@ function DashboardContent() {
           frequency: 'daily'
         })
       });
+      const data = await res.json();
       if (res.ok) {
         setShowAddMedModal(false);
         setNewMedName('');
         setNewMedFoodRelation('after_food');
-        setToastMessage({ text: 'Medicine added to daily check-in routine!', type: 'success' });
+        const notes: string[] = data.scheduleNotes || [];
+        setToastMessage({ text: ['Medicine added to the daily check-in routine.', ...notes].join(' '), type: 'success' });
         fetchParentDetails(selectedParentId);
+        fetchParents();
+      } else {
+        setToastMessage({ text: data.error || 'Failed to add medicine', type: 'error' });
       }
     } catch {
       setToastMessage({ text: 'Failed to add medicine', type: 'error' });
@@ -297,8 +310,10 @@ function DashboardContent() {
         setShowUploadModal(false);
         setExtractedMeds([]);
         setUploadFileName(null);
-        setToastMessage({ text: data.message || 'Medicines added to schedule!', type: 'success' });
+        const notes: string[] = data.scheduleNotes || [];
+        setToastMessage({ text: [data.message || 'Medicines added to schedule!', ...notes].join(' '), type: 'success' });
         fetchParentDetails(selectedParentId);
+        fetchParents();
       } else {
         setToastMessage({ text: data.error || 'Failed to confirm medicines', type: 'error' });
       }
@@ -341,6 +356,8 @@ function DashboardContent() {
         setCaregiverName('');
         setToastMessage({ text: data.message, type: 'success' });
         fetchParentDetails(selectedParentId);
+      } else {
+        setToastMessage({ text: data.error || 'Failed to invite caregiver', type: 'error' });
       }
     } catch {
       setToastMessage({ text: 'Failed to invite caregiver', type: 'error' });
@@ -353,10 +370,10 @@ function DashboardContent() {
     try {
       const res = await fetch(`/api/parents/${selectedParentId}/test-call`, { method: 'POST' });
       const data = await res.json();
-      setToastMessage({ text: data.message, type: 'success' });
+      setToastMessage({ text: data.message || data.error || 'Test call unavailable', type: res.ok ? 'success' : 'info' });
       fetchParentDetails(selectedParentId);
     } catch {
-      setToastMessage({ text: 'Test call initiated successfully!', type: 'success' });
+      setToastMessage({ text: 'Could not reach the server to place a test call.', type: 'error' });
     } finally {
       setTestCalling(false);
     }
@@ -436,6 +453,88 @@ function DashboardContent() {
   const currentParent = parentData?.parent || parentsList.find(p => p.id === selectedParentId) || parentsList[0];
   const pendingSuggestion = parentData?.suggestions?.find(s => s.status === 'pending');
 
+  // ---- Real call analytics (no demo numbers) ----
+  const now = new Date();
+  const callDate = (c: CallLog) => {
+    const d = new Date(c.createdAt || c.scheduledTime);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+  const sameDay = (a: Date | null, b: Date) => !!a && a.toDateString() === b.toDateString();
+  // Calls still being placed / waiting for a result are not outcomes yet.
+  const completedCalls = (parentData?.callLogs || []).filter(c => c.status !== 'scheduled' && c.status !== 'placed');
+  const latestToday = completedCalls.find(c => sameDay(callDate(c), now));
+  const activeSlots = [...(currentParent?.callSchedule || [])]
+    .filter(s => s.isActive)
+    .sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const dailyCallCap = getEffectivePlan(user?.subscription).callsPerDay;
+  const dailyCallCapExceeded = activeSlots.length > dailyCallCap;
+  const nextSlot = activeSlots.find(s => timeToMinutes(s.time) > nowMinutes);
+  const last30 = completedCalls.filter(c => {
+    const d = callDate(c);
+    return !!d && now.getTime() - d.getTime() <= 30 * 86400000;
+  });
+  const answered30 = last30.filter(c => c.status === 'answered');
+  const reachabilityPct = last30.length ? Math.round((answered30.length / last30.length) * 100) : null;
+  const adherencePct = answered30.length
+    ? Math.round((answered30.filter(c => c.medicationConfirmed).length / answered30.length) * 100)
+    : null;
+  const moodCounts = answered30.reduce<Record<string, number>>((acc, c) => {
+    acc[c.mood] = (acc[c.mood] || 0) + 1;
+    return acc;
+  }, {});
+  const MOOD_LABELS: Record<string, string> = {
+    cheerful: 'Cheerful',
+    calm: 'Calm',
+    neutral: 'Neutral',
+    anxious: 'Anxious',
+    unwell: 'Unwell'
+  };
+  const moodSummary = Object.entries(moodCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([mood, count]) => `${Math.round((count / answered30.length) * 100)}% ${MOOD_LABELS[mood] || mood}`)
+    .join(' · ');
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now);
+    d.setDate(now.getDate() - (6 - i));
+    const calls = completedCalls.filter(c => sameDay(callDate(c), d));
+    const answered = calls.filter(c => c.status === 'answered');
+    const confirmed = answered.filter(c => c.medicationConfirmed);
+    return {
+      day: d.toLocaleDateString('en-IN', { weekday: 'short' }),
+      total: calls.length,
+      pct: calls.length ? Math.round((confirmed.length / calls.length) * 100) : 0,
+      mood: answered[0]?.mood,
+      concern: answered.some(c => c.mood === 'unwell' || c.mood === 'anxious') || answered.length < calls.length
+    };
+  });
+  const formatCallTime = (value: string) => {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime())
+      ? value
+      : d.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  };
+  const handleExportCallHistory = () => {
+    const rows = [
+      ['Date', 'Status', 'Duration (s)', 'Medication confirmed', 'Mood', 'Summary'],
+      ...completedCalls.map(c => [
+        formatCallTime(c.createdAt || c.scheduledTime),
+        c.status,
+        String(c.durationSeconds),
+        c.medicationConfirmed ? 'yes' : 'no',
+        c.mood,
+        c.summary.replace(/\s+/g, ' ')
+      ])
+    ];
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `carecircle_${currentParent.name.replace(/[^a-zA-Z0-9]/g, '_')}_calls.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="wrap-checkout" style={{ padding: '36px 20px 80px' }}>
       {/* TOAST FEEDBACK */}
@@ -469,7 +568,7 @@ function DashboardContent() {
             )}
           </div>
           <p style={{ fontSize: '0.88rem', color: 'var(--ink-muted)', marginTop: '4px' }}>
-            {currentParent.relationship} · {currentParent.phone} · Scheduled daily at <strong>{currentParent.callTime}</strong> ({currentParent.timezone})
+            {currentParent.relationship} · {currentParent.phone} · <strong>{activeSlots.length > 0 ? formatScheduleSummary(activeSlots) : 'No calls scheduled'}</strong> ({currentParent.timezone})
           </p>
         </div>
 
@@ -519,6 +618,23 @@ function DashboardContent() {
           <button onClick={() => handleTogglePause(false)} className="btn btn-primary btn-sm">
             Resume Daily Calls
           </button>
+        </div>
+      )}
+
+      {/* PLAN CALL CAP NOTICE */}
+      {dailyCallCapExceeded && (
+        <div className="alert-box warning" style={{ marginBottom: '24px' }}>
+          <AlertTriangle size={20} style={{ flexShrink: 0 }} />
+          <div>
+            <strong>Your plan includes {dailyCallCap} call{dailyCallCap === 1 ? '' : 's'} a day.</strong>
+            <div style={{ fontSize: '0.82rem' }}>
+              {currentParent.name} has {activeSlots.length} scheduled, so only the first {dailyCallCap} ({activeSlots
+                .slice(0, dailyCallCap)
+                .map(s => s.time)
+                .join(', ')}) will be placed.{' '}
+              <Link href="/account/billing" style={{ color: 'var(--teal)', fontWeight: 600 }}>View plans →</Link>
+            </div>
+          </div>
         </div>
       )}
 
@@ -619,42 +735,99 @@ function DashboardContent() {
       {/* TAB 1: OVERVIEW */}
       {activeTab === 'overview' && (
         <div>
-          {/* TODAY'S STATUS CARD */}
+          {/* TODAY'S STATUS CARD (from real call logs) */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', marginBottom: '28px' }}>
             <div className="card" style={{ background: 'var(--panel-elevated)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <span className="badge badge-teal">Today&apos;s Status</span>
                 <span style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
-                  {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' })}
+                  {now.toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' })}
                 </span>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
-                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--green-soft)', color: 'var(--green)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <CheckCircle2 size={26} />
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '1.25rem', margin: 0 }}>Call Completed Successfully</h3>
-                  <p style={{ fontSize: '0.84rem', color: 'var(--ink-muted)', margin: 0 }}>
-                    Answered at 10:14 AM · Duration 2m 22s
-                  </p>
-                </div>
-              </div>
+              {latestToday ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
+                    <div
+                      style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '50%',
+                        background: latestToday.status === 'answered' ? 'var(--green-soft)' : 'var(--gold-soft)',
+                        color: latestToday.status === 'answered' ? 'var(--green)' : 'var(--gold-hover)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      {latestToday.status === 'answered' ? <CheckCircle2 size={26} /> : <AlertTriangle size={24} />}
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: '1.25rem', margin: 0 }}>
+                        {latestToday.status === 'answered'
+                          ? 'Check-in call completed'
+                          : latestToday.status === 'busy'
+                            ? 'Line was busy'
+                            : 'Call not answered'}
+                      </h3>
+                      <p style={{ fontSize: '0.84rem', color: 'var(--ink-muted)', margin: 0 }}>
+                        {formatCallTime(latestToday.createdAt || latestToday.scheduledTime)}
+                        {latestToday.durationSeconds > 0 &&
+                          ` · Duration ${Math.floor(latestToday.durationSeconds / 60)}m ${latestToday.durationSeconds % 60}s`}
+                      </p>
+                    </div>
+                  </div>
 
-              <div style={{ background: 'var(--panel)', padding: '16px', borderRadius: '12px', fontSize: '0.88rem', lineHeight: 1.5, marginBottom: '16px' }}>
-                <strong>WhatsApp Summary:</strong> &quot;Amma confirmed taking Telmisartan BP tablet with warm water. Went for a 20-minute balcony walk. Energy cheerful, requested Sathwik to call this weekend.&quot;
-              </div>
+                  <div style={{ background: 'var(--panel)', padding: '16px', borderRadius: '12px', fontSize: '0.88rem', lineHeight: 1.5, marginBottom: '16px' }}>
+                    <strong>Summary:</strong> {latestToday.summary}
+                  </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div style={{ background: 'var(--teal-light)', padding: '10px', borderRadius: '8px', fontSize: '0.82rem' }}>
-                  <div style={{ color: 'var(--ink-muted)' }}>Medication Confirmed</div>
-                  <strong style={{ color: 'var(--teal-deep)' }}>✓ Telmisartan 40mg</strong>
+                  {latestToday.status === 'answered' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div style={{ background: 'var(--teal-light)', padding: '10px', borderRadius: '8px', fontSize: '0.82rem' }}>
+                        <div style={{ color: 'var(--ink-muted)' }}>Medication</div>
+                        <strong style={{ color: latestToday.medicationConfirmed ? 'var(--teal-deep)' : 'var(--red)' }}>
+                          {latestToday.medicationConfirmed ? '✓ Confirmed' : '✗ Not confirmed'}
+                        </strong>
+                      </div>
+                      <div style={{ background: 'var(--green-soft)', padding: '10px', borderRadius: '8px', fontSize: '0.82rem' }}>
+                        <div style={{ color: 'var(--ink-muted)' }}>Mood / Wellness</div>
+                        <strong style={{ color: 'var(--green)' }}>{MOOD_LABELS[latestToday.mood] || latestToday.mood}</strong>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '50%',
+                      background: 'var(--panel)',
+                      color: 'var(--ink-muted)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}
+                  >
+                    <Clock size={24} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.15rem', margin: 0 }}>No check-in call yet today</h3>
+                    <p style={{ fontSize: '0.84rem', color: 'var(--ink-muted)', margin: 0 }}>
+                      {currentParent.isPaused
+                        ? 'Calls are paused.'
+                        : nextSlot
+                          ? `Next scheduled call: ${nextSlot.time} (${nextSlot.label}).`
+                          : activeSlots.length > 0
+                            ? `Next scheduled call: tomorrow at ${activeSlots[0].time}.`
+                            : 'No call times are set up yet.'}
+                    </p>
+                  </div>
                 </div>
-                <div style={{ background: 'var(--green-soft)', padding: '10px', borderRadius: '8px', fontSize: '0.82rem' }}>
-                  <div style={{ color: 'var(--ink-muted)' }}>Mood / Wellness</div>
-                  <strong style={{ color: 'var(--green)' }}>Cheerful & Active</strong>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* QUICK ACTIONS & LIVE TEST CALL */}
@@ -752,81 +925,103 @@ function DashboardContent() {
             </p>
           </div>
 
-          {/* 3 HIGH IMPACT METRIC CARDS */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '28px' }}>
-            <div className="card" style={{ padding: '24px' }}>
-              <span className="badge badge-teal" style={{ marginBottom: '10px' }}>Medication Adherence</span>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2.8rem', fontWeight: 600, color: 'var(--teal)', margin: '8px 0' }}>
-                94%
-              </div>
-              <p style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>
-                29 of 31 scheduled chronic doses confirmed without missing.
+          {completedCalls.length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', padding: '40px 24px' }}>
+              <TrendingUp size={28} color="var(--teal)" />
+              <h3 style={{ fontSize: '1.2rem', margin: '12px 0 6px' }}>No trends yet</h3>
+              <p style={{ fontSize: '0.9rem', color: 'var(--ink-muted)', maxWidth: '46ch', margin: '0 auto' }}>
+                Adherence, mood and reachability trends will appear here after {currentParent.name}&apos;s first check-in calls.
               </p>
             </div>
-
-            <div className="card" style={{ padding: '24px' }}>
-              <span className="badge badge-gold" style={{ marginBottom: '10px' }}>Average Mood Score</span>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2.8rem', fontWeight: 600, color: 'var(--gold)', margin: '8px 0' }}>
-                8.6<span style={{ fontSize: '1.2rem', fontFamily: 'var(--font-sans)', color: 'var(--ink-muted)' }}>/10</span>
-              </div>
-              <p style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>
-                78% Cheerful & Active · 18% Calm · 4% Mild Aches
-              </p>
-            </div>
-
-            <div className="card" style={{ padding: '24px' }}>
-              <span className="badge badge-green" style={{ marginBottom: '10px' }}>Reachability Rate</span>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2.8rem', fontWeight: 600, color: 'var(--green)', margin: '8px 0' }}>
-                100%
-              </div>
-              <p style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>
-                0 safety emergencies. All calls picked up within 2 attempts.
-              </p>
-            </div>
-          </div>
-
-          {/* INTERACTIVE 7-DAY ADHERENCE & MOOD BAR CHART */}
-          <div className="card" style={{ marginBottom: '28px' }}>
-            <h3 style={{ fontSize: '1.2rem', marginBottom: '20px' }}>Last 7 Days Check-in Breakdown</h3>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '12px', alignItems: 'end', minHeight: '160px', padding: '10px 0 20px', borderBottom: '1px solid var(--line-subtle)' }}>
-              {[
-                { day: 'Mon', h: '95%', mood: 'Cheerful', color: 'var(--teal)' },
-                { day: 'Tue', h: '100%', mood: 'Cheerful', color: 'var(--teal)' },
-                { day: 'Wed', h: '90%', mood: 'Calm', color: 'var(--teal)' },
-                { day: 'Thu', h: '100%', mood: 'Cheerful', color: 'var(--teal)' },
-                { day: 'Fri', h: '85%', mood: 'Mild Ache', color: 'var(--gold)' },
-                { day: 'Sat', h: '100%', mood: 'Cheerful', color: 'var(--teal)' },
-                { day: 'Sun', h: '100%', mood: 'Cheerful', color: 'var(--teal)' }
-              ].map((bar, i) => (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '0.74rem', color: 'var(--ink-muted)' }}>{bar.h}</span>
-                  <div
-                    style={{
-                      width: '100%',
-                      maxWidth: '48px',
-                      height: bar.h,
-                      background: bar.color,
-                      borderRadius: '8px 8px 0 0',
-                      transition: 'height 0.4s ease'
-                    }}
-                  />
-                  <strong style={{ fontSize: '0.82rem' }}>{bar.day}</strong>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--ink-muted)' }}>{bar.mood}</span>
+          ) : (
+            <>
+              {/* METRIC CARDS (last 30 days) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '28px' }}>
+                <div className="card" style={{ padding: '24px' }}>
+                  <span className="badge badge-teal" style={{ marginBottom: '10px' }}>Medication Adherence</span>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2.8rem', fontWeight: 600, color: 'var(--teal)', margin: '8px 0' }}>
+                    {adherencePct === null ? '—' : `${adherencePct}%`}
+                  </div>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>
+                    {answered30.filter(c => c.medicationConfirmed).length} of {answered30.length} answered calls confirmed medicines (last 30 days).
+                  </p>
                 </div>
-              ))}
-            </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', fontSize: '0.84rem', color: 'var(--ink-muted)' }}>
-              <span>Legend: ■ On-time Medication Confirmed  ■ Mood Aches / Retry Flag</span>
-              <button
-                onClick={() => alert('Monthly clinical PDF summary report exported!')}
-                className="btn btn-ghost btn-sm"
-              >
-                <Download size={14} /> Export Doctor Report (PDF)
-              </button>
-            </div>
-          </div>
+                <div className="card" style={{ padding: '24px' }}>
+                  <span className="badge badge-gold" style={{ marginBottom: '10px' }}>Mood</span>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: '1.4rem', fontWeight: 600, color: 'var(--gold)', margin: '8px 0' }}>
+                    {moodSummary || '—'}
+                  </div>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>From {answered30.length} answered calls in the last 30 days.</p>
+                </div>
+
+                <div className="card" style={{ padding: '24px' }}>
+                  <span className="badge badge-green" style={{ marginBottom: '10px' }}>Reachability</span>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2.8rem', fontWeight: 600, color: 'var(--green)', margin: '8px 0' }}>
+                    {reachabilityPct === null ? '—' : `${reachabilityPct}%`}
+                  </div>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>
+                    {answered30.length} of {last30.length} calls answered (last 30 days).
+                  </p>
+                </div>
+              </div>
+
+              {/* LAST 7 DAYS */}
+              <div className="card" style={{ marginBottom: '28px' }}>
+                <h3 style={{ fontSize: '1.2rem', marginBottom: '20px' }}>Last 7 days: calls with medicines confirmed</h3>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(7, 1fr)',
+                    gap: '12px',
+                    alignItems: 'end',
+                    minHeight: '160px',
+                    padding: '10px 0 20px',
+                    borderBottom: '1px solid var(--line-subtle)'
+                  }}
+                >
+                  {last7Days.map((bar, i) => (
+                    <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--ink-muted)' }}>{bar.total ? `${bar.pct}%` : '—'}</span>
+                      <div
+                        style={{
+                          width: '100%',
+                          maxWidth: '48px',
+                          height: `${bar.total ? Math.max(bar.pct, 4) * 1.2 : 0}px`,
+                          background: bar.concern ? 'var(--gold)' : 'var(--teal)',
+                          borderRadius: '8px 8px 0 0',
+                          transition: 'height 0.4s ease'
+                        }}
+                      />
+                      <strong style={{ fontSize: '0.82rem' }}>{bar.day}</strong>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--ink-muted)' }}>
+                        {bar.total ? (bar.mood ? MOOD_LABELS[bar.mood] || bar.mood : 'No answer') : 'No call'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: '16px',
+                    fontSize: '0.84rem',
+                    color: 'var(--ink-muted)',
+                    flexWrap: 'wrap',
+                    gap: '10px'
+                  }}
+                >
+                  <span>Teal: all good · Gold: missed call or mood concern</span>
+                  <button onClick={handleExportCallHistory} className="btn btn-ghost btn-sm">
+                    <Download size={14} /> Download call history (CSV)
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -855,10 +1050,16 @@ function DashboardContent() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span className="badge badge-teal">{call.scheduledTime}</span>
-                    <span style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>
-                      Pickup: {call.actualAnswerTime || 'On-schedule'}
+                    <span className="badge badge-teal">{formatCallTime(call.createdAt || call.scheduledTime)}</span>
+                    <span className={`badge ${call.status === 'answered' ? 'badge-green' : 'badge-gold'}`} style={{ textTransform: 'capitalize' }}>
+                      {call.status === 'placed' ? 'In progress' : call.status}
                     </span>
+                    {call.attemptNumber && call.attemptNumber > 1 && (
+                      <span style={{ fontSize: '0.78rem', color: 'var(--ink-muted)' }}>Attempt {call.attemptNumber}</span>
+                    )}
+                    {call.actualAnswerTime && (
+                      <span style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>Pickup: {call.actualAnswerTime}</span>
+                    )}
                   </div>
                   <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--teal)' }}>
                     Duration: {Math.floor(call.durationSeconds / 60)}m {call.durationSeconds % 60}s
@@ -953,7 +1154,7 @@ function DashboardContent() {
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ fontSize: '1.3rem', marginBottom: '6px' }}>Caregiver Alerts Inbox</h3>
             <p style={{ fontSize: '0.86rem', color: 'var(--ink-muted)' }}>
-              Full audit trail of Level 0-4 notifications dispatched to WhatsApp, SMS, and family contacts.
+              Alerts raised from {currentParent.name}&apos;s check-in calls (Level 1–4). Level 2 and above are also emailed to you.
             </p>
           </div>
 
@@ -975,13 +1176,13 @@ function DashboardContent() {
                     </span>
                     <strong style={{ fontSize: '0.94rem' }}>{alt.title}</strong>
                   </div>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--ink-muted)' }}>{alt.timestamp}</span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--ink-muted)' }}>{formatCallTime(alt.createdAt || alt.timestamp)}</span>
                 </div>
                 <p style={{ fontSize: '0.88rem', color: 'var(--ink)', margin: 0 }}>
                   {alt.message}
                 </p>
                 <div style={{ fontSize: '0.76rem', color: 'var(--ink-muted)', marginTop: '8px' }}>
-                  Dispatched via WhatsApp & SMS · Status: {alt.status.toUpperCase()}
+                  {alt.level >= 2 ? 'Emailed to you · ' : ''}Status: {alt.status.toUpperCase()}
                 </div>
               </div>
             ))}
@@ -997,10 +1198,10 @@ function DashboardContent() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
               <div className="form-group">
-                <label className="form-label">Scheduled Call Time</label>
+                <label className="form-label">Scheduled Calls</label>
                 <input
                   type="text"
-                  value={currentParent.callTime}
+                  value={activeSlots.length > 0 ? formatScheduleSummary(activeSlots) : 'No calls scheduled'}
                   disabled
                   className="form-input"
                 />
@@ -1355,7 +1556,7 @@ function DashboardContent() {
                 >
                   <input
                     type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf"
+                    accept="image/png,image/jpeg,image/jpg,image/webp,text/plain"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) handleDashboardFileUpload(file);
@@ -1369,7 +1570,7 @@ function DashboardContent() {
                     Click or Drag & Drop Prescription / Report
                   </div>
                   <div style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>
-                    JPG, PNG or PDF (Prescription, Discharge Summary, Pharmacy Bill)
+                    JPG, PNG or WebP photo (Prescription, Discharge Summary, Pharmacy Bill)
                   </div>
                 </div>
 

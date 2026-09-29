@@ -9,17 +9,36 @@ import { CheckoutStepper } from '@/components/CheckoutStepper';
 import { getPlan } from '@/lib/plans';
 import { PlanId } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
-import {
-  Lock,
-  ShieldCheck,
-  CreditCard,
-  Smartphone,
-  Building,
-  AlertTriangle,
-  RefreshCw,
-  CheckCircle,
-  ArrowRight
-} from 'lucide-react';
+import { Lock, ShieldCheck, AlertTriangle, RefreshCw, ArrowRight } from 'lucide-react';
+
+interface RazorpaySuccessResponse {
+  razorpay_payment_id: string;
+  razorpay_subscription_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayInstance {
+  open: () => void;
+  on: (event: string, cb: (resp: { error?: { description?: string } }) => void) => void;
+}
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => RazorpayInstance;
+  }
+}
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise(resolve => {
+    if (typeof window === 'undefined') return resolve(false);
+    if (window.Razorpay) return resolve(true);
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 function PaymentContent() {
   const router = useRouter();
@@ -27,364 +46,206 @@ function PaymentContent() {
   const planParam = (searchParams.get('plan') as PlanId) || 'family';
   const plan = getPlan(planParam);
 
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
-  // Billing form state (prefilled from logged in user)
-  const [billingName, setBillingName] = useState(user?.name || 'Sathwik Rao');
-  const [billingEmail, setBillingEmail] = useState(user?.email || 'sathwik@carecircle.in');
-  const [billingPhone, setBillingPhone] = useState(user?.phone || '+91 98765 43210');
-
-  // Selected payment method tab
-  const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'netbanking'>('upi');
-
-  // UPI fields
-  const [vpa, setVpa] = useState('sathwik@oksbi');
-
-  // Card fields
-  const [cardNumber, setCardNumber] = useState('4532 8901 2345 4242');
-  const [cardExpiry, setCardExpiry] = useState('08/29');
-  const [cardCvv, setCardCvv] = useState('888');
-
-  // Netbanking field
-  const [bank, setBank] = useState('HDFC Bank');
-
-  // Processing & Error states
   const [processing, setProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [subscriptionData, setSubscriptionData] = useState<{ subscriptionId: string; keyId: string } | null>(null);
+  const [subscriptionData, setSubscriptionData] = useState<{
+    subscriptionId: string;
+    keyId: string;
+    isSandbox: boolean;
+  } | null>(null);
+  const [initError, setInitError] = useState('');
+  // Captured once so render stays pure.
+  const [pageLoadedAt] = useState(() => Date.now());
 
-  // Simulation mode selection (Success, Card Declined, Expired, Network Error)
-  const [simulateOutcome, setSimulateOutcome] = useState<'success' | 'declined' | 'expired' | 'network'>('success');
+  // Sandbox-only outcome simulator (local development without Razorpay keys)
+  const [simulateOutcome, setSimulateOutcome] = useState<'success' | 'declined' | 'network'>('success');
 
-  // Automatically fetch / create subscription ID on mount
   useEffect(() => {
-    async function initSubscription() {
+    if (plan.priceMonthly === 0) {
+      router.replace('/checkout/confirm?plan=free');
+      return;
+    }
+    if (authLoading || !user) return;
+
+    let cancelled = false;
+    (async () => {
       try {
         const res = await fetch('/api/razorpay/create-subscription', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            planId: plan.id,
-            customerEmail: billingEmail,
-            customerName: billingName,
-            customerPhone: billingPhone
-          })
+          body: JSON.stringify({ planId: plan.id })
         });
         const data = await res.json();
+        if (cancelled) return;
         if (res.ok && data.subscriptionId) {
-          setSubscriptionData({
-            subscriptionId: data.subscriptionId,
-            keyId: data.keyId
-          });
+          setSubscriptionData({ subscriptionId: data.subscriptionId, keyId: data.keyId, isSandbox: Boolean(data.isSandbox) });
+        } else {
+          setInitError(data.error || 'Could not start checkout. Please try again.');
         }
-      } catch (err) {
-        console.error('Failed to init subscription:', err);
+      } catch {
+        if (!cancelled) setInitError('Network error while starting checkout. Please retry.');
       }
-    }
-    if (plan.priceMonthly > 0) {
-      initSubscription();
-    }
-  }, [plan.id, plan.priceMonthly, billingEmail, billingName, billingPhone]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [plan.id, plan.priceMonthly, user, authLoading, router]);
 
-  // Handle payment execution
-  const handlePaymentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const verifyWithServer = async (resp: RazorpaySuccessResponse, brand: string) => {
+    const res = await fetch('/api/razorpay/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...resp, planId: plan.id, paymentMethodBrand: brand })
+    });
+    const verifyData = await res.json();
+    if (!res.ok) {
+      throw new Error(verifyData.error || 'Payment verification failed. You have not been charged twice — please contact support if money was debited.');
+    }
+    router.push(`/checkout/success?plan=${plan.id}&sub_id=${encodeURIComponent(resp.razorpay_subscription_id)}`);
+  };
+
+  const handleRazorpayCheckout = async () => {
+    if (!subscriptionData || !user) return;
     setErrorMessage('');
     setProcessing(true);
 
-    // Simulate network delay
-    await new Promise((r) => setTimeout(r, 1400));
+    const loaded = await loadRazorpayScript();
+    if (!loaded || !window.Razorpay) {
+      setProcessing(false);
+      setErrorMessage('Could not load Razorpay. Check your connection and try again.');
+      return;
+    }
 
-    // Evaluate simulated outcome
+    const rzp = new window.Razorpay({
+      key: subscriptionData.keyId,
+      subscription_id: subscriptionData.subscriptionId,
+      name: 'CareCircle',
+      description: `${plan.name} — monthly subscription`,
+      prefill: { name: user.name, email: user.email, contact: user.phone || '' },
+      theme: { color: '#2f4a45' },
+      handler: async (resp: RazorpaySuccessResponse) => {
+        try {
+          await verifyWithServer(resp, 'Razorpay');
+        } catch (err) {
+          setProcessing(false);
+          setErrorMessage(err instanceof Error ? err.message : 'Payment verification failed.');
+        }
+      },
+      modal: {
+        ondismiss: () => setProcessing(false)
+      }
+    });
+    rzp.on('payment.failed', resp => {
+      setProcessing(false);
+      setErrorMessage(resp.error?.description || 'The payment did not go through. Please try again.');
+    });
+    rzp.open();
+  };
+
+  const handleSandboxCheckout = async () => {
+    if (!subscriptionData) return;
+    setErrorMessage('');
+    setProcessing(true);
+    await new Promise(r => setTimeout(r, 800));
+
     if (simulateOutcome === 'declined') {
       setProcessing(false);
-      setErrorMessage('That payment didn’t go through — your bank declined the transaction. Please check your card balance or try UPI AutoPay.');
+      setErrorMessage('Sandbox: your bank declined the transaction.');
       return;
     }
-
-    if (simulateOutcome === 'expired') {
-      setProcessing(false);
-      setErrorMessage('This card has expired. Please verify the expiry month/year and try again.');
-      return;
-    }
-
     if (simulateOutcome === 'network') {
       setProcessing(false);
-      setErrorMessage('Connection timed out while contacting your bank gateway. Your account has not been charged — please retry.');
+      setErrorMessage('Sandbox: connection timed out while contacting the bank. You have not been charged.');
       return;
     }
 
-    // Success outcome: Call server-side verification endpoint
     try {
-      const last4 = paymentMethod === 'card' ? cardNumber.replace(/\D/g, '').slice(-4) : '4242';
-      const brand = paymentMethod === 'upi' ? 'UPI AutoPay' : paymentMethod === 'card' ? 'Visa' : bank;
-
-      const subId = subscriptionData?.subscriptionId || `sub_rzp_${Date.now()}`;
-      const fakePaymentId = `pay_${Date.now()}`;
-
-      const res = await fetch('/api/razorpay/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          razorpay_payment_id: fakePaymentId,
-          razorpay_subscription_id: subId,
-          razorpay_signature: `sig_test_${Date.now()}`,
-          planId: plan.id,
-          customerEmail: billingEmail,
-          paymentMethodBrand: brand,
-          paymentMethodLast4: last4
-        })
-      });
-
-      const verifyData = await res.json();
-      if (!res.ok) {
-        setProcessing(false);
-        setErrorMessage(verifyData.error || 'Signature verification failed. Please try again.');
-        return;
-      }
-
-      router.push(`/checkout/success?plan=${plan.id}&sub_id=${subId}&pay_id=${fakePaymentId}`);
-    } catch {
+      await verifyWithServer(
+        {
+          razorpay_payment_id: `pay_sandbox_${Date.now()}`,
+          razorpay_subscription_id: subscriptionData.subscriptionId,
+          razorpay_signature: 'sig_test_sandbox'
+        },
+        'Sandbox'
+      );
+    } catch (err) {
       setProcessing(false);
-      setErrorMessage('A network error occurred while finalizing your subscription. Please click retry.');
+      setErrorMessage(err instanceof Error ? err.message : 'Sandbox verification failed.');
     }
   };
+
+  if (!authLoading && !user) {
+    return (
+      <div className="wrap-checkout" style={{ padding: '80px 20px', textAlign: 'center' }}>
+        <div className="card" style={{ maxWidth: '480px', margin: '0 auto' }}>
+          <h2 style={{ marginBottom: '12px' }}>Please log in to continue</h2>
+          <p style={{ color: 'var(--ink-muted)', marginBottom: '20px' }}>You need a CareCircle account before starting a subscription.</p>
+          <Link href={`/login?redirect=${encodeURIComponent(`/checkout/payment?plan=${plan.id}`)}`} className="btn btn-primary">
+            Log in <ArrowRight size={16} />
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const trialText = plan.hasTrial ? `Start your ${plan.trialDays}-day free trial. ₹0 charged today.` : `₹${plan.priceMonthly} charged today.`;
 
   return (
     <div className="wrap-checkout" style={{ padding: '36px 20px 80px' }}>
       <CheckoutStepper currentStep={3} />
 
       <div style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto 32px' }}>
-        <h1 style={{ fontSize: 'clamp(1.9rem, 3.2vw, 2.4rem)', marginBottom: '8px' }}>
-          Payment & AutoPay Setup
-        </h1>
-        <p style={{ fontSize: '0.94rem', color: 'var(--ink-muted)' }}>
-          Start your 14-day free trial. ₹0 charged today.
-        </p>
+        <h1 style={{ fontSize: 'clamp(1.9rem, 3.2vw, 2.4rem)', marginBottom: '8px' }}>Payment & AutoPay Setup</h1>
+        <p style={{ fontSize: '0.94rem', color: 'var(--ink-muted)' }}>{trialText}</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px', alignItems: 'start' }}>
-        {/* PAYMENT METHOD FORM */}
         <div>
           <div className="card">
-            {/* PAYMENT METHOD SELECTION TABS */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '24px' }}>
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('upi')}
-                style={{
-                  padding: '12px 8px',
-                  borderRadius: '12px',
-                  border: paymentMethod === 'upi' ? '2px solid var(--teal)' : '1px solid var(--line)',
-                  background: paymentMethod === 'upi' ? 'var(--teal-light)' : '#fff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <Smartphone size={20} color={paymentMethod === 'upi' ? 'var(--teal)' : 'var(--ink-muted)'} />
-                <span style={{ fontSize: '0.84rem', fontWeight: 600, color: paymentMethod === 'upi' ? 'var(--teal)' : 'var(--ink)' }}>
-                  UPI AutoPay
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('card')}
-                style={{
-                  padding: '12px 8px',
-                  borderRadius: '12px',
-                  border: paymentMethod === 'card' ? '2px solid var(--teal)' : '1px solid var(--line)',
-                  background: paymentMethod === 'card' ? 'var(--teal-light)' : '#fff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <CreditCard size={20} color={paymentMethod === 'card' ? 'var(--teal)' : 'var(--ink-muted)'} />
-                <span style={{ fontSize: '0.84rem', fontWeight: 600, color: paymentMethod === 'card' ? 'var(--teal)' : 'var(--ink)' }}>
-                  Card
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('netbanking')}
-                style={{
-                  padding: '12px 8px',
-                  borderRadius: '12px',
-                  border: paymentMethod === 'netbanking' ? '2px solid var(--teal)' : '1px solid var(--line)',
-                  background: paymentMethod === 'netbanking' ? 'var(--teal-light)' : '#fff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <Building size={20} color={paymentMethod === 'netbanking' ? 'var(--teal)' : 'var(--ink-muted)'} />
-                <span style={{ fontSize: '0.84rem', fontWeight: 600, color: paymentMethod === 'netbanking' ? 'var(--teal)' : 'var(--ink)' }}>
-                  Netbanking
-                </span>
-              </button>
-            </div>
-
-            {/* ERROR ALERT DISPLAY (INLINE WITH RETRY) */}
-            {errorMessage && (
+            {(errorMessage || initError) && (
               <div className="alert-box error" style={{ marginBottom: '22px' }}>
                 <AlertTriangle size={20} style={{ flexShrink: 0 }} />
                 <div>
-                  <strong style={{ display: 'block', marginBottom: '2px' }}>Payment Unsuccessful</strong>
-                  <span>{errorMessage}</span>
+                  <strong style={{ display: 'block', marginBottom: '2px' }}>
+                    {initError ? 'Checkout unavailable' : 'Payment unsuccessful'}
+                  </strong>
+                  <span>{errorMessage || initError}</span>
                 </div>
               </div>
             )}
 
-            <form onSubmit={handlePaymentSubmit}>
-              {/* BILLING INFO */}
-              <div style={{ marginBottom: '20px' }}>
-                <h4 style={{ fontSize: '0.88rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-muted)', marginBottom: '14px' }}>
-                  Billing Contact
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Full Name</label>
-                    <input
-                      type="text"
-                      value={billingName}
-                      onChange={(e) => setBillingName(e.target.value)}
-                      className="form-input"
-                      required
-                    />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Email</label>
-                    <input
-                      type="email"
-                      value={billingEmail}
-                      onChange={(e) => setBillingEmail(e.target.value)}
-                      className="form-input"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
+            <h4 style={{ fontSize: '0.88rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-muted)', marginBottom: '10px' }}>
+              Billing contact
+            </h4>
+            <p style={{ marginBottom: '20px', fontSize: '0.94rem' }}>
+              <strong>{user?.name}</strong>
+              <br />
+              <span style={{ color: 'var(--ink-muted)' }}>{user?.email}</span>
+            </p>
 
-              {/* UPI INPUT */}
-              {paymentMethod === 'upi' && (
-                <div style={{ marginBottom: '20px' }}>
-                  <h4 style={{ fontSize: '0.88rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-muted)', marginBottom: '14px' }}>
-                    UPI ID / VPA for AutoPay
-                  </h4>
-                  <div className="form-group">
-                    <label className="form-label">Virtual Payment Address</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. mobile@okhdfcbank or user@paytm"
-                      value={vpa}
-                      onChange={(e) => setVpa(e.target.value)}
-                      className="form-input"
-                      required
-                    />
-                    <span className="form-hint">
-                      Supported: Google Pay, PhonePe, Paytm, BHIM & all major UPI bank apps
-                    </span>
-                  </div>
-                </div>
-              )}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                background: 'var(--panel)',
+                padding: '12px 14px',
+                borderRadius: '10px',
+                fontSize: '0.82rem',
+                color: 'var(--ink-muted)',
+                marginBottom: '20px'
+              }}
+            >
+              <Lock size={16} color="var(--teal)" style={{ flexShrink: 0 }} />
+              <span>
+                You&apos;ll choose UPI AutoPay, card, or netbanking in the secure <strong>Razorpay</strong> window.
+                CareCircle never sees or stores your card number, UPI PIN, or CVV.
+              </span>
+            </div>
 
-              {/* CARD INPUTS */}
-              {paymentMethod === 'card' && (
-                <div style={{ marginBottom: '20px' }}>
-                  <h4 style={{ fontSize: '0.88rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-muted)', marginBottom: '14px' }}>
-                    Card Details (Credit or Debit)
-                  </h4>
-                  <div className="form-group">
-                    <label className="form-label">Card Number</label>
-                    <input
-                      type="text"
-                      placeholder="4532 8901 2345 4242"
-                      value={cardNumber}
-                      onChange={(e) => setCardNumber(e.target.value)}
-                      className="form-input"
-                      required
-                    />
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">Expiry (MM/YY)</label>
-                      <input
-                        type="text"
-                        placeholder="08/29"
-                        value={cardExpiry}
-                        onChange={(e) => setCardExpiry(e.target.value)}
-                        className="form-input"
-                        required
-                      />
-                    </div>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">CVV</label>
-                      <input
-                        type="password"
-                        placeholder="•••"
-                        maxLength={4}
-                        value={cardCvv}
-                        onChange={(e) => setCardCvv(e.target.value)}
-                        className="form-input"
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* NETBANKING INPUT */}
-              {paymentMethod === 'netbanking' && (
-                <div style={{ marginBottom: '20px' }}>
-                  <h4 style={{ fontSize: '0.88rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-muted)', marginBottom: '14px' }}>
-                    Select Bank for Recurring e-Mandate
-                  </h4>
-                  <div className="form-group">
-                    <select
-                      value={bank}
-                      onChange={(e) => setBank(e.target.value)}
-                      className="form-input"
-                    >
-                      <option value="HDFC Bank">HDFC Bank</option>
-                      <option value="State Bank of India">State Bank of India (SBI)</option>
-                      <option value="ICICI Bank">ICICI Bank</option>
-                      <option value="Axis Bank">Axis Bank</option>
-                      <option value="Kotak Mahindra Bank">Kotak Mahindra Bank</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              {/* SECURITY NOTE (EXPLICIT REQUIREMENT) */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  background: 'var(--panel)',
-                  padding: '12px 14px',
-                  borderRadius: '10px',
-                  fontSize: '0.82rem',
-                  color: 'var(--ink-muted)',
-                  marginBottom: '20px'
-                }}
-              >
-                <Lock size={16} color="var(--teal)" style={{ flexShrink: 0 }} />
-                <span>
-                  Payments are processed securely by <strong>Razorpay</strong>. CareCircle never stores your card number, UPI PIN, or CVV.
-                </span>
-              </div>
-
-              {/* TEST GATEWAY RESPONSE SWITCHER (FOR TESTING ALL PRD ERROR STATES) */}
+            {subscriptionData?.isSandbox && (
               <div
                 style={{
                   border: '1px dashed var(--gold)',
@@ -396,10 +257,10 @@ function PaymentContent() {
                 }}
               >
                 <div style={{ fontWeight: 600, color: 'var(--gold-hover)', marginBottom: '6px' }}>
-                  🛠️ Gateway Test Control (Try Error & Success flows):
+                  🛠️ Local sandbox (no Razorpay keys configured) — no real payment happens:
                 </div>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {(['success', 'declined', 'expired', 'network'] as const).map((outcome) => (
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  {(['success', 'declined', 'network'] as const).map(outcome => (
                     <label key={outcome} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                       <input
                         type="radio"
@@ -408,29 +269,32 @@ function PaymentContent() {
                         checked={simulateOutcome === outcome}
                         onChange={() => setSimulateOutcome(outcome)}
                       />
-                      <span style={{ textTransform: 'capitalize' }}>{outcome === 'declined' ? 'Card Declined' : outcome === 'expired' ? 'Card Expired' : outcome === 'network' ? 'Network Failure' : 'Success'}</span>
+                      <span>{outcome === 'declined' ? 'Declined' : outcome === 'network' ? 'Network failure' : 'Success'}</span>
                     </label>
                   ))}
                 </div>
               </div>
+            )}
 
-              <button
-                type="submit"
-                disabled={processing}
-                className="btn btn-primary btn-block btn-lg"
-              >
-                {processing ? (
-                  <>
-                    <RefreshCw size={18} style={{ animation: 'spin 1s linear infinite' }} />
-                    Verifying with Razorpay...
-                  </>
-                ) : (
-                  <>
-                    Authorize 14-Day Free Trial (₹0) <ArrowRight size={18} />
-                  </>
-                )}
-              </button>
-            </form>
+            <button
+              type="button"
+              onClick={subscriptionData?.isSandbox ? handleSandboxCheckout : handleRazorpayCheckout}
+              disabled={processing || !subscriptionData}
+              className="btn btn-primary btn-block btn-lg"
+            >
+              {processing ? (
+                <>
+                  <RefreshCw size={18} style={{ animation: 'spin 1s linear infinite' }} />
+                  Waiting for Razorpay...
+                </>
+              ) : !subscriptionData && !initError ? (
+                'Preparing secure checkout...'
+              ) : (
+                <>
+                  {plan.hasTrial ? `Authorize ${plan.trialDays}-Day Free Trial (₹0)` : `Pay ₹${plan.priceMonthly}`} <ArrowRight size={18} />
+                </>
+              )}
+            </button>
           </div>
         </div>
 
@@ -450,38 +314,40 @@ function PaymentContent() {
               </div>
             </div>
 
-            <div style={{ padding: '16px 0', borderBottom: '1px solid var(--line-subtle)', display: 'grid', gap: '10px', fontSize: '0.88rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--ink-muted)' }}>Trial duration:</span>
-                <strong>14 Days Free</strong>
+            {plan.hasTrial && (
+              <div style={{ padding: '16px 0', borderBottom: '1px solid var(--line-subtle)', display: 'grid', gap: '10px', fontSize: '0.88rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--ink-muted)' }}>Trial duration:</span>
+                  <strong>{plan.trialDays} Days Free</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--ink-muted)' }}>Due today:</span>
+                  <strong style={{ color: 'var(--green)' }}>₹0</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--ink-muted)' }}>First charge on:</span>
+                  <strong>
+                    {new Date(pageLoadedAt + plan.trialDays * 86400000).toLocaleDateString('en-IN', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--ink-muted)' }}>First charge:</span>
+                  <strong>₹{plan.priceMonthly}</strong>
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--ink-muted)' }}>Due today:</span>
-                <strong style={{ color: 'var(--green)' }}>₹0</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--ink-muted)' }}>Next billing date:</span>
-                <strong>
-                  {new Date(Date.now() + 14 * 86400000).toLocaleDateString('en-IN', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  })}
-                </strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--ink-muted)' }}>First charge:</span>
-                <strong>₹{plan.priceMonthly}</strong>
-              </div>
-            </div>
+            )}
 
             <div style={{ marginTop: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', color: 'var(--teal)', fontWeight: 600, marginBottom: '8px' }}>
                 <ShieldCheck size={18} />
-                <span>100% Risk Free Commitment</span>
+                <span>Cancel anytime</span>
               </div>
               <p style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', lineHeight: 1.5 }}>
-                Cancel anytime with one click in your account settings before your trial period concludes. You won&apos;t be charged.
+                Cancel with one click in your account settings before your trial ends and you won&apos;t be charged.
               </p>
             </div>
           </div>

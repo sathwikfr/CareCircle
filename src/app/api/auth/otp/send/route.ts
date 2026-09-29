@@ -1,19 +1,48 @@
 import { NextResponse } from 'next/server';
-import { getUserByPhone } from '@/lib/db';
+import { getUserByPhone, isPhoneRegistered } from '@/lib/db';
 import { checkRateLimit, recordFailedAttempt, createAndStoreOtp } from '@/lib/security';
+import { normalizePhone } from '@/lib/phone';
+
+/**
+ * No SMS provider is integrated yet. Outside local development the OTP would
+ * never reach the user, so phone OTP is reported as unavailable instead of
+ * pretending a code was sent.
+ */
+function smsDeliveryAvailable(): boolean {
+  return process.env.NODE_ENV === 'development';
+}
 
 export async function POST(req: Request) {
   try {
     const { phone, purpose = 'login' } = await req.json();
 
-    if (!phone || phone.replace(/\D/g, '').length < 10) {
-      return NextResponse.json({ error: 'Please enter a valid 10-digit mobile number' }, { status: 400 });
+    if (purpose !== 'login' && purpose !== 'signup') {
+      return NextResponse.json({ error: 'Invalid purpose' }, { status: 400 });
     }
 
-    const cleanPhone = phone.replace(/\D/g, '');
+    if (!phone) {
+      return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
+    }
+
+    const phoneResult = normalizePhone(phone);
+    if (!phoneResult.ok) {
+      return NextResponse.json({ error: phoneResult.reason }, { status: 400 });
+    }
+
+    if (!smsDeliveryAvailable()) {
+      return NextResponse.json(
+        {
+          error: 'Mobile OTP sign-in is not available yet. Please use your email and password.',
+          code: 'OTP_UNAVAILABLE'
+        },
+        { status: 503 }
+      );
+    }
+
+    const cleanPhone = phoneResult.e164.replace(/\D/g, '');
     const rateLimitKey = `otp_send:${cleanPhone}`;
 
-    // Rate limiting: max 3 requests per 10 minutes
+    // Max 3 requests per 10 minutes
     const rateStatus = checkRateLimit(rateLimitKey, 3, 10 * 60 * 1000);
     if (!rateStatus.allowed) {
       return NextResponse.json(
@@ -24,10 +53,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // STRICT CHECK: IF LOGIN, ACCOUNT MUST EXIST!
     if (purpose === 'login') {
-      const existingUser = await getUserByPhone(cleanPhone);
-      if (!existingUser) {
+      if (!(await getUserByPhone(phoneResult.e164))) {
         return NextResponse.json(
           {
             error: 'No account registered with this mobile number. Please sign up first.',
@@ -37,31 +64,22 @@ export async function POST(req: Request) {
           { status: 404 }
         );
       }
-    }
-
-    // IF SIGNUP, ACCOUNT MUST NOT ALREADY EXIST
-    if (purpose === 'signup') {
-      const existingUser = await getUserByPhone(cleanPhone);
-      if (existingUser) {
-        return NextResponse.json(
-          {
-            error: 'An account with this mobile number already exists. Please log in instead.',
-            code: 'ACCOUNT_EXISTS'
-          },
-          { status: 409 }
-        );
-      }
+    } else if (await isPhoneRegistered(phoneResult.e164)) {
+      return NextResponse.json(
+        { error: 'An account with this mobile number already exists. Please log in instead.', code: 'ACCOUNT_EXISTS' },
+        { status: 409 }
+      );
     }
 
     recordFailedAttempt(rateLimitKey, 10 * 60 * 1000);
-    const { code, expiresAt } = await createAndStoreOtp(cleanPhone, purpose);
+    const { code } = await createAndStoreOtp(cleanPhone, purpose);
 
-    console.log(`[CareCircle SMS Gateway] OTP sent to +91 ${cleanPhone}: [${code}] (Expires at: ${expiresAt})`);
+    console.log(`[CareCircle SMS Gateway][dev] OTP for ${phoneResult.e164}: ${code}`);
 
     return NextResponse.json({
       success: true,
-      message: `A 6-digit verification code has been sent to +91 ${cleanPhone.slice(-4).padStart(cleanPhone.length, '•')}`,
-      devOtp: process.env.NODE_ENV !== 'production' ? code : undefined
+      message: `A 6-digit verification code has been sent to ••••${cleanPhone.slice(-4)}`,
+      devOtp: code
     });
   } catch (err) {
     console.error('Send OTP error:', err);

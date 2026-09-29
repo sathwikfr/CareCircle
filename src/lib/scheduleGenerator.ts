@@ -17,6 +17,53 @@ export const SLOT_DISPLAY_NAMES: Record<string, string> = {
   custom: 'Custom Check-in'
 };
 
+export const AVAILABLE_CALL_TIMES: string[] = [
+  '06:00 AM', '06:15 AM', '06:30 AM', '06:45 AM',
+  '07:00 AM', '07:15 AM', '07:30 AM', '07:45 AM',
+  '08:00 AM', '08:15 AM', '08:30 AM', '08:45 AM',
+  '09:00 AM', '09:15 AM', '09:30 AM', '09:45 AM',
+  '10:00 AM', '10:15 AM', '10:30 AM', '10:45 AM',
+  '11:00 AM', '11:15 AM', '11:30 AM', '11:45 AM',
+  '12:00 PM', '12:15 PM', '12:30 PM', '12:45 PM',
+  '01:00 PM', '01:15 PM', '01:30 PM', '01:45 PM',
+  '02:00 PM', '02:15 PM', '02:30 PM', '02:45 PM',
+  '03:00 PM', '03:15 PM', '03:30 PM', '03:45 PM',
+  '04:00 PM', '04:15 PM', '04:30 PM', '04:45 PM',
+  '05:00 PM', '05:15 PM', '05:30 PM', '05:45 PM',
+  '06:00 PM', '06:15 PM', '06:30 PM', '06:45 PM',
+  '07:00 PM', '07:15 PM', '07:30 PM', '07:45 PM',
+  '08:00 PM', '08:15 PM', '08:30 PM', '08:45 PM',
+  '09:00 PM', '09:15 PM', '09:30 PM', '09:45 PM',
+  '10:00 PM', '10:15 PM', '10:30 PM'
+];
+
+/**
+ * Parses "hh:mm AM/PM" into minutes from 00:00 for chronological comparisons
+ */
+export function timeToMinutes(timeStr: string): number {
+  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return 0;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+  if (period === 'PM' && hours !== 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+
+/**
+ * Returns available call times guaranteed to include currentTime if provided,
+ * preventing HTML select dropdowns from falling back to the first option.
+ */
+export function getSelectableCallTimes(currentTime?: string): string[] {
+  if (!currentTime) return AVAILABLE_CALL_TIMES;
+  const trimmed = currentTime.trim();
+  if (AVAILABLE_CALL_TIMES.includes(trimmed)) {
+    return AVAILABLE_CALL_TIMES;
+  }
+  return [...AVAILABLE_CALL_TIMES, trimmed].sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+}
+
 export interface ScheduleGenerationResult {
   schedule: ScheduledCallSlot[];
   unspecifiedMedicines: Array<{ name: string; dosage?: string; index: number }>;
@@ -310,6 +357,8 @@ export function formatScheduleSummary(schedule: ScheduledCallSlot[]): string {
   const active = schedule.filter(s => s.isActive);
   if (active.length === 0) return 'No calls scheduled';
   if (active.length === 1) return `1 call a day at ${active[0].time}`;
-  const timesList = active.map(s => s.time).join(', ');
-  return `${active.length} calls a day: ${timesList}`;
+  const sortedTimes = [...active]
+    .sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time))
+    .map(s => s.time);
+  return `${active.length} calls a day: ${sortedTimes.join(', ')}`;
 }

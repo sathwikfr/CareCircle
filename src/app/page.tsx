@@ -1,468 +1,369 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { Reveal } from '@/components/Reveal';
+import { CallDemo } from '@/components/landing/CallDemo';
+import { DashboardPreview } from '@/components/landing/DashboardPreview';
+import styles from '@/components/landing/landing.module.css';
 import { PLANS } from '@/lib/plans';
-import { Check, Shield, Clock, Phone, Sparkles, AlertCircle, ArrowRight, Play, Heart } from 'lucide-react';
+import { PlanId } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
+import {
+  ArrowRight, Check, X, Phone, Languages, ShieldCheck, Camera, CalendarClock, LineChart,
+  PauseCircle, Download, Stethoscope, Siren, HeartHandshake, ClipboardCheck, Plus
+} from 'lucide-react';
+
+const COMPARE = [
+  { app: 'Needs a smartphone, unlocked and online', call: 'Any phone that rings, even a basic keypad phone' },
+  { app: 'Small English notifications', call: 'A warm voice, in the language they think in' },
+  { app: 'Swiped away and forgotten', call: 'A short conversation they answer in their own words' },
+  { app: 'You never know if it worked', call: 'You see what they said, on your dashboard' },
+];
+
+const SAFETY = [
+  {
+    icon: Stethoscope,
+    title: 'Never plays doctor',
+    body: 'Saathi does not diagnose or give medical advice. For anything health-related it points your parent to their doctor or to you.',
+  },
+  {
+    icon: Siren,
+    title: 'Listens for warning signs',
+    body: 'If your parent mentions a fall, chest pain or feeling faint, Saathi stays calm, asks them to get help, and flags it to you.',
+  },
+  {
+    icon: HeartHandshake,
+    title: 'Consent comes first',
+    body: 'Calls only start once your parent has agreed to them. You can pause or stop the calls at any time.',
+  },
+  {
+    icon: ClipboardCheck,
+    title: 'You confirm every medicine',
+    body: 'Snap a prescription and we draft the list for you, but nothing is saved until you have checked and confirmed it.',
+  },
+];
+
+const FAQ = [
+  {
+    q: 'Does my parent need a smartphone or an app?',
+    a: 'No. Saathi calls an ordinary phone number. If it rings and they can answer it, it works, including basic keypad phones and landlines.',
+  },
+  {
+    q: 'Which languages does Saathi speak?',
+    a: 'Hindi, English, Tamil, Telugu, Kannada, Bengali, Marathi, Gujarati and Malayalam. You pick the language when you add your parent, and you can change it later.',
+  },
+  {
+    q: 'What does Saathi actually ask?',
+    a: 'Each call is short. Saathi asks whether they have taken the medicines due at that time, asks one gentle question about how they are feeling, and passes on any reminder you have added.',
+  },
+  {
+    q: 'What happens if they don’t pick up?',
+    a: 'The call shows up as missed on your dashboard, along with the medicines that were not confirmed, so you know to check in yourself.',
+  },
+  {
+    q: 'Is CareCircle a medical or emergency service?',
+    a: 'No. CareCircle is a family check-in companion. It does not replace a doctor, a caregiver or emergency services. In an emergency, call 112.',
+  },
+  {
+    q: 'Can I pause or cancel?',
+    a: 'Yes. Pause calls for a trip or a hospital stay and they resume on the date you choose. Paid plans can be cancelled from your billing page at any time.',
+  },
+];
 
 export default function LandingPage() {
   const { user } = useAuth();
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [audioStep, setAudioStep] = useState(0);
 
-  const simulateCall = () => {
-    if (isPlayingAudio) return;
-    setIsPlayingAudio(true);
-    setAudioStep(1);
-
-    setTimeout(() => setAudioStep(2), 1400);
-    setTimeout(() => setAudioStep(3), 3200);
-    setTimeout(() => setAudioStep(4), 5000);
-    setTimeout(() => setAudioStep(5), 6800);
-    setTimeout(() => {
-      setIsPlayingAudio(false);
-      setAudioStep(5);
-    }, 8500);
-  };
-
-  const getPlanLink = (planId: string) => {
-    return user ? `/checkout/confirm?plan=${planId}` : `/signup?plan=${planId}`;
-  };
+  const getPlanLink = (planId: PlanId) => (user ? `/checkout/confirm?plan=${planId}` : `/signup?plan=${planId}`);
+  const primaryHref = user ? '/dashboard' : '/signup?plan=free';
 
   return (
     <>
       <Navbar />
 
-      <main>
-        {/* HERO SECTION */}
-        <section style={{ padding: '80px 0 96px', position: 'relative', overflow: 'hidden' }}>
-          <div className="wrap" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '60px', alignItems: 'center' }}>
-            <div>
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '6px 16px',
-                  borderRadius: '9999px',
-                  background: 'var(--panel-elevated)',
-                  border: '1px solid var(--line)',
-                  fontSize: '0.84rem',
-                  fontWeight: 600,
-                  color: 'var(--teal)',
-                  marginBottom: '22px',
-                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.03)'
-                }}
-              >
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--teal)' }}></span>
-                AI Voice Companion for Indian Families
-              </div>
+      <main id="main">
+        {/* HERO */}
+        <section className={styles.hero}>
+          <div className={`wrap ${styles.heroGrid}`}>
+            <div className="animate-fade-in">
+              <span className="chip" style={{ marginBottom: '24px' }}>
+                <span className="dot live" />
+                Meet Saathi, a voice companion for your parents
+              </span>
 
-              <h1 style={{ fontSize: 'clamp(2.4rem, 4.4vw, 3.6rem)', lineHeight: 1.15, marginBottom: '20px' }}>
-                A daily call for your parents. <br />
-                <span style={{ color: 'var(--teal)' }}>Peace of mind</span> for you.
+              <h1 className={`h-display ${styles.heroTitle}`}>
+                A daily call for your parents. <em>Peace of mind</em> for you.
               </h1>
 
-              <p style={{ fontSize: '1.14rem', color: 'var(--ink-muted)', lineHeight: 1.6, maxWidth: '46ch', marginBottom: '32px' }}>
-                CareCircle checks in on aging parents every single day by phone — medicine, health, and how they&apos;re truly doing — and alerts family instantly only when something needs attention.
+              <p className={styles.heroLead}>
+                Saathi phones your parents at the times you choose, in their own language. It checks on their medicines and how they are feeling, and every call lands on your dashboard.
               </p>
 
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <Link href="#plans" className="btn btn-primary btn-lg">
-                  See plans & pricing <ArrowRight size={18} />
+              <div className={styles.heroCtas}>
+                <Link href={primaryHref} className="btn btn-primary btn-lg">
+                  {user ? 'Go to your dashboard' : 'Start free'} <ArrowRight size={18} className="arrow" />
                 </Link>
                 <Link href="#how" className="btn btn-ghost btn-lg">
-                  How it works
+                  See how it works
                 </Link>
               </div>
 
-              <div style={{ marginTop: '36px', display: 'flex', alignItems: 'center', gap: '16px', fontSize: '0.88rem', color: 'var(--ink-muted)' }}>
-                <div style={{ display: 'flex' }}>
-                  {['RK', 'SP', 'AN'].map((initials, idx) => (
-                    <span
-                      key={idx}
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        background: idx === 0 ? 'var(--gold)' : idx === 1 ? 'var(--teal)' : '#3b82f6',
-                        color: '#fff',
-                        border: '2px solid var(--paper)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginLeft: idx === 0 ? '0' : '-8px',
-                        fontSize: '0.75rem',
-                        fontWeight: 600
-                      }}
-                    >
-                      {initials}
-                    </span>
-                  ))}
-                </div>
-                <div>
-                  <strong>Trusted by 1,200+ Indian families</strong> living in Bengaluru, Delhi, Mumbai & abroad.
-                </div>
+              <div className={styles.proofRow}>
+                <span><Phone size={16} /> No app or smartphone needed</span>
+                <span><Languages size={16} /> 9 Indian languages</span>
+                <span><ShieldCheck size={16} /> Never gives medical advice</span>
               </div>
             </div>
 
-            {/* CALL CARD SIMULATION */}
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <div
-                className="card"
-                style={{
-                  width: '100%',
-                  maxWidth: '430px',
-                  padding: '28px',
-                  borderRadius: '24px',
-                  position: 'relative',
-                  border: '1px solid var(--line)',
-                  boxShadow: 'var(--card-hover-shadow)'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '16px', marginBottom: '16px', borderBottom: '1px solid var(--line-subtle)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div
-                      style={{
-                        width: '42px',
-                        height: '42px',
-                        borderRadius: '50%',
-                        background: 'linear-gradient(135deg, var(--gold), #eab308)',
-                        color: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 600,
-                        fontSize: '1.05rem',
-                        position: 'relative'
-                      }}
-                    >
-                      A
-                      <span
-                        className="pulse-circle"
-                        style={{
-                          position: 'absolute',
-                          bottom: '-2px',
-                          right: '-2px',
-                          width: '12px',
-                          height: '12px',
-                          borderRadius: '50%',
-                          background: '#10b981',
-                          border: '2px solid #fff'
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <h4 style={{ fontSize: '1.1rem', margin: 0 }}>Amma (Bangalore)</h4>
-                      <p style={{ fontSize: '0.78rem', color: 'var(--ink-muted)', margin: 0 }}>Daily Morning Call · Hindi / English</p>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--teal)', background: 'var(--teal-light)', padding: '4px 10px', borderRadius: '9999px' }}>
-                    {isPlayingAudio ? '● Active Call' : '● 02:14'}
-                  </div>
-                </div>
-
-                {/* CONVERSATION BUBBLES */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minHeight: '220px', justifyContent: 'center' }}>
-                  {audioStep === 0 && (
-                    <>
-                      <div style={{ background: 'var(--teal-light)', padding: '12px 14px', borderRadius: '14px 14px 14px 4px', fontSize: '0.88rem', color: 'var(--teal-deep)' }}>
-                        <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '2px', color: 'var(--teal)' }}>Saathi AI</strong>
-                        Namaste Amma! Good morning. Did you take your BP tablet after breakfast today?
-                      </div>
-                      <div style={{ background: 'var(--panel)', padding: '12px 14px', borderRadius: '14px 14px 4px 14px', fontSize: '0.88rem', alignSelf: 'flex-end', textAlign: 'right' }}>
-                        <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '2px', color: 'var(--ink-muted)' }}>Amma</strong>
-                        Namaste beta. Haan, I took it just 10 minutes ago with warm water.
-                      </div>
-                      <div style={{ background: 'var(--teal-light)', padding: '12px 14px', borderRadius: '14px 14px 14px 4px', fontSize: '0.88rem', color: 'var(--teal-deep)' }}>
-                        <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '2px', color: 'var(--teal)' }}>Saathi AI</strong>
-                        Wonderful. And how are your knees feeling? Any pain or dizziness?
-                      </div>
-                    </>
-                  )}
-
-                  {audioStep === 1 && (
-                    <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--teal)' }}>
-                      <Phone size={24} style={{ animation: 'bounce 1s infinite', margin: '0 auto 10px' }} />
-                      <p style={{ fontSize: '0.9rem', fontWeight: 600 }}>Connecting live phone call to Amma...</p>
-                    </div>
-                  )}
-
-                  {audioStep >= 2 && (
-                    <div className="animate-fade-in" style={{ background: 'var(--teal-light)', padding: '12px 14px', borderRadius: '14px 14px 14px 4px', fontSize: '0.88rem', color: 'var(--teal-deep)' }}>
-                      <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '2px', color: 'var(--teal)' }}>Saathi AI</strong>
-                      Namaste Amma! Good morning. Did you take your BP tablet after breakfast today?
-                    </div>
-                  )}
-
-                  {audioStep >= 3 && (
-                    <div className="animate-fade-in" style={{ background: 'var(--panel)', padding: '12px 14px', borderRadius: '14px 14px 4px 14px', fontSize: '0.88rem', alignSelf: 'flex-end', textAlign: 'right' }}>
-                      <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '2px', color: 'var(--ink-muted)' }}>Amma</strong>
-                      Namaste beta. Haan, I took it just 10 minutes ago with warm water.
-                    </div>
-                  )}
-
-                  {audioStep >= 4 && (
-                    <div className="animate-fade-in" style={{ background: 'var(--teal-light)', padding: '12px 14px', borderRadius: '14px 14px 14px 4px', fontSize: '0.88rem', color: 'var(--teal-deep)' }}>
-                      <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '2px', color: 'var(--teal)' }}>Saathi AI</strong>
-                      Wonderful! Did you go for your balcony morning walk as well?
-                    </div>
-                  )}
-
-                  {audioStep >= 5 && (
-                    <div className="animate-fade-in" style={{ background: 'var(--panel)', padding: '12px 14px', borderRadius: '14px 14px 4px 14px', fontSize: '0.88rem', alignSelf: 'flex-end', textAlign: 'right' }}>
-                      <strong style={{ display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', marginBottom: '2px', color: 'var(--ink-muted)' }}>Amma</strong>
-                      Yes, 15 minutes! Tell Sathwik not to worry, I am feeling cheerful.
-                    </div>
-                  )}
-                </div>
-
-                <div
-                  style={{
-                    margin: '18px 0 16px',
-                    background: 'var(--green-soft)',
-                    border: '1px solid #bbf7d0',
-                    color: 'var(--green)',
-                    padding: '8px 12px',
-                    borderRadius: '10px',
-                    fontSize: '0.82rem',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  <Check size={16} />
-                  <span>BP Tablet Confirmed · Mood: Cheerful & Active</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '12px', borderTop: '1px solid var(--line-subtle)', fontSize: '0.82rem', color: 'var(--ink-muted)' }}>
-                  <span>Scheduled: Daily at 9:00 AM</span>
-                  <button
-                    onClick={simulateCall}
-                    disabled={isPlayingAudio}
-                    className="btn btn-ghost btn-sm"
-                    style={{ fontSize: '0.8rem', padding: '6px 12px' }}
-                  >
-                    <Play size={12} fill="currentColor" /> {isPlayingAudio ? 'Simulating...' : 'Replay call'}
-                  </button>
-                </div>
-              </div>
+            <div className="animate-fade-in" style={{ animationDelay: '120ms' }}>
+              <CallDemo />
             </div>
           </div>
         </section>
 
-        {/* WHY PHONE CALLS SECTION */}
-        <section id="problem" style={{ padding: '80px 0', background: 'var(--panel)', borderTop: '1px solid var(--line)', borderBottom: '1px solid var(--line)' }}>
-          <div className="wrap">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '48px', alignItems: 'center' }}>
-              <div>
-                <h2 style={{ fontSize: 'clamp(2rem, 3.2vw, 2.7rem)', marginBottom: '18px' }}>
-                  You can&apos;t call three times a day. We can.
-                </h2>
-                <p style={{ fontSize: '1.05rem', color: 'var(--ink-muted)', marginBottom: '18px', lineHeight: 1.6 }}>
-                  Reminder apps require elderly parents to unlock smartphones, open notifications, and tap tiny buttons. Most seniors find them stressful or ignore them completely.
-                </p>
-                <p style={{ fontSize: '1.05rem', color: 'var(--ink-muted)', lineHeight: 1.6 }}>
-                  CareCircle uses an ordinary telephone call — something every parent has known how to pick up and answer with a simple swipe or button for fifty years.
-                </p>
+        {/* WHY A PHONE CALL */}
+        <section id="why" className="section section-alt">
+          <div className="wrap grid-2">
+            <Reveal>
+              <span className="eyebrow">Why a phone call</span>
+              <h2 className="h-section">Your parents already know how to answer a phone.</h2>
+              <p className="lead" style={{ marginBottom: '16px' }}>
+                Reminder apps ask a lot of someone who is 75: unlock the phone, find the notification, read small English text, tap the right button.
+              </p>
+              <p className="lead">
+                A phone call asks for nothing new. It rings, they answer, and they talk to someone patient in the language they are most comfortable in.
+              </p>
+            </Reveal>
+
+            <Reveal delay={120}>
+              <div className={styles.compare}>
+                <div className={styles.compareHead}>
+                  <div>Reminder apps</div>
+                  <div>A Saathi call</div>
+                </div>
+                {COMPARE.map((row) => (
+                  <div key={row.call} className={styles.compareRow}>
+                    <div><X size={15} color="var(--ink-subtle)" /> {row.app}</div>
+                    <div><Check size={15} color="var(--teal)" /> {row.call}</div>
+                  </div>
+                ))}
               </div>
-
-              <div style={{ display: 'grid', gap: '16px' }}>
-                <div className="card" style={{ display: 'flex', gap: '20px', padding: '24px', alignItems: 'center' }}>
-                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2.5rem', fontWeight: 600, color: 'var(--teal)', minWidth: '90px' }}>
-                    72%
-                  </div>
-                  <div style={{ fontSize: '0.92rem', color: 'var(--ink-muted)' }}>
-                    of adult children working in metros or overseas experience persistent anxiety about parents living alone back home.
-                  </div>
-                </div>
-
-                <div className="card" style={{ display: 'flex', gap: '20px', padding: '24px', alignItems: 'center' }}>
-                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2.5rem', fontWeight: 600, color: 'var(--gold)', minWidth: '90px' }}>
-                    1 in 3
-                  </div>
-                  <div style={{ fontSize: '0.92rem', color: 'var(--ink-muted)' }}>
-                    seniors accidentally skip or double-dose vital chronic medications (BP, diabetes) at least once every week without realizing.
-                  </div>
-                </div>
-
-                <div className="card" style={{ display: 'flex', gap: '20px', padding: '24px', alignItems: 'center' }}>
-                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2.5rem', fontWeight: 600, color: 'var(--red)', minWidth: '90px' }}>
-                    4 Calls
-                  </div>
-                  <div style={{ fontSize: '0.92rem', color: 'var(--ink-muted)' }}>
-                    is the average number of unanswered calls before distant family members realize something urgent happened.
-                  </div>
-                </div>
-              </div>
-            </div>
+            </Reveal>
           </div>
         </section>
 
         {/* HOW IT WORKS */}
-        <section id="how" style={{ padding: '96px 0' }}>
+        <section id="how" className="section">
           <div className="wrap">
-            <div style={{ textAlign: 'center', maxWidth: '640px', margin: '0 auto 56px' }}>
-              <div className="badge badge-teal" style={{ marginBottom: '12px' }}>Simple 3-Minute Setup</div>
-              <h2 style={{ fontSize: 'clamp(2rem, 3.2vw, 2.6rem)', marginBottom: '14px' }}>
-                How CareCircle Works
-              </h2>
-              <p style={{ color: 'var(--ink-muted)', fontSize: '1.05rem' }}>
-                You set up their medication schedule once. The daily voice check-ins and WhatsApp summaries happen seamlessly.
-              </p>
-            </div>
+            <Reveal className="section-head">
+              <span className="eyebrow">How it works</span>
+              <h2 className="h-section">Set it up once. Saathi takes it from there.</h2>
+              <p className="lead">You add your parent and their medicines. Saathi calls on schedule, and you see how each call went.</p>
+            </Reveal>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '28px' }}>
-              <div className="card" style={{ padding: '34px 28px' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'var(--teal-light)', color: 'var(--teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-serif)', fontSize: '1.3rem', fontWeight: 600, marginBottom: '20px' }}>
-                  1
+            <div className={styles.steps}>
+              <Reveal className={styles.step}>
+                <span className={styles.stepNum}><b>1</b> You set it up</span>
+                <h3>Add their routine</h3>
+                <p>Add your parent’s number, language and medicines. Snap a photo of the prescription and check the draft we read from it.</p>
+                <div className={styles.stepVisual}>
+                  <div className={styles.miniRow}>
+                    <div><strong>Amlodipine 5mg</strong><span>Morning · after breakfast</span></div>
+                    <Check size={16} color="var(--green)" />
+                  </div>
+                  <div className={styles.miniRow}>
+                    <div><strong>Metformin 500mg</strong><span>Night · after dinner</span></div>
+                    <Check size={16} color="var(--green)" />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: 'var(--ink-subtle)', marginTop: '4px' }}>
+                    <Camera size={14} /> Read from a prescription photo, confirmed by you
+                  </div>
                 </div>
-                <h3 style={{ fontSize: '1.25rem', marginBottom: '10px' }}>Set up their routine</h3>
-                <p style={{ fontSize: '0.94rem', color: 'var(--ink-muted)', lineHeight: 1.55 }}>
-                  Add your parent&apos;s morning/night medicine schedule, preferred call timings, and native language (Hindi, Tamil, Telugu, English).
-                </p>
-              </div>
+              </Reveal>
 
-              <div className="card" style={{ padding: '34px 28px' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'var(--teal-light)', color: 'var(--teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-serif)', fontSize: '1.3rem', fontWeight: 600, marginBottom: '20px' }}>
-                  2
+              <Reveal className={styles.step} delay={100}>
+                <span className={styles.stepNum}><b>2</b> Saathi calls</span>
+                <h3>A short, kind call</h3>
+                <p>At each medicine time Saathi rings their phone, asks if they have taken it and how they are feeling, then says goodbye.</p>
+                <div className={styles.stepVisual}>
+                  <div className={styles.ringing}>
+                    <div className={styles.ringIcon}><Phone size={22} /></div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>Saathi is calling Amma</div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--ink-subtle)' }}>8:30 AM · in Telugu</div>
+                    </div>
+                  </div>
                 </div>
-                <h3 style={{ fontSize: '1.25rem', marginBottom: '10px' }}>Saathi AI calls their phone</h3>
-                <p style={{ fontSize: '0.94rem', color: 'var(--ink-muted)', lineHeight: 1.55 }}>
-                  Saathi AI calls directly with a warm, caring voice in their native language. No smartphone or internet required on their end.
-                </p>
-              </div>
+              </Reveal>
 
-              <div className="card" style={{ padding: '34px 28px' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'var(--teal-light)', color: 'var(--teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-serif)', fontSize: '1.3rem', fontWeight: 600, marginBottom: '20px' }}>
-                  3
+              <Reveal className={styles.step} delay={200}>
+                <span className={styles.stepNum}><b>3</b> You stay in the loop</span>
+                <h3>See how they are</h3>
+                <p>Every call lands on your dashboard: medicines taken, mood and a short summary. If something needs you, it is flagged.</p>
+                <div className={styles.stepVisual}>
+                  <div className={styles.miniRow}>
+                    <div><strong>Morning check-in</strong><span>Feeling well</span></div>
+                    <span className="badge badge-green">Taken</span>
+                  </div>
+                  <div className={styles.miniRow}>
+                    <div><strong>Bedtime check-in</strong><span>Didn’t pick up</span></div>
+                    <span className="badge badge-amber">Missed</span>
+                  </div>
                 </div>
-                <h3 style={{ fontSize: '1.25rem', marginBottom: '10px' }}>You stay informed quietly</h3>
-                <p style={{ fontSize: '0.94rem', color: 'var(--ink-muted)', lineHeight: 1.55 }}>
-                  Receive a gentle WhatsApp summary after each call. If medication was missed or your parent felt unwell, you get alerted immediately.
-                </p>
-              </div>
+              </Reveal>
             </div>
           </div>
         </section>
 
-        {/* PRICING SECTION */}
-        <section id="plans" style={{ padding: '96px 0', background: 'var(--panel)', borderTop: '1px solid var(--line)' }}>
-          <div className="wrap">
-            <div style={{ textAlign: 'center', maxWidth: '640px', margin: '0 auto 56px' }}>
-              <div className="badge badge-gold" style={{ marginBottom: '12px' }}>Simple, Honest Pricing</div>
-              <h2 style={{ fontSize: 'clamp(2rem, 3.2vw, 2.7rem)', marginBottom: '14px' }}>
-                Choose the right care for your family
-              </h2>
-              <p style={{ color: 'var(--ink-muted)', fontSize: '1.05rem' }}>
-                Start with a 14-day free trial on paid plans or test the Free Starter tier. Cancel anytime with a single click.
+        {/* DASHBOARD */}
+        <section className="section section-alt">
+          <div className="wrap grid-2">
+            <Reveal>
+              <span className="eyebrow">Your dashboard</span>
+              <h2 className="h-section">Know how Amma’s day went, in ten seconds.</h2>
+              <p className="lead">One calm page for each parent. No noise, just what you need to know and when to call them yourself.</p>
+
+              <div className={styles.featureList}>
+                <div className={styles.feature}>
+                  <span className="icon-tile"><CalendarClock size={20} /></span>
+                  <div>
+                    <h3>Today at a glance</h3>
+                    <p>Which check-ins happened, which medicines were confirmed and what is still to come.</p>
+                  </div>
+                </div>
+                <div className={styles.feature}>
+                  <span className="icon-tile"><LineChart size={20} /></span>
+                  <div>
+                    <h3>Trends over time</h3>
+                    <p>Spot a slipping routine or a run of low moods before it becomes a bigger worry.</p>
+                  </div>
+                </div>
+                <div className={styles.feature}>
+                  <span className="icon-tile"><PauseCircle size={20} /></span>
+                  <div>
+                    <h3>Pause when life happens</h3>
+                    <p>Travelling, visiting you or in hospital? Pause calls and pick the date they resume.</p>
+                  </div>
+                </div>
+                <div className={styles.feature}>
+                  <span className="icon-tile"><Download size={20} /></span>
+                  <div>
+                    <h3>Share with their doctor</h3>
+                    <p>Export the call history as a spreadsheet to bring along to appointments.</p>
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+
+            <Reveal delay={120}>
+              <DashboardPreview />
+            </Reveal>
+          </div>
+        </section>
+
+        {/* SAFETY */}
+        <section id="safety" className={`section ${styles.safety}`}>
+          <div className="wrap grid-2" style={{ alignItems: 'start' }}>
+            <Reveal>
+              <span className="eyebrow" style={{ color: '#e9b877' }}>Built with care</span>
+              <h2 className="h-section">A companion, <em>not a doctor.</em></h2>
+              <p style={{ fontSize: '1.08rem', lineHeight: 1.65, maxWidth: '44ch' }}>
+                Saathi is designed to be gentle and to know its limits. It never tries to replace the people and professionals in your parent’s life. It helps them stay connected to you.
               </p>
+            </Reveal>
+
+            <div className={styles.safetyGrid}>
+              {SAFETY.map((s, i) => (
+                <Reveal key={s.title} delay={i * 80} className={styles.safetyItem}>
+                  <span className={styles.safetyIcon}><s.icon size={20} /></span>
+                  <h3>{s.title}</h3>
+                  <p>{s.body}</p>
+                </Reveal>
+              ))}
             </div>
+          </div>
+        </section>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '28px', alignItems: 'stretch' }}>
-              {/* PLAN 1: FREE */}
-              <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-                <h3 style={{ fontSize: '1.35rem', marginBottom: '6px' }}>{PLANS.free.name}</h3>
-                <p style={{ fontSize: '0.88rem', color: 'var(--ink-muted)', minHeight: '40px' }}>{PLANS.free.tagline}</p>
-                <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2.8rem', fontWeight: 600, margin: '16px 0 20px', color: 'var(--ink)' }}>
-                  ₹0
-                </div>
+        {/* PRICING */}
+        <section id="plans" className="section">
+          <div className="wrap">
+            <Reveal className="section-head">
+              <span className="eyebrow">Pricing</span>
+              <h2 className="h-section">Simple plans, cancel anytime</h2>
+              <p className="lead">Start free with one parent. Paid plans come with a 14-day free trial.</p>
+            </Reveal>
 
-                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px', display: 'grid', gap: '12px', fontSize: '0.92rem', flex: 1 }}>
-                  {PLANS.free.features.map((f, i) => (
-                    <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: 'var(--ink-muted)' }}>
-                      <Check size={16} color="var(--teal)" style={{ marginTop: '3px', flexShrink: 0 }} />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link href={getPlanLink('free')} className="btn btn-ghost btn-block">
-                  Get started free
-                </Link>
-              </div>
-
-              {/* PLAN 2: FAMILY CARE (POPULAR) */}
-              <div
-                className="card"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  border: '2px solid var(--teal)',
-                  boxShadow: '0 0 0 1px var(--teal), var(--card-hover-shadow)',
-                  position: 'relative'
-                }}
-              >
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '-14px',
-                    right: '24px',
-                    background: 'var(--teal)',
-                    color: '#fff',
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    padding: '4px 14px',
-                    borderRadius: '9999px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em'
-                  }}
-                >
-                  Most Popular
-                </div>
-
-                <h3 style={{ fontSize: '1.35rem', marginBottom: '6px' }}>{PLANS.family.name}</h3>
-                <p style={{ fontSize: '0.88rem', color: 'var(--ink-muted)', minHeight: '40px' }}>{PLANS.family.tagline}</p>
-                <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2.8rem', fontWeight: 600, margin: '16px 0 4px', color: 'var(--ink)' }}>
-                  ₹399<span style={{ fontSize: '0.94rem', fontFamily: 'var(--font-sans)', fontWeight: 400, color: 'var(--ink-muted)' }}> / month</span>
-                </div>
-                <p style={{ fontSize: '0.8rem', color: 'var(--teal)', fontWeight: 600, marginBottom: '16px' }}>
-                  ✨ 14-day free trial, then ₹399/mo · Cancel anytime
-                </p>
-
-                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px', display: 'grid', gap: '12px', fontSize: '0.92rem', flex: 1 }}>
-                  {PLANS.family.features.map((f, i) => (
-                    <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: 'var(--ink-muted)' }}>
-                      <Check size={16} color="var(--teal)" style={{ marginTop: '3px', flexShrink: 0 }} />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link href={getPlanLink('family')} className="btn btn-primary btn-block">
-                  Start 14-day free trial
-                </Link>
-              </div>
-
-              {/* PLAN 3: EXTENDED FAMILY */}
-              <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-                <h3 style={{ fontSize: '1.35rem', marginBottom: '6px' }}>{PLANS.extended.name}</h3>
-                <p style={{ fontSize: '0.88rem', color: 'var(--ink-muted)', minHeight: '40px' }}>{PLANS.extended.tagline}</p>
-                <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2.8rem', fontWeight: 600, margin: '16px 0 4px', color: 'var(--ink)' }}>
-                  ₹699<span style={{ fontSize: '0.94rem', fontFamily: 'var(--font-sans)', fontWeight: 400, color: 'var(--ink-muted)' }}> / month</span>
-                </div>
-                <p style={{ fontSize: '0.8rem', color: 'var(--teal)', fontWeight: 600, marginBottom: '16px' }}>
-                  ✨ 14-day free trial, then ₹699/mo · Cancel anytime
-                </p>
-
-                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px', display: 'grid', gap: '12px', fontSize: '0.92rem', flex: 1 }}>
-                  {PLANS.extended.features.map((f, i) => (
-                    <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: 'var(--ink-muted)' }}>
-                      <Check size={16} color="var(--teal)" style={{ marginTop: '3px', flexShrink: 0 }} />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link href={getPlanLink('extended')} className="btn btn-ghost btn-block">
-                  Start 14-day free trial
-                </Link>
-              </div>
+            <div className={styles.plans}>
+              {(['free', 'family', 'extended'] as PlanId[]).map((id, i) => {
+                const plan = PLANS[id];
+                const featured = !!plan.popular;
+                return (
+                  <Reveal key={id} delay={i * 100} className={`${styles.plan} ${featured ? styles.featured : ''}`}>
+                    {featured && <span className={styles.planBadge}>Most popular</span>}
+                    <h3>{plan.name}</h3>
+                    <p className={styles.planTag}>{plan.tagline}</p>
+                    <div className={styles.price}>
+                      ₹{plan.priceMonthly}
+                      <span>{plan.priceMonthly === 0 ? 'forever' : '/ month'}</span>
+                    </div>
+                    <p className={styles.priceNote}>
+                      {plan.hasTrial ? `${plan.trialDays}-day free trial` : ''}
+                    </p>
+                    <ul className={styles.planFeatures}>
+                      {plan.features.map((f) => (
+                        <li key={f}><Check size={15} /> <span>{f}</span></li>
+                      ))}
+                    </ul>
+                    <Link href={getPlanLink(id)} className={`btn btn-block ${featured ? 'btn-primary' : 'btn-ghost'}`}>
+                      {plan.hasTrial ? 'Start free trial' : 'Start free'}
+                    </Link>
+                  </Reveal>
+                );
+              })}
             </div>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section id="faq" className="section section-alt">
+          <div className="wrap">
+            <Reveal className="section-head">
+              <span className="eyebrow">Questions</span>
+              <h2 className="h-section">What families usually ask</h2>
+            </Reveal>
+            <Reveal className={styles.faq}>
+              {FAQ.map((item) => (
+                <details key={item.q}>
+                  <summary>
+                    {item.q}
+                    <Plus size={20} />
+                  </summary>
+                  <p>{item.a}</p>
+                </details>
+              ))}
+            </Reveal>
+          </div>
+        </section>
+
+        {/* FINAL CTA */}
+        <section className="section">
+          <div className="wrap">
+            <Reveal className={styles.finalCta}>
+              <h2 className="h-section" style={{ maxWidth: '18ch', margin: '0 auto 16px' }}>
+                Tomorrow morning, someone will ask how she’s doing.
+              </h2>
+              <p className="lead" style={{ maxWidth: '48ch', margin: '0 auto 32px' }}>
+                Setting up takes a few minutes. Start with the free plan and upgrade when you are ready.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Link href={primaryHref} className="btn btn-primary btn-lg">
+                  {user ? 'Go to your dashboard' : 'Start free'} <ArrowRight size={18} className="arrow" />
+                </Link>
+                <Link href="#plans" className="btn btn-ghost btn-lg">Compare plans</Link>
+              </div>
+            </Reveal>
           </div>
         </section>
       </main>

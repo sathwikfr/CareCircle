@@ -1,69 +1,63 @@
 import React from 'react';
 import Link from 'next/link';
-import { Heart, ShieldCheck } from 'lucide-react';
+import { Brand } from '@/components/Navbar';
 
 export function Footer() {
   return (
-    <footer style={{ marginTop: 'auto', background: 'var(--panel-elevated)', borderTop: '1px solid var(--line)', padding: '52px 0 36px' }}>
+    <footer className="site-footer">
       <div className="wrap">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '36px', marginBottom: '40px' }}>
+        <div className="footer-grid">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', fontFamily: 'var(--font-serif)', fontSize: '1.25rem', fontWeight: 600 }}>
-              <span className="brand-heart" style={{ width: '24px', height: '24px' }}>
-                <Heart size={14} fill="white" />
-              </span>
-              Care<span style={{ color: 'var(--gold)' }}>Circle</span>
+            <div style={{ marginBottom: '16px' }}>
+              <Brand />
             </div>
-            <p style={{ fontSize: '0.88rem', color: 'var(--ink-muted)', lineHeight: 1.6, maxWidth: '32ch' }}>
-              Gentle AI daily telephone check-ins for aging parents in India. Warm Hindi, Tamil, Telugu, and English conversations.
+            <p style={{ fontSize: '0.9rem', lineHeight: 1.65, maxWidth: '34ch' }}>
+              A daily phone call for your parents, in their language. Quiet peace of mind for you.
             </p>
           </div>
 
           <div>
-            <h4 style={{ fontSize: '0.92rem', fontWeight: 600, marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-muted)' }}>
-              Product
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.88rem', color: 'var(--ink)' }}>
-              <Link href="/#how">How Daily Calls Work</Link>
-              <Link href="/#problem">Why Phone Calls Win</Link>
-              <Link href="/#plans">Plans & Pricing</Link>
-              <Link href="/account/billing">Subscription Portal</Link>
+            <h4>Product</h4>
+            <div style={{ display: 'grid', gap: '10px', fontSize: '0.9rem' }}>
+              <Link href="/#how">How it works</Link>
+              <Link href="/#why">Why a phone call</Link>
+              <Link href="/#plans">Pricing</Link>
+              <Link href="/#faq">Questions</Link>
             </div>
           </div>
 
           <div>
-            <h4 style={{ fontSize: '0.92rem', fontWeight: 600, marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-muted)' }}>
-              Trust & Safety
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.88rem', color: 'var(--ink)' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--teal)' }}>
-                <ShieldCheck size={16} /> 256-bit Encrypted Audio
-              </span>
-              <span>Parent Consent First Policy</span>
-              <span>Razorpay PCI-DSS Level 1</span>
-              <span>Made with love for Indian Families</span>
+            <h4>Account</h4>
+            <div style={{ display: 'grid', gap: '10px', fontSize: '0.9rem' }}>
+              <Link href="/login">Log in</Link>
+              <Link href="/signup">Create account</Link>
+              <Link href="/dashboard">Dashboard</Link>
+              <Link href="/account/billing">Billing</Link>
             </div>
           </div>
 
           <div>
-            <h4 style={{ fontSize: '0.92rem', fontWeight: 600, marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-muted)' }}>
-              Emergency Disclaimer
-            </h4>
-            <p style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', lineHeight: 1.55 }}>
-              CareCircle is a family wellness and check-in companion. It is NOT an emergency response service or replacement for professional medical diagnosis or 112 emergency services.
+            <h4>Not an emergency service</h4>
+            <p style={{ fontSize: '0.84rem', lineHeight: 1.6 }}>
+              CareCircle is a family check-in companion. It does not give medical advice and is not a replacement for a doctor or for emergency services. In an emergency, call <strong style={{ color: '#fff' }}>112</strong>.
             </p>
           </div>
         </div>
 
-        <div style={{ borderTop: '1px solid var(--line-subtle)', paddingTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', fontSize: '0.84rem', color: 'var(--ink-subtle)' }}>
-          <div>
-            © {new Date().getFullYear()} CareCircle Health Technologies Pvt. Ltd. All rights reserved.
-          </div>
-          <div style={{ display: 'flex', gap: '20px' }}>
-            <a href="#" style={{ color: 'var(--ink-muted)' }}>Privacy Policy</a>
-            <a href="#" style={{ color: 'var(--ink-muted)' }}>Terms of Service</a>
-            <a href="#" style={{ color: 'var(--ink-muted)' }}>Caregiver Ethics Guide</a>
-          </div>
+        <div
+          style={{
+            borderTop: '1px solid rgba(255,255,255,0.12)',
+            paddingTop: '24px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            fontSize: '0.82rem',
+            color: 'rgba(255,255,255,0.5)'
+          }}
+        >
+          <span>© {new Date().getFullYear()} CareCircle</span>
+          <span>Made in India, for families who live apart.</span>
         </div>
       </div>
     </footer>

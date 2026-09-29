@@ -1,7 +1,19 @@
 import { NextResponse } from 'next/server';
 import { getRecentEmails, sendPasswordResetEmail, sendPaymentReceiptEmail, sendVerificationEmail, sendUrgentAlertEmail } from '@/lib/email';
 
+// Development-only tooling: the outbox contains password-reset links and the
+// POST handler can email arbitrary addresses, so it must never be reachable
+// outside `next dev`.
+function devOnly(): NextResponse | null {
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+  return null;
+}
+
 export async function GET() {
+  const blocked = devOnly();
+  if (blocked) return blocked;
   const emails = getRecentEmails(30);
   const resendApiKeyConfigured = Boolean(process.env.RESEND_API_KEY);
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'CareCircle <onboarding@resend.dev>';
@@ -16,6 +28,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const blocked = devOnly();
+  if (blocked) return blocked;
   try {
     const { type, to = 'sathwik.fr@gmail.com' } = await req.json();
 

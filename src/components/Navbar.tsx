@@ -1,196 +1,167 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { Heart, User as UserIcon, LogOut, CreditCard, ChevronDown, Edit3 } from 'lucide-react';
+import { Heart, User as UserIcon, LogOut, CreditCard, ChevronDown, LayoutDashboard, UserPlus, Menu, X } from 'lucide-react';
+
+const MARKETING_LINKS = [
+  { href: '/#how', label: 'How it works' },
+  { href: '/#why', label: 'Why a phone call' },
+  { href: '/#safety', label: 'Safety' },
+  { href: '/#plans', label: 'Pricing' },
+];
+
+const APP_LINKS = [
+  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/onboarding', label: 'Add a parent' },
+  { href: '/account/billing', label: 'Billing' },
+];
+
+export function Brand({ href = '/' }: { href?: string }) {
+  return (
+    <Link href={href} className="brand-link" aria-label="CareCircle home">
+      <span className="brand-heart" aria-hidden="true">
+        <Heart size={15} fill="white" strokeWidth={0} />
+      </span>
+      <span className="brand-word">Care<span>Circle</span></span>
+    </Link>
+  );
+}
 
 export function Navbar() {
   const { user, logout } = useAuth();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const links = user ? APP_LINKS : MARKETING_LINKS;
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen && !sheetOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+        setSheetOpen(false);
+      }
+    };
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onClick);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onClick);
+    };
+  }, [menuOpen, sheetOpen]);
+
+  const closeAll = () => {
+    setMenuOpen(false);
+    setSheetOpen(false);
+  };
 
   return (
-    <header className="app-header">
+    <header className={`app-header${scrolled || sheetOpen ? ' scrolled' : ''}`}>
       <div className="wrap app-nav">
-        <Link href="/" className="brand-link">
-          <span className="brand-heart">
-            <Heart size={16} fill="white" />
-          </span>
-          Care<span>Circle</span>
-        </Link>
+        <Brand href={user ? '/dashboard' : '/'} />
 
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '28px', fontSize: '0.94rem', fontWeight: 500 }}>
-          <Link href="/#how" style={{ color: 'var(--ink-muted)' }}>How it works</Link>
-          <Link href="/#problem" style={{ color: 'var(--ink-muted)' }}>Why phone calls</Link>
-          <Link href="/#plans" style={{ color: 'var(--ink-muted)' }}>Plans</Link>
-          {user && (
-            <>
-              <Link href="/dashboard" style={{ color: 'var(--teal)', fontWeight: 700 }}>
-                Parent Dashboard
-              </Link>
-              <Link href="/account/billing" style={{ color: 'var(--ink-muted)' }}>
-                Subscription
-              </Link>
-            </>
-          )}
+        <nav className="nav-links" aria-label="Main">
+          {links.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className={`nav-link${pathname === l.href ? ' active' : ''}`}
+            >
+              {l.label}
+            </Link>
+          ))}
         </nav>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div className="nav-actions">
           {user ? (
-            <div style={{ position: 'relative' }}>
+            <div ref={menuRef} style={{ position: 'relative' }}>
               <button
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  background: 'var(--panel-elevated)',
-                  border: '1px solid var(--line)',
-                  borderRadius: '9999px',
-                  padding: '6px 14px 6px 8px',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit'
-                }}
+                className="user-pill"
+                onClick={() => setMenuOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
               >
-                <div
-                  style={{
-                    width: '30px',
-                    height: '30px',
-                    borderRadius: '50%',
-                    background: 'var(--teal)',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.78rem',
-                    fontWeight: 600
-                  }}
-                >
-                  {user.avatar || 'CC'}
-                </div>
-                <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--ink)' }}>
-                  {user.name.split(' ')[0]}
-                </span>
-                <ChevronDown size={14} color="var(--ink-muted)" />
+                <span className="avatar">{user.avatar || 'CC'}</span>
+                <span className="hide-mobile" style={{ color: 'var(--ink)' }}>{user.name.split(' ')[0]}</span>
+                <ChevronDown size={14} color="var(--ink-subtle)" style={{ transition: 'transform 200ms', transform: menuOpen ? 'rotate(180deg)' : 'none' }} />
               </button>
 
-              {dropdownOpen && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    right: 0,
-                    top: '115%',
-                    width: '210px',
-                    background: 'var(--panel-elevated)',
-                    border: '1px solid var(--line)',
-                    borderRadius: '14px',
-                    boxShadow: 'var(--card-shadow)',
-                    padding: '8px',
-                    zIndex: 200
-                  }}
-                  onClick={() => setDropdownOpen(false)}
-                >
-                  <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--line-subtle)' }}>
-                    <p style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--ink)' }}>{user.name}</p>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--ink-muted)', textOverflow: 'ellipsis', overflow: 'hidden' }}>{user.email}</p>
+              {menuOpen && (
+                <div className="menu" role="menu" onClick={closeAll}>
+                  <div className="menu-header">
+                    <p style={{ fontSize: '0.9rem', fontWeight: 600 }}>{user.name}</p>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--ink-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</p>
                   </div>
-                  <Link
-                    href="/account/profile"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px 12px',
-                      fontSize: '0.88rem',
-                      color: 'var(--ink)',
-                      fontWeight: 600,
-                      borderRadius: '8px',
-                      marginTop: '4px'
-                    }}
-                  >
-                    <Edit3 size={16} color="var(--teal)" />
-                    Edit Profile
+                  <Link href="/dashboard" className="menu-item" role="menuitem">
+                    <LayoutDashboard size={16} /> Dashboard
                   </Link>
-                  <Link
-                    href="/dashboard"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px 12px',
-                      fontSize: '0.88rem',
-                      color: 'var(--teal)',
-                      fontWeight: 600,
-                      borderRadius: '8px'
-                    }}
-                  >
-                    <Heart size={16} color="var(--teal)" />
-                    Parent Dashboard
+                  <Link href="/onboarding" className="menu-item" role="menuitem">
+                    <UserPlus size={16} /> Add a parent
                   </Link>
-                  <Link
-                    href="/onboarding"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px 12px',
-                      fontSize: '0.88rem',
-                      color: 'var(--ink)',
-                      borderRadius: '8px'
-                    }}
-                  >
-                    <UserIcon size={16} color="var(--teal)" />
-                    Add Another Parent
+                  <Link href="/account/profile" className="menu-item" role="menuitem">
+                    <UserIcon size={16} /> Profile & notifications
                   </Link>
-                  <Link
-                    href="/account/billing"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px 12px',
-                      fontSize: '0.88rem',
-                      color: 'var(--ink)',
-                      borderRadius: '8px'
-                    }}
-                  >
-                    <CreditCard size={16} color="var(--ink-muted)" />
-                    Subscription & Billing
+                  <Link href="/account/billing" className="menu-item" role="menuitem">
+                    <CreditCard size={16} /> Subscription & billing
                   </Link>
-                  <button
-                    onClick={() => logout()}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px 12px',
-                      fontSize: '0.88rem',
-                      color: 'var(--red)',
-                      background: 'none',
-                      border: 'none',
-                      width: '100%',
-                      cursor: 'pointer',
-                      borderRadius: '8px',
-                      textAlign: 'left'
-                    }}
-                  >
-                    <LogOut size={16} />
-                    Log out
+                  <div className="divider" style={{ margin: '6px 0' }} />
+                  <button onClick={() => logout()} className="menu-item danger" role="menuitem">
+                    <LogOut size={16} /> Log out
                   </button>
                 </div>
               )}
             </div>
           ) : (
             <>
-              <Link href="/login" className="btn btn-ghost btn-sm">
+              <Link href="/login" className="btn btn-quiet btn-sm hide-mobile">
                 Log in
               </Link>
-              <Link href="/#plans" className="btn btn-primary btn-sm">
+              <Link href="/signup" className="btn btn-primary btn-sm">
                 Get started
               </Link>
             </>
           )}
+
+          <button
+            className="btn btn-ghost btn-icon nav-toggle"
+            onClick={() => setSheetOpen((o) => !o)}
+            aria-label={sheetOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={sheetOpen}
+            aria-controls="mobile-sheet"
+          >
+            {sheetOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
         </div>
+      </div>
+
+      <div id="mobile-sheet" className={`mobile-sheet${sheetOpen ? ' open' : ''}`} aria-hidden={!sheetOpen}>
+        {links.map((l) => (
+          <Link key={l.href} href={l.href} className="sheet-link" onClick={closeAll} tabIndex={sheetOpen ? 0 : -1}>
+            {l.label}
+          </Link>
+        ))}
+        {!user && (
+          <div className="sheet-actions">
+            <Link href="/login" className="btn btn-ghost" onClick={closeAll} tabIndex={sheetOpen ? 0 : -1}>Log in</Link>
+            <Link href="/signup" className="btn btn-primary" onClick={closeAll} tabIndex={sheetOpen ? 0 : -1}>Get started</Link>
+          </div>
+        )}
       </div>
     </header>
   );

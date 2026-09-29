@@ -9,16 +9,16 @@ generator client {
 }
 
 model User {
-  id                      String                  @id @default(uuid())
-  name                    String
-  email                   String                  @unique
-  phone                   String?
-  avatar                  String?
-  passwordHash            String?
-  emailVerified           Boolean                 @default(false)
-  phoneVerified           Boolean                 @default(false)
-  createdAt               DateTime                @default(now())
-  updatedAt               DateTime                @updatedAt
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  phone         String?
+  avatar        String?
+  passwordHash  String?
+  emailVerified Boolean  @default(false)
+  phoneVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   subscription            UserSubscription?
   notificationPreferences NotificationPreferences?
@@ -110,23 +110,23 @@ model Invoice {
 }
 
 model ParentProfile {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   name         String
   relationship String
   phone        String
-  language     String   @default("Hindi & English")
-  timezone     String   @default("Asia/Kolkata (IST)")
-  callTime     String   @default("09:00 AM")
-  isPaused     Boolean  @default(false)
+  language     String    @default("Hindi & English")
+  timezone     String    @default("Asia/Kolkata (IST)")
+  callTime     String    @default("09:00 AM")
+  isPaused     Boolean   @default(false)
   pauseReason  String?
   pauseUntil   DateTime?
-  consentGiven Boolean  @default(true)
-  consentDate  DateTime @default(now())
-  isDeleted    Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  consentGiven Boolean   @default(true)
+  consentDate  DateTime  @default(now())
+  isDeleted    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   callSchedule      ScheduledCallSlot[]
   medicines         Medicine[]
@@ -145,10 +145,10 @@ model ScheduledCallSlot {
   parentId            String
   parent              ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
   time                String
-  slot                String        // morning, afternoon, evening, bedtime, wellness, custom
+  slot                String // morning, afternoon, evening, bedtime, wellness, custom
   label               String
   linkedMedicineNames String[]
-  linkedMedicinesJson String?       // Serialized JSON for LinkedMedicineDetail[]
+  linkedMedicinesJson String? // Serialized JSON for LinkedMedicineDetail[]
   isActive            Boolean       @default(true)
   createdAt           DateTime      @default(now())
 
@@ -199,7 +199,24 @@ model CallLog {
   notes               String?
   createdAt           DateTime      @default(now())
 
+  // Voice-call tracking (all optional so existing rows are untouched)
+  slotId            String?
+  slot              String?
+  callDate          String? // IST calendar date, YYYY-MM-DD
+  attemptNumber     Int       @default(1)
+  providerAttemptId String?   @unique // Sarvam attempt_id
+  interactionId     String?
+  failureReason     String?
+  transcriptJson    String?
+  resultJson        String?
+  startedAt         DateTime?
+  endedAt           DateTime?
+  nextRetryAt       DateTime?
+  processedAt       DateTime? // set once the end-of-call result has been applied (webhook idempotency)
+
+  @@unique([parentId, slotId, callDate, attemptNumber])
   @@index([parentId])
+  @@index([status, nextRetryAt])
 }
 
 model AlertRecord {
@@ -213,6 +230,7 @@ model AlertRecord {
   timestamp String
   status    String        @default("sent")
   createdAt DateTime      @default(now())
+  callLogId String? // call that raised this alert (dedupe + traceability)
 
   @@index([parentId])
 }
@@ -246,34 +264,34 @@ model CaregiverInvite {
 }
 
 model NotificationPreferences {
-  id                 String   @id @default(uuid())
-  userId             String   @unique
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  whatsapp           Boolean  @default(true)
-  sms                Boolean  @default(true)
-  email              Boolean  @default(true)
-  push               Boolean  @default(false)
-  minimumAlertLevel  Int      @default(1)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  whatsapp          Boolean  @default(true)
+  sms               Boolean  @default(true)
+  email             Boolean  @default(true)
+  push              Boolean  @default(false)
+  minimumAlertLevel Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model MedicineReport {
-  id                    String         @id @default(uuid())
-  parentId              String?
-  parent                ParentProfile? @relation(fields: [parentId], references: [id], onDelete: SetNull)
-  userId                String?
-  user                  User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  fileName              String
-  fileType              String
-  fileUrl               String?
-  uploadedAt            DateTime       @default(now())
-  rawExtractionJson     String         // JSON text
-  batchConfidence       String?
-  batchQualityWarning   String?
-  confirmedAt           DateTime?
-  confirmedMedicineIds  String[]
-  status                String         @default("draft")
+  id                   String         @id @default(uuid())
+  parentId             String?
+  parent               ParentProfile? @relation(fields: [parentId], references: [id], onDelete: SetNull)
+  userId               String?
+  user                 User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fileName             String
+  fileType             String
+  fileUrl              String?
+  uploadedAt           DateTime       @default(now())
+  rawExtractionJson    String // JSON text
+  batchConfidence      String?
+  batchQualityWarning  String?
+  confirmedAt          DateTime?
+  confirmedMedicineIds String[]
+  status               String         @default("draft")
 
   @@index([parentId])
   @@index([userId])

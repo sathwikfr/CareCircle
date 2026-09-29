@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { useAuth } from '@/context/AuthContext';
-import { PLANS } from '@/lib/plans';
-import { Medicine, EmergencyContact, PlanId, MedicineTimingSlot, ExtractedMedicineCandidate, ScheduledCallSlot, FoodRelation } from '@/lib/types';
+import { getEffectivePlan } from '@/lib/plans';
+import { Medicine, EmergencyContact, MedicineTimingSlot, ExtractedMedicineCandidate, ScheduledCallSlot, FoodRelation } from '@/lib/types';
 import {
   Heart,
   Pill,
@@ -43,7 +43,8 @@ import {
   generateProposedSchedule,
   formatScheduleSummary,
   DEFAULT_SLOT_TIMES,
-  SLOT_DISPLAY_NAMES
+  SLOT_DISPLAY_NAMES,
+  getSelectableCallTimes
 } from '@/lib/scheduleGenerator';
 
 function OnboardingContent() {
@@ -51,8 +52,7 @@ function OnboardingContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
 
-  const planId = (user?.subscription?.planId || 'family') as PlanId;
-  const currentPlan = PLANS[planId] || PLANS.family;
+  const currentPlan = getEffectivePlan(user?.subscription);
 
   // Step state (1 to 6)
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
@@ -105,7 +105,7 @@ function OnboardingContent() {
   // Step 6: Confirmation & Test Call State
   const [createdParentId, setCreatedParentId] = useState<string>('');
   const [testCalling, setTestCalling] = useState(false);
-  const [testCallSuccess, setTestCallSuccess] = useState(false);
+  const [testCallResult, setTestCallResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   // --------------------------------------------------------------------------
   // MEDICINE REPORT EXTRACTION HANDLERS
@@ -502,20 +502,18 @@ function OnboardingContent() {
     }
   };
 
-  // Trigger simulated 1-time test call
+  // Request a real 1-time test call (reports honestly if calling isn't live yet)
   const triggerTestCall = async () => {
+    if (!createdParentId) return;
     setTestCalling(true);
     try {
-      if (createdParentId) {
-        await fetch(`/api/parents/${createdParentId}/test-call`, { method: 'POST' });
-      }
-      setTimeout(() => {
-        setTestCalling(false);
-        setTestCallSuccess(true);
-      }, 1500);
+      const res = await fetch(`/api/parents/${createdParentId}/test-call`, { method: 'POST' });
+      const data = await res.json();
+      setTestCallResult({ ok: res.ok, message: data.message || data.error || 'Test call unavailable right now.' });
     } catch {
+      setTestCallResult({ ok: false, message: 'Could not reach the server to place a test call.' });
+    } finally {
       setTestCalling(false);
-      setTestCallSuccess(true);
     }
   };
 
@@ -639,6 +637,7 @@ function OnboardingContent() {
                   <option value="Bengali">Bengali (Nomoshkar)</option>
                   <option value="Marathi">Marathi (Namaskar)</option>
                   <option value="Gujarati">Gujarati (Namaste)</option>
+                  <option value="Malayalam">Malayalam (Namaskaram)</option>
                 </select>
               </div>
             </div>
@@ -798,7 +797,7 @@ function OnboardingContent() {
                         Upload a Report
                       </div>
                       <p style={{ fontSize: '0.84rem', color: 'var(--ink-muted)', margin: 0, lineHeight: 1.45 }}>
-                        Upload a photo or PDF of a prescription, discharge summary, or pharmacy bill. AI extracts medications for your review.
+                        Upload a clear photo of a prescription, discharge summary, or pharmacy bill. AI extracts medications for your review.
                       </p>
                     </div>
 
@@ -920,7 +919,7 @@ function OnboardingContent() {
                     >
                       <input
                         type="file"
-                        accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf"
+                        accept="image/png,image/jpeg,image/jpg,image/webp,text/plain"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) handleFileUpload(file);
@@ -954,7 +953,7 @@ function OnboardingContent() {
                         Drag & Drop or Click to Upload Prescription
                       </div>
                       <p style={{ fontSize: '0.84rem', color: 'var(--ink-muted)', margin: '0 0 12px' }}>
-                        Supports JPG, PNG, WebP photos or PDF documents up to 25MB
+                        Supports JPG, PNG or WebP photos up to 8 MB
                       </p>
                       <span className="badge badge-teal" style={{ fontSize: '0.78rem' }}>
                         Prescriptions &bull; Discharge Summaries &bull; Pharmacy Invoices
@@ -1646,11 +1645,7 @@ function OnboardingContent() {
                           className="form-input"
                           style={{ fontSize: '0.92rem', fontWeight: 700, padding: '9px 12px', color: 'var(--teal-deep)', background: 'var(--panel)' }}
                         >
-                          {[
-                            '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM', '08:15 AM', '08:30 AM', '08:45 AM', '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
-                            '12:00 PM', '12:30 PM', '01:00 PM', '01:30 PM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM', '06:00 PM', '06:15 PM', '06:30 PM', '07:00 PM', '07:30 PM',
-                            '08:00 PM', '08:15 PM', '08:30 PM', '08:45 PM', '09:00 PM', '09:30 PM', '10:00 PM'
-                          ].map((t) => (
+                          {getSelectableCallTimes(slot.time).map((t) => (
                             <option key={t} value={t}>{t}</option>
                           ))}
                         </select>
@@ -2020,7 +2015,7 @@ function OnboardingContent() {
               {name} is ready for care!
             </h2>
             <p style={{ fontSize: '1rem', color: 'var(--ink-muted)', marginBottom: '24px' }}>
-              First official daily check-in is scheduled for <strong>tomorrow at {callTime}</strong> in {language}.
+              Daily check-ins are set up for <strong>{formatScheduleSummary(callSchedule.filter(s => s.isActive))}</strong> in {language}.
             </p>
 
             {/* TEST CALL CARD */}
@@ -2044,12 +2039,10 @@ function OnboardingContent() {
                 </div>
               </div>
 
-              {testCallSuccess ? (
-                <div className="alert-box success" style={{ margin: 0 }}>
+              {testCallResult ? (
+                <div className={`alert-box ${testCallResult.ok ? 'success' : 'warning'}`} style={{ margin: 0 }}>
                   <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
-                  <span>
-                    Test call audio verified! The natural voice greeted {name} in {language} and checked morning medicines.
-                  </span>
+                  <span>{testCallResult.message}</span>
                 </div>
               ) : (
                 <button

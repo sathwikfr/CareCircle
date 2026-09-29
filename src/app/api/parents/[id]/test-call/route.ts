@@ -1,37 +1,31 @@
 import { NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/auth';
-import { getParentById, addCallLog } from '@/lib/db';
+import { requireOwnedParent } from '@/lib/access';
+import { placeManualCall } from '@/lib/callDispatch';
 
-export async function POST(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const user = await getSessionUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+type Ctx = { params: Promise<{ id: string }> };
 
+/**
+ * Places a real one-time Saathi call to the parent so the family can hear how
+ * it sounds. When calling isn't configured this says so plainly (503) and
+ * never fabricates a call log.
+ */
+export async function POST(req: Request, { params }: Ctx) {
   const { id } = await params;
-  const parent = await getParentById(id);
-  if (!parent) {
-    return NextResponse.json({ error: 'Parent not found' }, { status: 404 });
-  }
+  const access = await requireOwnedParent(id);
+  if (!access.ok) return access.response;
 
-  // Create a simulated test call log
-  const newCall = await addCallLog(id, {
-    scheduledTime: 'Immediate (Test Call)',
-    actualAnswerTime: 'Just now',
-    status: 'answered',
-    durationSeconds: 45,
-    medicationConfirmed: true,
-    mood: 'cheerful',
-    summary: `Test audio call conducted in ${parent.language}. AI greeted warmly and confirmed test connection.`,
-    notes: 'Sample audio played successfully.'
-  });
+  const result = await placeManualCall({ parentId: id, ownerId: access.user.id, kind: 'test' });
+
+  if (!result.ok) {
+    return NextResponse.json(
+      { success: false, code: result.code, message: result.error, error: result.error },
+      { status: result.status }
+    );
+  }
 
   return NextResponse.json({
     success: true,
-    message: `Test call dispatched to ${parent.phone}! Connection verified in ${parent.language}.`,
-    call: newCall
+    callLogId: result.callLogId,
+    message: `Test call placed. ${access.parent.name}'s phone (${access.parent.phone}) should ring in a moment. The result will appear in Call History.`
   });
 }

@@ -1,0 +1,172 @@
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import { ArrowLeft, Check, Eye, EyeOff } from 'lucide-react';
+import { Brand } from '@/components/Navbar';
+
+type AuthShellProps = {
+  children: React.ReactNode;
+  /** Optional heading for the side panel; defaults to the brand promise. */
+  asideTitle?: React.ReactNode;
+  asidePoints?: string[];
+};
+
+const DEFAULT_POINTS = [
+  'A short call in their language, at the times you choose',
+  'Works on any phone, no app for your parents',
+  'Every call and medicine on one calm dashboard',
+];
+
+/** Split-screen layout used by login, signup and password reset. */
+export function AuthShell({ children, asideTitle, asidePoints = DEFAULT_POINTS }: AuthShellProps) {
+  return (
+    <div className="auth-shell">
+      <main id="main" className="auth-main">
+        <div className="auth-top">
+          <Brand />
+          <Link href="/" className="btn btn-quiet btn-sm">
+            <ArrowLeft size={15} /> Home
+          </Link>
+        </div>
+        <div className="auth-body animate-fade-in">{children}</div>
+      </main>
+
+      <aside className="auth-aside" aria-hidden="true">
+        <div>
+          <span className="eyebrow" style={{ color: '#e9b877' }}>CareCircle</span>
+          <h2>{asideTitle ?? <>Stay close to your parents, <em>even from far away.</em></>}</h2>
+        </div>
+
+        <ExampleCallCard />
+
+        <ul className="auth-points">
+          {asidePoints.map((p) => (
+            <li key={p}><Check size={16} /> {p}</li>
+          ))}
+        </ul>
+      </aside>
+    </div>
+  );
+}
+
+function ExampleCallCard() {
+  return (
+    <div
+      style={{
+        background: 'rgba(255,255,255,0.06)',
+        border: '1px solid rgba(255,255,255,0.12)',
+        borderRadius: 'var(--r-lg)',
+        padding: '20px',
+        maxWidth: '400px',
+        backdropFilter: 'blur(6px)'
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span
+            style={{
+              width: '36px', height: '36px', borderRadius: '50%',
+              background: 'linear-gradient(145deg, #e4a857, #b87320)', color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--font-serif)', fontWeight: 600
+            }}
+          >
+            A
+          </span>
+          <div>
+            <div style={{ color: '#fff', fontWeight: 600, fontSize: '0.92rem' }}>Amma · Morning check-in</div>
+            <div style={{ fontSize: '0.76rem', color: 'rgba(255,255,255,0.55)' }}>Example · 8:30 AM · Telugu</div>
+          </div>
+        </div>
+        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#86d9a8', background: 'rgba(134,217,168,0.12)', padding: '4px 10px', borderRadius: '999px' }}>
+          Taken
+        </span>
+      </div>
+      <p style={{ fontSize: '0.9rem', lineHeight: 1.55, color: 'rgba(255,255,255,0.85)', fontStyle: 'italic', fontFamily: 'var(--font-serif)' }}>
+        “Took my BP tablet after breakfast. Feeling well, went for a short walk.”
+      </p>
+    </div>
+  );
+}
+
+type PasswordFieldProps = {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  show: boolean;
+  onToggle: () => void;
+  placeholder?: string;
+  autoComplete?: string;
+};
+
+export function PasswordField({ id, value, onChange, show, onToggle, placeholder, autoComplete = 'current-password' }: PasswordFieldProps) {
+  return (
+    <div className="input-affix">
+      <input
+        id={id}
+        type={show ? 'text' : 'password'}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete={autoComplete}
+        required
+        style={{ borderRadius: 'var(--r-md) 0 0 var(--r-md)' }}
+      />
+      <button type="button" onClick={onToggle} aria-label={show ? 'Hide password' : 'Show password'}>
+        {show ? <EyeOff size={18} /> : <Eye size={18} />}
+      </button>
+    </div>
+  );
+}
+
+export function PhoneField({ id, value, onChange, autoFocus }: { id: string; value: string; onChange: (v: string) => void; autoFocus?: boolean }) {
+  return (
+    <div className="input-affix">
+      <span>+91</span>
+      <input
+        id={id}
+        type="tel"
+        inputMode="numeric"
+        autoComplete="tel-national"
+        placeholder="98765 43210"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoFocus={autoFocus}
+        required
+      />
+    </div>
+  );
+}
+
+export function passwordStrength(password: string) {
+  if (!password) return { label: '', score: 0, color: 'var(--line-subtle)' };
+  let score = 0;
+  if (password.length >= 8) score += 1;
+  if (/[A-Z]/.test(password)) score += 1;
+  if (/[0-9]/.test(password)) score += 1;
+  if (/[^A-Za-z0-9]/.test(password)) score += 1;
+  if (score <= 1) return { label: 'Weak', score: 1, color: 'var(--red)' };
+  if (score <= 3) return { label: 'Good', score: 2, color: 'var(--gold)' };
+  return { label: 'Strong', score: 3, color: 'var(--green)' };
+}
+
+export function StrengthMeter({ password }: { password: string }) {
+  if (!password) return null;
+  const s = passwordStrength(password);
+  return (
+    <div className="strength" aria-live="polite">
+      <div className="strength-bars">
+        {[1, 2, 3].map((level) => (
+          <i key={level} style={{ background: s.score >= level ? s.color : undefined }} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', fontWeight: 600, color: s.color }}>
+        <span>{s.label}</span>
+        {s.score < 3 && <span style={{ color: 'var(--ink-subtle)', fontWeight: 500 }}>Mix letters, numbers & symbols</span>}
+      </div>
+    </div>
+  );
+}
+
+export { Modal } from '@/components/ui/Modal';

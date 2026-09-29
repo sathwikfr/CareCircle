@@ -2,20 +2,85 @@ import { NextResponse } from 'next/server';
 import { getUserByEmail, createUser } from '@/lib/db';
 import { AUTH_COOKIE_NAME } from '@/lib/auth';
 import { createDBSession } from '@/lib/security';
+import { prisma } from '@/lib/prisma';
+
+/**
+ * Google Sign-In. The browser obtains a Google ID token (credential) from
+ * Google Identity Services; we verify it with Google before trusting the email.
+ * Requires GOOGLE_CLIENT_ID (server) and NEXT_PUBLIC_GOOGLE_CLIENT_ID (browser).
+ */
+interface GoogleTokenInfo {
+  aud?: string;
+  iss?: string;
+  email?: string;
+  email_verified?: string | boolean;
+  name?: string;
+  exp?: string;
+  sub?: string;
+}
+
+function getGoogleClientId(): string | null {
+  return process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || null;
+}
+
+async function verifyGoogleCredential(credential: string, clientId: string): Promise<GoogleTokenInfo | null> {
+  const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`, {
+    cache: 'no-store'
+  });
+  if (!res.ok) return null;
+  const info = (await res.json()) as GoogleTokenInfo;
+
+  const issuerOk = info.iss === 'accounts.google.com' || info.iss === 'https://accounts.google.com';
+  const audienceOk = info.aud === clientId;
+  const verified = info.email_verified === true || info.email_verified === 'true';
+  const notExpired = info.exp ? Number(info.exp) * 1000 > Date.now() : false;
+
+  if (!issuerOk || !audienceOk || !verified || !notExpired || !info.email) return null;
+  return info;
+}
+
+function withSessionCookie(response: NextResponse, token: string, rememberMe: boolean) {
+  response.cookies.set(AUTH_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60
+  });
+  return response;
+}
+
+async function recordOAuthLink(userId: string, email: string) {
+  const existing = await prisma.oAuthAccount.findFirst({ where: { userId, provider: 'google' } });
+  if (!existing) {
+    await prisma.oAuthAccount.create({ data: { userId, provider: 'google', email } });
+  }
+}
 
 export async function POST(req: Request) {
   try {
-    const { email, name, mode = 'login', rememberMe = true } = await req.json();
-
-    if (!email || !email.includes('@')) {
-      return NextResponse.json({ error: 'Valid Google email is required' }, { status: 400 });
+    const clientId = getGoogleClientId();
+    if (!clientId) {
+      return NextResponse.json(
+        { error: 'Google sign-in is not configured yet. Please use email and password.', code: 'GOOGLE_NOT_CONFIGURED' },
+        { status: 503 }
+      );
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    const { credential, mode = 'login', rememberMe = true } = await req.json();
+    if (!credential || typeof credential !== 'string') {
+      return NextResponse.json({ error: 'Missing Google credential.' }, { status: 400 });
+    }
 
-    // 1. LOGIN MODE: Account MUST already exist!
+    const info = await verifyGoogleCredential(credential, clientId);
+    if (!info?.email) {
+      return NextResponse.json({ error: 'Google sign-in could not be verified. Please try again.' }, { status: 401 });
+    }
+
+    const cleanEmail = info.email.toLowerCase().trim();
+    const existingUser = await getUserByEmail(cleanEmail);
+
     if (mode === 'login') {
-      const existingUser = await getUserByEmail(cleanEmail);
       if (!existingUser) {
         return NextResponse.json(
           {
@@ -28,68 +93,39 @@ export async function POST(req: Request) {
         );
       }
 
-      // Success: Create session for existing user
+      await recordOAuthLink(existingUser.id, cleanEmail);
       const session = await createDBSession(existingUser.id, rememberMe);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { passwordHash, ...user } = existingUser;
-
-      const response = NextResponse.json({
-        success: true,
-        message: 'Logged in successfully with Google',
-        user
-      });
-
-      const maxAgeSeconds = rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60;
-      response.cookies.set(AUTH_COOKIE_NAME, session.token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: maxAgeSeconds
-      });
-
-      return response;
+      return withSessionCookie(
+        NextResponse.json({ success: true, message: 'Logged in successfully with Google', user }),
+        session.token,
+        rememberMe
+      );
     }
 
-    // 2. SIGNUP MODE: Creates account
     if (mode === 'signup') {
-      const existingUser = await getUserByEmail(cleanEmail);
       if (existingUser) {
         return NextResponse.json(
-          {
-            error: `An account for ${cleanEmail} already exists. Please log in instead.`,
-            code: 'ACCOUNT_EXISTS'
-          },
+          { error: `An account for ${cleanEmail} already exists. Please log in instead.`, code: 'ACCOUNT_EXISTS' },
           { status: 409 }
         );
       }
 
       const newUser = await createUser({
-        name: name || cleanEmail.split('@')[0],
+        name: info.name || cleanEmail.split('@')[0],
         email: cleanEmail,
-        phone: '+91 98765 00000',
-        planId: 'family'
+        phone: null,
+        emailVerified: true
       });
-      newUser.emailVerified = true;
-
+      await recordOAuthLink(newUser.id, cleanEmail);
       const session = await createDBSession(newUser.id, rememberMe);
 
-      const response = NextResponse.json({
-        success: true,
-        message: 'Account created with Google',
-        user: newUser
-      });
-
-      const maxAgeSeconds = rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60;
-      response.cookies.set(AUTH_COOKIE_NAME, session.token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: maxAgeSeconds
-      });
-
-      return response;
+      return withSessionCookie(
+        NextResponse.json({ success: true, message: 'Account created with Google', user: newUser }),
+        session.token,
+        rememberMe
+      );
     }
 
     return NextResponse.json({ error: 'Invalid mode' }, { status: 400 });

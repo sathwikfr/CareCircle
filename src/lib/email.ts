@@ -237,6 +237,16 @@ async function dispatchEmail({
   const client = getResendClient();
   const senderEmail = getFromEmail();
 
+  if (client && senderEmail.includes('@resend.dev')) {
+    // Resend's shared test sender only delivers to the Resend account owner's
+    // own address; every other recipient is rejected. Set RESEND_FROM_EMAIL to
+    // an address on a domain verified in Resend.
+    console.warn(
+      `[CareCircle Email] Sending from ${senderEmail}: Resend only delivers this to your own Resend account email. ` +
+        'Verify a domain in Resend and set RESEND_FROM_EMAIL to fix delivery to real users.'
+    );
+  }
+
   const emailRecord: SentEmailRecord = {
     id: 'eml_' + Math.random().toString(36).substring(2, 10),
     to,

@@ -1,16 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/auth';
 import { updateScheduleSuggestionStatus } from '@/lib/db';
+import { requireOwnedParent } from '@/lib/access';
 
-export async function POST(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const user = await getSessionUser();
-  // Allow demo evaluation without strict session block
-  const userId = user?.id || 'usr_demo_123';
+type Ctx = { params: Promise<{ id: string }> };
 
+export async function POST(req: Request, { params }: Ctx) {
   const { id } = await params;
+  const access = await requireOwnedParent(id);
+  if (!access.ok) return access.response;
+
   const { suggestionId, action } = await req.json();
 
   if (!suggestionId || (action !== 'accepted' && action !== 'dismissed')) {
@@ -25,7 +23,7 @@ export async function POST(
   return NextResponse.json({
     success: true,
     message: action === 'accepted'
-      ? `Call time updated successfully to ${res.updatedCallTime} based on real pickup reliability.`
+      ? `Call time updated to ${res.updatedCallTime}.`
       : 'Suggestion dismissed. We will continue monitoring pickup patterns.',
     updatedCallTime: res.updatedCallTime
   });
