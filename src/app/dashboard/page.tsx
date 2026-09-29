@@ -913,7 +913,7 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* TAB 2: MONTHLY TRENDS & SUMMARY VIEW (JUSTIFIES ₹399/MO PRICE) */}
+      {/* TAB 2: MONTHLY TRENDS & SUMMARY VIEW (JUSTIFIES THE PAID PLANS) */}
       {activeTab === 'trends' && (
         <div>
           <div style={{ marginBottom: '24px' }}>

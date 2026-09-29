@@ -1911,19 +1911,22 @@ a.link:hover {
   color: var(--ink);
 }
 
-.pill-toggle[aria-pressed="true"] {
+.pill-toggle[aria-pressed="true"],
+.pill-toggle[aria-checked="true"] {
   background: var(--teal);
   border-color: var(--teal);
   color: #fff;
 }
 
-.pill-toggle.warn[aria-pressed="true"] {
+.pill-toggle.warn[aria-pressed="true"],
+.pill-toggle.warn[aria-checked="true"] {
   background: var(--amber-soft);
   border-color: var(--amber-border);
   color: var(--amber);
 }
 
-.pill-toggle.soft[aria-pressed="true"] {
+.pill-toggle.soft[aria-pressed="true"],
+.pill-toggle.soft[aria-checked="true"] {
   background: var(--teal-light);
   border-color: var(--teal);
   color: var(--teal-deep);

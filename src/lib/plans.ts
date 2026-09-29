@@ -1,5 +1,14 @@
 import { Plan, PlanId } from './types';
 
+/**
+ * Pricing rationale (2026-09-30). Sarvam Voice Agents pricing is not published;
+ * estimates: ~₹3/min all-in (worst case ₹5), ~2 min per call, ~2.4% payment fee.
+ *   Family   ₹1,499: cost ₹540 typical / ₹1,080 at the 3-calls-a-day cap  -> ~62% / ~26% margin
+ *   Extended ₹3,499: cost ₹1,350 typical / ₹2,700 at the cap               -> ~59% / ~20% margin
+ * Loses money only if Sarvam charges ~₹5/min AND every parent uses every call.
+ * Free costs about ₹180 per user per month at 1 call/day. Re-check once Sarvam quotes real prices.
+ * Changing a price also needs a new Razorpay plan (RAZORPAY_PLAN_ID_FAMILY / _EXTENDED).
+ */
 export const PLANS: Record<PlanId, Plan> = {
   free: {
     id: 'free',
@@ -23,17 +32,17 @@ export const PLANS: Record<PlanId, Plan> = {
     id: 'family',
     name: 'Family Care',
     tagline: 'Check-ins for both parents, at the times that suit them',
-    priceMonthly: 399,
+    priceMonthly: 1499,
     currency: '₹',
     hasTrial: true,
     trialDays: 14,
     popular: true,
     parentsIncluded: 2,
     callsPerDay: 3,
-    razorpayPlanId: 'plan_carecircle_family_399',
+    razorpayPlanId: 'plan_carecircle_family_1499',
     features: [
       'Up to 2 parents or elder relatives',
-      'Calls timed to their medicines (morning, afternoon, evening, bedtime)',
+      'Up to 3 check-in calls a day per parent, timed to their medicines',
       '9 Indian languages, including Hindi, Tamil, Telugu and Bengali',
       'Medicine and mood trends on your dashboard',
       'Alerts when something needs your attention',
@@ -44,16 +53,16 @@ export const PLANS: Record<PlanId, Plan> = {
     id: 'extended',
     name: 'Extended Family',
     tagline: 'For larger families caring for several elders',
-    priceMonthly: 699,
+    priceMonthly: 3499,
     currency: '₹',
     hasTrial: true,
     trialDays: 14,
     parentsIncluded: 5,
     callsPerDay: 3,
-    razorpayPlanId: 'plan_carecircle_extended_699',
+    razorpayPlanId: 'plan_carecircle_extended_3499',
     features: [
       'Up to 5 parents or elder relatives',
-      'Everything in Family Care',
+      'Everything in Family Care (up to 3 calls a day per parent)',
       'Invite siblings to share the care',
       'Priority support'
     ]

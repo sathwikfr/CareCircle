@@ -107,7 +107,6 @@ export function FoodPicker({ value, onChange }: { value?: FoodRelation; onChange
           type="button"
           role="radio"
           aria-checked={current === o.val}
-          aria-pressed={current === o.val}
           className={`pill-toggle ${o.val === 'before_food' ? 'warn' : 'soft'}`}
           onClick={() => onChange(o.val)}
         >
