@@ -31,6 +31,7 @@ import {
 } from './types';
 import { PLANS, FREE_TRIAL_DAYS, freeTrialEnd } from './plans';
 import { prisma } from './prisma';
+import { isAdminEmail } from './adminEmail';
 import { normalizePhone } from './phone';
 import {
   generateMedicineCheckinQuestion,
@@ -92,6 +93,7 @@ function toDBUser(p: PrismaUserFull): DBUser {
     phone: p.phone || '',
     avatar: p.avatar || initialsOf(p.name),
     emailVerified: p.emailVerified,
+    isAdmin: isAdminEmail(p.email),
     phoneVerified: p.phoneVerified,
     createdAt: p.createdAt.toISOString(),
     passwordHash: p.passwordHash || undefined,
@@ -323,6 +325,8 @@ export async function updateUserSubscription(
     razorpayPaymentId?: string;
     paymentMethodLast4?: string;
     paymentMethodBrand?: string;
+    /** Receipt number to store on the invoice (so the email and the invoice list agree). */
+    invoiceNumber?: string;
   }
 ): Promise<UserSubscription> {
   const plan = PLANS[details.planId];
@@ -364,7 +368,7 @@ export async function updateUserSubscription(
             data: {
               id: newId('inv'),
               userId,
-              invoiceNumber: `CC-${now.getFullYear()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`,
+              invoiceNumber: details.invoiceNumber || `CC-${now.getFullYear()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`,
               date: now.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
               amount: plan.hasTrial ? 0 : plan.priceMonthly,
               planName: `${plan.name} (${plan.hasTrial ? `${plan.trialDays}-Day Free Trial Auth` : 'Monthly'})`,

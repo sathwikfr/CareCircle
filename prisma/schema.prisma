@@ -26,6 +26,7 @@ model User {
   parents                 ParentProfile[]
   invoices                Invoice[]
   medicineReports         MedicineReport[]
+  emailLogs               EmailLog[]
 }
 
 model DBSession {
@@ -294,5 +295,19 @@ model MedicineReport {
   status               String         @default("draft")
 
   @@index([parentId])
+  @@index([userId])
+}
+
+/// One row per transactional email that must be sent at most once (trial reminders, receipts,
+/// cancellation notices). The unique key is what makes retried webhooks and repeated cron runs safe.
+model EmailLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  refKey    String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, kind, refKey])
   @@index([userId])
 }

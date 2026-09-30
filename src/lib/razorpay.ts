@@ -32,6 +32,34 @@ export function isSandboxAllowed(): boolean {
 
 const SANDBOX_PREFIX = 'sub_sandbox_';
 
+/**
+ * Invoice / receipt number for one payment. Derived from the payment id so the checkout route,
+ * the invoice row and the webhook all agree on it, and a repeated webhook can find the invoice
+ * it already created.
+ */
+export function invoiceNumberForPayment(paymentId: string, when: Date = new Date()): string {
+  return `CC-${when.getFullYear()}-${paymentId.slice(-6).toUpperCase()}`;
+}
+
+/** Human-readable payment method from a Razorpay payment entity (never includes personal details). */
+export function describeRazorpayPaymentMethod(payment: {
+  method?: string;
+  card?: { network?: string; last4?: string };
+} | null | undefined): string {
+  if (!payment?.method) return 'Razorpay';
+  switch (payment.method) {
+    case 'upi':
+      return 'UPI AutoPay';
+    case 'card':
+      return payment.card?.last4 ? `${payment.card.network || 'Card'} •••• ${payment.card.last4}` : 'Card';
+    case 'emandate':
+    case 'nach':
+      return 'Bank mandate';
+    default:
+      return 'Razorpay';
+  }
+}
+
 function getRazorpayPlanId(planId: PlanId): string | undefined {
   if (planId === 'family') return process.env.RAZORPAY_PLAN_ID_FAMILY || PLANS.family.razorpayPlanId;
   if (planId === 'extended') return process.env.RAZORPAY_PLAN_ID_EXTENDED || PLANS.extended.razorpayPlanId;

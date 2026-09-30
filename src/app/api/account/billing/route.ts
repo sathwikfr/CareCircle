@@ -10,6 +10,7 @@ import {
 import { PlanId } from '@/lib/types';
 import { PLANS, getEffectivePlan } from '@/lib/plans';
 import { cancelRazorpaySubscription } from '@/lib/razorpay';
+import { sendOnce } from '@/lib/emailLog';
 
 export async function GET() {
   const auth = await requireUser();
@@ -50,12 +51,11 @@ export async function POST(req: Request) {
       });
 
       const { sendSubscriptionCancelledEmail } = await import('@/lib/email');
-      sendSubscriptionCancelledEmail({
-        to: user.email,
-        name: user.name,
-        planName: plan.name,
-        accessUntil
-      }).catch(err => console.error('[Billing] Failed to dispatch cancellation email:', err));
+      // Same key the Razorpay webhook uses, so the customer gets one cancellation email, not two.
+      await sendOnce(
+        { userId: user.id, kind: 'subscription_ended', refKey: user.subscription.razorpaySubscriptionId || user.subscription.id, failOpen: true },
+        () => sendSubscriptionCancelledEmail({ to: user.email, name: user.name, planName: plan.name, accessUntil })
+      );
 
       return NextResponse.json({
         success: ok,

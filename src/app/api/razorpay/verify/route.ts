@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/access';
-import { verifySubscriptionPayment } from '@/lib/razorpay';
+import { invoiceNumberForPayment, verifySubscriptionPayment } from '@/lib/razorpay';
 import { updateUserSubscription } from '@/lib/db';
 import { PlanId } from '@/lib/types';
 import { PLANS } from '@/lib/plans';
+import { formatEmailDate, sendSubscriptionActivatedEmail } from '@/lib/email';
+import { markEmailSent, sendOnce } from '@/lib/emailLog';
 
 export async function POST(req: Request) {
   const auth = await requireUser();
@@ -34,29 +36,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: verification.error }, { status: 400 });
     }
 
+    const invoiceNumber = invoiceNumberForPayment(String(razorpay_payment_id));
     const updatedSub = await updateUserSubscription(user.id, {
       planId: planId as PlanId,
       razorpaySubscriptionId: String(razorpay_subscription_id),
       razorpayPaymentId: String(razorpay_payment_id),
-      paymentMethodBrand: verification.isSandbox ? 'Sandbox (no charge)' : (paymentMethodBrand || 'Razorpay').toString().slice(0, 40)
+      paymentMethodBrand: verification.isSandbox ? 'Sandbox (no charge)' : (paymentMethodBrand || 'Razorpay').toString().slice(0, 40),
+      invoiceNumber
     });
 
-    const { sendPaymentReceiptEmail } = await import('@/lib/email');
-    const firstChargeDate = new Date(Date.now() + (plan.hasTrial ? plan.trialDays : 30) * 86400000).toLocaleDateString('en-IN', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-    sendPaymentReceiptEmail({
-      to: user.email,
-      name: user.name,
-      planName: plan.name,
-      amount: plan.hasTrial ? 0 : plan.priceMonthly,
-      invoiceNumber: `CC-${new Date().getFullYear()}-${String(razorpay_payment_id).slice(-6).toUpperCase()}`,
-      date: new Date().toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
-      nextBillingDate: firstChargeDate,
-      paymentMethod: verification.isSandbox ? 'Sandbox (no charge)' : 'Razorpay'
-    }).catch(err => console.error('[Razorpay Verify] Failed to dispatch receipt email:', err));
+    // Tell the customer their subscription is active. Awaited (not fire-and-forget) so a
+    // serverless host can't cut the request off before the email is handed to Resend.
+    const paymentMethod = verification.isSandbox ? 'Sandbox (no charge)' : 'Razorpay';
+    const firstChargeDate = formatEmailDate(new Date(Date.now() + (plan.hasTrial ? plan.trialDays : 30) * 86400000));
+    await sendOnce({ userId: user.id, kind: 'subscription_activated', refKey: String(razorpay_subscription_id), failOpen: true }, () =>
+      sendSubscriptionActivatedEmail({
+        to: user.email,
+        name: user.name,
+        planName: plan.name,
+        monthlyAmount: plan.priceMonthly,
+        paidToday: plan.hasTrial ? 0 : plan.priceMonthly,
+        invoiceNumber,
+        paymentMethod,
+        trialDays: plan.hasTrial ? plan.trialDays : undefined,
+        firstChargeDate,
+        parentsIncluded: plan.parentsIncluded
+      })
+    );
+    // Without a trial this payment is charged right now; the webhook must not send a second receipt for it.
+    if (!plan.hasTrial) {
+      await markEmailSent({ userId: user.id, kind: 'payment_receipt', refKey: String(razorpay_payment_id) });
+    }
 
     return NextResponse.json({
       success: true,

@@ -7,6 +7,7 @@ import { AuthShell, PasswordField, PhoneField, StrengthMeter } from '@/component
 import { useAuth } from '@/context/AuthContext';
 import { GoogleSignInButton, isGoogleSignInEnabled } from '@/components/GoogleSignInButton';
 import { getPlan } from '@/lib/plans';
+import { normalizePhone } from '@/lib/phone';
 import { PlanId } from '@/lib/types';
 import { AlertCircle, ArrowRight, CheckCircle2, Phone, Mail, UserCheck, MessageSquareCode } from 'lucide-react';
 
@@ -33,6 +34,8 @@ function SignUpContent() {
   const [otpName, setOtpName] = useState('');
   const [otpPhone, setOtpPhone] = useState(!identifierParam.includes('@') ? identifierParam : '');
   const [otpSent, setOtpSent] = useState(false);
+  const otpPhoneResultShown = normalizePhone(otpPhone);
+  const otpPhoneShown = otpPhoneResultShown.ok ? otpPhoneResultShown.e164 : otpPhone;
   const [otpCode, setOtpCode] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
   const [devOtpNotice, setDevOtpNotice] = useState<string | null>(null);
@@ -62,9 +65,9 @@ function SignUpContent() {
       return;
     }
 
-    const cleanPhone = phone.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
-      setErrorMessage('Please enter a valid 10-digit mobile number');
+    const phoneResult = normalizePhone(phone);
+    if (!phoneResult.ok) {
+      setErrorMessage(phoneResult.reason);
       return;
     }
 
@@ -77,7 +80,7 @@ function SignUpContent() {
     const result = await signup({
       name: name.trim(),
       email: email.trim().toLowerCase(),
-      phone: `+91 ${cleanPhone}`,
+      phone: phoneResult.e164,
       password,
       planId: planParam
     });
@@ -107,9 +110,9 @@ function SignUpContent() {
       return;
     }
 
-    const cleanPhone = otpPhone.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
-      setErrorMessage('Please enter a valid 10-digit mobile number.');
+    const otpPhoneResult = normalizePhone(otpPhone);
+    if (!otpPhoneResult.ok) {
+      setErrorMessage(otpPhoneResult.reason);
       return;
     }
 
@@ -118,7 +121,7 @@ function SignUpContent() {
       const res = await fetch('/api/auth/otp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: cleanPhone, purpose: 'signup' })
+        body: JSON.stringify({ phone: otpPhoneResult.e164, purpose: 'signup' })
       });
       const data = await res.json();
 
@@ -153,14 +156,19 @@ function SignUpContent() {
       return;
     }
 
+    const verifyPhone = normalizePhone(otpPhone);
+    if (!verifyPhone.ok) {
+      setErrorMessage(verifyPhone.reason);
+      return;
+    }
+
     setOtpLoading(true);
-    const cleanPhone = otpPhone.replace(/\D/g, '');
     try {
       const res = await fetch('/api/auth/otp/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phone: cleanPhone,
+          phone: verifyPhone.e164,
           code: otpCode.trim(),
           purpose: 'signup',
           name: otpName.trim()
@@ -370,7 +378,7 @@ function SignUpContent() {
               <div className="notice teal">
                 <MessageSquareCode size={20} />
                 <div>
-                  Code sent to <b>+91 {otpPhone}</b>.{' '}
+                  Code sent to <b>{otpPhoneShown}</b>.{' '}
                   <button
                     type="button"
                     className="link-btn"

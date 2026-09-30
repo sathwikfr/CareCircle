@@ -283,7 +283,7 @@ export default function EditProfilePage() {
                 <div className="form-group">
                   <label className="form-label" htmlFor="pf-phone">Mobile number</label>
                   <input id="pf-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" className="form-input" autoComplete="tel" />
-                  <span className="form-hint">Used for phone OTP login.</span>
+                  <span className="form-hint">Used for phone OTP login. Include your country code, e.g. +1 415 555 0100.</span>
                 </div>
               </div>
 

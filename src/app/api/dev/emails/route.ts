@@ -1,5 +1,16 @@
 import { NextResponse } from 'next/server';
-import { getRecentEmails, sendPasswordResetEmail, sendPaymentReceiptEmail, sendVerificationEmail, sendUrgentAlertEmail } from '@/lib/email';
+import {
+  getRecentEmails,
+  sendPasswordResetEmail,
+  sendPaymentFailedEmail,
+  sendPaymentReceiptEmail,
+  sendSubscriptionActivatedEmail,
+  sendSubscriptionCancelledEmail,
+  sendSubscriptionStoppedEmail,
+  sendTrialEmail,
+  sendVerificationEmail,
+  sendUrgentAlertEmail
+} from '@/lib/email';
 
 // Development-only tooling: the outbox contains password-reset links and the
 // POST handler can email arbitrary addresses, so it must never be reachable
@@ -68,6 +79,25 @@ export async function POST(req: Request) {
         summary: 'Amma mentioned feeling mild dizziness this morning and had not yet taken her prescribed Amlodipine 5mg dose.',
         actionUrl: `http://localhost:3000/dashboard`
       });
+    } else if (type === 'activated') {
+      result = await sendSubscriptionActivatedEmail({
+        to, name: 'Sathwik Rao', planName: 'Family Care', monthlyAmount: 1299, paidToday: 0, invoiceNumber: 'CC-2026-A1B2C3',
+        paymentMethod: 'UPI AutoPay', trialDays: 14, firstChargeDate: '14 Oct 2026', parentsIncluded: 2
+      });
+    } else if (type === 'payment_failed') {
+      result = await sendPaymentFailedEmail({
+        to, name: 'Sathwik Rao', planName: 'Family Care', amount: 1299, retryUrl: 'http://localhost:3000/account/billing'
+      });
+    } else if (type === 'stopped') {
+      result = await sendSubscriptionStoppedEmail({ to, name: 'Sathwik Rao', planName: 'Family Care', amount: 1299 });
+    } else if (type === 'cancelled') {
+      result = await sendSubscriptionCancelledEmail({ to, name: 'Sathwik Rao', planName: 'Family Care', accessUntil: '14 Oct 2026' });
+    } else if (type === 'trial_ending') {
+      result = await sendTrialEmail({ variant: 'free_ending', to, name: 'Sathwik Rao', endsOn: new Date(Date.now() + 2 * 86400000) });
+    } else if (type === 'trial_ended') {
+      result = await sendTrialEmail({ variant: 'free_ended', to, name: 'Sathwik Rao', endedOn: new Date(Date.now() - 86400000) });
+    } else if (type === 'paid_trial_ending') {
+      result = await sendTrialEmail({ variant: 'paid_ending', to, name: 'Sathwik Rao', planName: 'Family Care', amount: 1299, chargeOn: new Date(Date.now() + 3 * 86400000) });
     } else {
       return NextResponse.json({ error: 'Unknown email test type' }, { status: 400 });
     }

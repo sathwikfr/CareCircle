@@ -15,6 +15,37 @@
  * We NEVER truncate or guess — if we can't produce a valid number, we say why.
  */
 
+/**
+ * Country codes offered by the phone field. India first (most numbers), then the places
+ * families live, then "Other" for anything else (the person types the full +number).
+ * Several countries can share a dial code (US / Canada).
+ */
+export const PHONE_COUNTRIES: ReadonlyArray<{ code: string; name: string; dial: string }> = [
+  { code: 'IN', name: 'India', dial: '91' },
+  { code: 'US', name: 'USA', dial: '1' },
+  { code: 'CA', name: 'Canada', dial: '1' },
+  { code: 'GB', name: 'UK', dial: '44' },
+  { code: 'AE', name: 'UAE', dial: '971' },
+  { code: 'SA', name: 'Saudi Arabia', dial: '966' },
+  { code: 'QA', name: 'Qatar', dial: '974' },
+  { code: 'KW', name: 'Kuwait', dial: '965' },
+  { code: 'OM', name: 'Oman', dial: '968' },
+  { code: 'BH', name: 'Bahrain', dial: '973' },
+  { code: 'SG', name: 'Singapore', dial: '65' },
+  { code: 'MY', name: 'Malaysia', dial: '60' },
+  { code: 'AU', name: 'Australia', dial: '61' },
+  { code: 'NZ', name: 'New Zealand', dial: '64' },
+  { code: 'DE', name: 'Germany', dial: '49' },
+  { code: 'FR', name: 'France', dial: '33' },
+  { code: 'NL', name: 'Netherlands', dial: '31' },
+  { code: 'IE', name: 'Ireland', dial: '353' },
+  { code: 'CH', name: 'Switzerland', dial: '41' },
+  { code: 'SE', name: 'Sweden', dial: '46' },
+  { code: 'JP', name: 'Japan', dial: '81' },
+  { code: 'ZA', name: 'South Africa', dial: '27' },
+  { code: 'OTHER', name: 'Other (type +code)', dial: '' }
+];
+
 export type NormaliseOk    = { ok: true;  e164: string };
 export type NormaliseError = { ok: false; reason: string };
 export type NormaliseResult = NormaliseOk | NormaliseError;

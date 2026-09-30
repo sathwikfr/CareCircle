@@ -28,6 +28,8 @@ export interface User {
   avatar?: string;
   emailVerified: boolean;
   phoneVerified: boolean;
+  /** True when the email is listed in ADMIN_EMAILS (shows the Admin menu link; /admin re-checks on the server). */
+  isAdmin?: boolean;
   createdAt: string;
   subscription?: UserSubscription;
   notificationPreferences?: NotificationPreferences;

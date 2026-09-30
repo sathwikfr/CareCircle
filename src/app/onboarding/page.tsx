@@ -587,7 +587,7 @@ function OnboardingContent() {
 
           <div className="form-group">
             <label className="form-label" htmlFor="parent-phone">Their phone number</label>
-            <PhoneField id="parent-phone" value={phone} onChange={setPhone} />
+            <PhoneField id="parent-phone" value={phone} onChange={setPhone} indiaOnly />
             <span className="form-hint">A mobile or a landline. No smartphone needed.</span>
           </div>
 

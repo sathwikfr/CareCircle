@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { PLANS } from './plans';
 
 function getResendClient() {
   const apiKey = process.env.RESEND_API_KEY;
@@ -35,6 +36,45 @@ if (!global.__carecircle_email_outbox) {
 
 export function getRecentEmails(limit = 20): SentEmailRecord[] {
   return [...outbox].reverse().slice(0, limit);
+}
+
+function appUrl(path: string): string {
+  return `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${path}`;
+}
+
+/** Escapes user-controlled text (names, plan labels) before it goes into email HTML. */
+function esc(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function firstName(name?: string): string {
+  return name ? esc(name.trim().split(/\s+/)[0] || 'there') : 'there';
+}
+
+export function formatMoney(amount: number): string {
+  return `₹${amount.toLocaleString('en-IN')}`;
+}
+
+/** Dates in emails are shown in IST, like the rest of the product, wherever the server runs. */
+export function formatEmailDate(date: Date): string {
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+}
+
+function detailRows(rows: Array<[string, string]>): string {
+  return `
+    <div class="info-card">
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        ${rows
+          .map(
+            ([label, value]) => `
+        <tr>
+          <td style="padding: 6px 0; color: #7a7267;">${label}</td>
+          <td style="padding: 6px 0; text-align: right; font-weight: 600;">${value}</td>
+        </tr>`
+          )
+          .join('')}
+      </table>
+    </div>`;
 }
 
 /**
@@ -273,7 +313,9 @@ async function dispatchEmail({
         to: [to],
         subject,
         html,
-        text
+        text,
+        // Customers reply to a monitored inbox, not to the no-reply sender.
+        ...(process.env.NEXT_PUBLIC_SUPPORT_EMAIL ? { replyTo: process.env.NEXT_PUBLIC_SUPPORT_EMAIL } : {})
       });
 
       if (response.error) {
@@ -455,7 +497,7 @@ export async function sendPaymentReceiptEmail({
   const title = 'Payment Confirmation & Receipt';
   const contentHtml = `
     <p>Hi ${recipientName},</p>
-    <p>Thank you for subscribing to Aaptha. Your subscription payment has been processed successfully.</p>
+    <p>Thank you. We received your Aaptha subscription payment.</p>
     <div class="info-card">
       <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
         <tr>
@@ -494,13 +536,15 @@ export async function sendPaymentReceiptEmail({
   `;
   const html = renderAapthaTemplate({
     title,
-    badge: 'Receipt & Subscription Active',
+    badge: 'Payment Receipt',
     contentHtml,
     ctaText: 'View Dashboard & Billing',
-    ctaUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/account/billing`,
-    secondaryNote: 'You can download tax invoices or update payment methods anytime from your Account settings.'
+    ctaUrl: appUrl('/account/billing'),
+    secondaryNote: 'You can download your receipts anytime from Account → Billing.'
   });
-  const text = `Hi ${recipientName},\n\nPayment Receipt from Aaptha\nInvoice: ${invoiceNumber}\nPlan: ${planName}\nAmount: ₹${amount}\nDate: ${date}\n\nThank you for choosing Aaptha.`;
+  const text =
+    `Hi ${recipientName},\n\nPayment receipt from Aaptha\nInvoice: ${invoiceNumber}\nPlan: ${planName}\nAmount: ₹${amount}\nDate: ${date}` +
+    `${nextBillingDate ? `\nNext renewal: ${nextBillingDate}` : ''}\n\nThank you for choosing Aaptha.\nBilling: ${appUrl('/account/billing')}`;
 
   return dispatchEmail({
     to,
@@ -532,15 +576,15 @@ export async function sendPaymentFailedEmail({
   const contentHtml = `
     <p>Hi ${recipientName},</p>
     <p>We were unable to process your recurring subscription payment of <strong>₹${amount}</strong> for the <strong>${planName}</strong> plan.</p>
-    <p>To avoid any interruption in your parents' daily check-in calls and medication alerts, please update your payment method or retry the charge using the button below.</p>
+    <p>To avoid any interruption in your parents' daily check-in calls and medication alerts, please check that your card or UPI mandate is active and has enough balance, then update your payment details from your billing page.</p>
   `;
   const html = renderAapthaTemplate({
     title,
     badge: 'Payment Action Required',
     contentHtml,
-    ctaText: 'Update Payment Method',
+    ctaText: 'Open Billing',
     ctaUrl: retryUrl,
-    secondaryNote: 'We will retry the payment in 48 hours. Your care services remain active during this grace period.'
+    secondaryNote: 'Your daily calls continue for now. Your bank or Razorpay may try the payment again automatically; if it keeps failing, the subscription is stopped and the calls will pause.'
   });
   const text = `Hi ${recipientName},\n\nYour Aaptha payment of ₹${amount} could not be processed. Please update your payment method to ensure uninterrupted service:\n\n${retryUrl}`;
 
@@ -571,7 +615,7 @@ export async function sendSubscriptionCancelledEmail({
   const title = 'Your Aaptha subscription has been cancelled';
   const contentHtml = `
     <p>Hi ${recipientName},</p>
-    <p>As requested, your subscription to <strong>${planName}</strong> has been cancelled.</p>
+    <p>Your subscription to <strong>${planName}</strong> has been cancelled.</p>
     <p>You will retain full access to your parents' daily calls, reports, and AI logs until the end of your billing cycle on <strong>${accessUntil}</strong>.</p>
     <p>Your configured parent preferences and history will be safely preserved in your account if you choose to reactivate in the future.</p>
   `;
@@ -642,5 +686,197 @@ export async function sendUrgentAlertEmail({
     html,
     text,
     templateName: 'urgent_alert'
+  });
+}
+
+// --------------------------------------------------------------------------
+// 8. SUBSCRIPTION ACTIVATED (sent right after checkout, including free-trial starts)
+// --------------------------------------------------------------------------
+export async function sendSubscriptionActivatedEmail({
+  to,
+  name,
+  planName,
+  monthlyAmount,
+  paidToday,
+  invoiceNumber,
+  paymentMethod,
+  trialDays,
+  firstChargeDate,
+  parentsIncluded
+}: {
+  to: string;
+  name?: string;
+  planName: string;
+  monthlyAmount: number;
+  paidToday: number;
+  invoiceNumber: string;
+  paymentMethod: string;
+  /** Set when the plan starts with a free trial. */
+  trialDays?: number;
+  /** First (or next) charge date, already formatted. */
+  firstChargeDate: string;
+  parentsIncluded: number;
+}) {
+  const recipientName = firstName(name);
+  const onTrial = Boolean(trialDays && trialDays > 0);
+  const title = onTrial ? `Your ${planName} free trial has started` : `Your ${planName} subscription is active`;
+  const rows: Array<[string, string]> = [
+    ['Plan', esc(planName)],
+    ['Paid today', formatMoney(paidToday)],
+    [onTrial ? 'First monthly charge' : 'Next renewal', onTrial ? `${formatMoney(monthlyAmount)} on ${firstChargeDate}` : firstChargeDate],
+    ['Payment method', esc(paymentMethod)],
+    ['Reference', invoiceNumber]
+  ];
+  const contentHtml = `
+    <p>Hi ${recipientName},</p>
+    <p>${
+      onTrial
+        ? `Thank you for choosing Aaptha. Your <strong>${trialDays}-day free trial</strong> of <strong>${esc(planName)}</strong> is now active.`
+        : `Thank you for choosing Aaptha. Your <strong>${esc(planName)}</strong> subscription is now active.`
+    }</p>
+    ${detailRows(rows)}
+    <p>You can look after up to ${parentsIncluded} parent${parentsIncluded === 1 ? '' : 's'} on this plan. Add their details, set call times and pause calls anytime from your dashboard.</p>
+    ${onTrial ? `<p style="font-size: 13px; color: #7a7267;">To avoid the first monthly charge, cancel before ${firstChargeDate} from Account → Billing.</p>` : ''}
+  `;
+  const html = renderAapthaTemplate({
+    title,
+    badge: 'Subscription Active',
+    contentHtml,
+    ctaText: 'Go to Dashboard',
+    ctaUrl: appUrl('/dashboard'),
+    secondaryNote: 'Your receipt is saved under Account → Billing.'
+  });
+  const text =
+    `Hi ${name ? name.trim().split(/\s+/)[0] : 'there'},\n\n${title}.\n\nPlan: ${planName}\nPaid today: ${formatMoney(paidToday)}\n` +
+    `${onTrial ? `First monthly charge: ${formatMoney(monthlyAmount)} on ${firstChargeDate}` : `Next renewal: ${firstChargeDate}`}\n` +
+    `Payment method: ${paymentMethod}\nReference: ${invoiceNumber}\n\nDashboard: ${appUrl('/dashboard')}\nBilling: ${appUrl('/account/billing')}`;
+
+  return dispatchEmail({
+    to,
+    subject: onTrial ? `Your Aaptha free trial has started (${planName})` : `Your Aaptha subscription is active (${planName})`,
+    html,
+    text,
+    templateName: 'subscription_activated'
+  });
+}
+
+// --------------------------------------------------------------------------
+// 9. SUBSCRIPTION STOPPED AFTER FAILED PAYMENTS (Razorpay gave up)
+// --------------------------------------------------------------------------
+export async function sendSubscriptionStoppedEmail({
+  to,
+  name,
+  planName,
+  amount,
+  accessUntil
+}: {
+  to: string;
+  name?: string;
+  planName: string;
+  amount: number;
+  /** End of the period that was already paid for; when it is in the past the calls have already stopped. */
+  accessUntil?: Date;
+}) {
+  const recipientName = firstName(name);
+  const stillActive = Boolean(accessUntil && accessUntil.getTime() > Date.now());
+  const title = 'Your Aaptha subscription has been stopped';
+  const contentHtml = `
+    <p>Hi ${recipientName},</p>
+    <p>We could not collect the <strong>${formatMoney(amount)}</strong> payment for your <strong>${esc(planName)}</strong> plan after several attempts, so the subscription has been stopped.</p>
+    <p>${
+      stillActive
+        ? `Your parents' daily check-in calls continue until <strong>${formatEmailDate(accessUntil as Date)}</strong>, the end of the period you already paid for. After that the calls stop.`
+        : `Your parents' daily check-in calls have paused. Their profiles, medicines and call history are safe.`
+    }</p>
+    <p>To restart, choose a plan again and make sure your card or UPI mandate has enough balance.</p>
+  `;
+  const html = renderAapthaTemplate({
+    title,
+    badge: 'Payment Failed',
+    contentHtml,
+    ctaText: 'Choose a Plan',
+    ctaUrl: appUrl('/account/billing'),
+    secondaryNote: 'If you think this is a mistake, just reply to this email and we will look into it.'
+  });
+  const text =
+    `Hi ${name ? name.trim().split(/\s+/)[0] : 'there'},\n\nWe could not collect the ${formatMoney(amount)} payment for your ${planName} plan after several attempts, so the subscription has been stopped.\n` +
+    `${stillActive ? `Calls continue until ${formatEmailDate(accessUntil as Date)}.` : "Your parents' daily calls have paused."}\n\nChoose a plan: ${appUrl('/account/billing')}`;
+
+  return dispatchEmail({
+    to,
+    subject: 'Your Aaptha subscription has been stopped (payment failed)',
+    html,
+    text,
+    templateName: 'subscription_stopped'
+  });
+}
+
+// --------------------------------------------------------------------------
+// 10. TRIAL REMINDERS (free trial ending / ended, paid trial about to convert)
+// --------------------------------------------------------------------------
+export type TrialEmailInput =
+  | { variant: 'free_ending'; to: string; name?: string; endsOn: Date }
+  | { variant: 'free_ended'; to: string; name?: string; endedOn: Date }
+  | { variant: 'paid_ending'; to: string; name?: string; planName: string; amount: number; chargeOn: Date };
+
+export async function sendTrialEmail(input: TrialEmailInput) {
+  const recipientName = firstName(input.name);
+  const plainName = input.name ? input.name.trim().split(/\s+/)[0] : 'there';
+  const family = PLANS.family;
+  const planLine = `${esc(family.name)} is ${formatMoney(family.priceMonthly)} a month and starts with a ${family.trialDays}-day free trial.`;
+
+  let title: string;
+  let badge: string;
+  let subject: string;
+  let bodyHtml: string;
+  let bodyText: string;
+  let ctaText: string;
+
+  if (input.variant === 'free_ending') {
+    const date = formatEmailDate(input.endsOn);
+    title = `Your free trial ends on ${date}`;
+    badge = 'Free Trial';
+    subject = `Your Aaptha free trial ends on ${date}`;
+    ctaText = 'Choose a Plan';
+    bodyHtml = `
+      <p>Your free trial of Aaptha ends on <strong>${date}</strong>. After that, the daily check-in calls to your parent will stop.</p>
+      <p>To keep the calls going without a break, choose a plan before then. ${planLine}</p>`;
+    bodyText = `Your free trial of Aaptha ends on ${date}. After that the daily check-in calls to your parent will stop. ${family.name} is ${formatMoney(family.priceMonthly)} a month and starts with a ${family.trialDays}-day free trial.`;
+  } else if (input.variant === 'free_ended') {
+    title = 'Your free trial has ended';
+    badge = 'Free Trial Ended';
+    subject = 'Your Aaptha free trial has ended: calls have paused';
+    ctaText = 'Restart Daily Calls';
+    bodyHtml = `
+      <p>Your free trial of Aaptha ended on <strong>${formatEmailDate(input.endedOn)}</strong>, so the daily check-in calls to your parent have paused.</p>
+      <p>Everything you set up (your parent's profile, medicines and call history) is safe. Choose a plan to restart the calls. ${planLine}</p>`;
+    bodyText = `Your free trial of Aaptha ended on ${formatEmailDate(input.endedOn)}, so the daily calls to your parent have paused. Your parent's profile, medicines and history are safe. Choose a plan to restart the calls.`;
+  } else {
+    const date = formatEmailDate(input.chargeOn);
+    title = `Your free trial ends on ${date}`;
+    badge = 'Trial Ending';
+    subject = `Your Aaptha trial ends on ${date}: ${formatMoney(input.amount)} will be charged`;
+    ctaText = 'Manage Subscription';
+    bodyHtml = `
+      <p>Your free trial of <strong>${esc(input.planName)}</strong> ends on <strong>${date}</strong>. On that day we will charge <strong>${formatMoney(input.amount)}</strong>, and then once a month.</p>
+      <p>If you would rather not continue, cancel before ${date} from Account → Billing and you will not be charged the monthly amount. Your parents' calls keep running until then.</p>`;
+    bodyText = `Your free trial of ${input.planName} ends on ${date}. On that day we will charge ${formatMoney(input.amount)}, then once a month. To avoid the charge, cancel before ${date} from Account > Billing.`;
+  }
+
+  const html = renderAapthaTemplate({
+    title,
+    badge,
+    contentHtml: `<p>Hi ${recipientName},</p>${bodyHtml}`,
+    ctaText,
+    ctaUrl: appUrl('/account/billing'),
+    secondaryNote: 'Questions? Just reply to this email.'
+  });
+
+  return dispatchEmail({
+    to: input.to,
+    subject,
+    html,
+    text: `Hi ${plainName},\n\n${bodyText}\n\nBilling: ${appUrl('/account/billing')}`,
+    templateName: `trial_${input.variant}`
   });
 }

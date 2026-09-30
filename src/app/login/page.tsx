@@ -7,6 +7,7 @@ import { AuthShell, Modal, PasswordField, PhoneField } from '@/components/auth/A
 import { useAuth } from '@/context/AuthContext';
 import { GoogleSignInButton, isGoogleSignInEnabled } from '@/components/GoogleSignInButton';
 import { safeRedirectPath } from '@/lib/redirect';
+import { normalizePhone } from '@/lib/phone';
 import { AlertCircle, ArrowRight, CheckCircle2, Phone, KeyRound, SearchX, MessageSquareCode } from 'lucide-react';
 
 function LoginContent() {
@@ -28,6 +29,8 @@ function LoginContent() {
 
   // OTP Login state
   const [otpPhone, setOtpPhone] = useState(searchParams.get('identifier') || '');
+  const otpPhoneResultShown = normalizePhone(otpPhone);
+  const otpPhoneShown = otpPhoneResultShown.ok ? otpPhoneResultShown.e164 : otpPhone;
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
@@ -88,9 +91,9 @@ function LoginContent() {
     setAccountNotFound(false);
     setDevOtpNotice(null);
 
-    const cleanPhone = otpPhone.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
-      setErrorMessage('Please enter a valid 10-digit mobile number.');
+    const phoneResult = normalizePhone(otpPhone);
+    if (!phoneResult.ok) {
+      setErrorMessage(phoneResult.reason);
       return;
     }
 
@@ -99,7 +102,7 @@ function LoginContent() {
       const res = await fetch('/api/auth/otp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: cleanPhone, purpose: 'login' })
+        body: JSON.stringify({ phone: phoneResult.e164, purpose: 'login' })
       });
       const data = await res.json();
 
@@ -135,9 +138,14 @@ function LoginContent() {
       return;
     }
 
+    const verifyPhone = normalizePhone(otpPhone);
+    if (!verifyPhone.ok) {
+      setErrorMessage(verifyPhone.reason);
+      return;
+    }
+
     setOtpLoading(true);
-    const cleanPhone = otpPhone.replace(/\D/g, '');
-    const result = await loginWithOtp(cleanPhone, otpCode.trim(), rememberMe);
+    const result = await loginWithOtp(verifyPhone.e164, otpCode.trim(), rememberMe);
     setOtpLoading(false);
 
     if (result.success) {
@@ -297,7 +305,7 @@ function LoginContent() {
             <input
               id="identifier"
               type="text"
-              placeholder="you@example.com or 98765 43210"
+              placeholder="you@example.com or +91 98765 43210"
               value={emailOrPhone}
               onChange={(e) => setEmailOrPhone(e.target.value)}
               className="form-input"
@@ -351,7 +359,7 @@ function LoginContent() {
               <div className="notice teal">
                 <MessageSquareCode size={20} />
                 <div>
-                  Code sent to <b>+91 {otpPhone}</b>.{' '}
+                  Code sent to <b>{otpPhoneShown}</b>.{' '}
                   <button
                     type="button"
                     className="link-btn"
