@@ -244,7 +244,7 @@ function SignUpContent() {
           <div style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>
             {selectedPlan.priceMonthly > 0
               ? `${selectedPlan.trialDays}-day free trial, then ₹${selectedPlan.priceMonthly}/month`
-              : 'Free forever · 1 parent'}
+              : 'Free for 7 days · 1 parent'}
           </div>
         </div>
         <Link href="/#plans" className="btn btn-ghost btn-sm">Change</Link>

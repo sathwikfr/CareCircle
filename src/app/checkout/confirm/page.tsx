@@ -102,7 +102,7 @@ function ConfirmContent() {
                 ₹{plan.priceMonthly}
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '4px' }}>
-                {plan.priceMonthly === 0 ? 'forever' : 'per month'}
+                {plan.priceMonthly === 0 ? 'for 7 days' : 'per month'}
               </div>
             </div>
           </div>

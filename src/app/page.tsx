@@ -398,7 +398,7 @@ export default function LandingPage() {
                     <p className={styles.planTag}>{plan.tagline}</p>
                     <div className={styles.price}>
                       ₹{plan.priceMonthly.toLocaleString('en-IN')}
-                      <span>{plan.priceMonthly === 0 ? 'forever' : '/ month'}</span>
+                      <span>{plan.priceMonthly === 0 ? 'for 7 days' : '/ month'}</span>
                     </div>
                     <p className={styles.priceNote}>{plan.hasTrial ? `${plan.trialDays}-day free trial` : ''}</p>
                     <ul className={styles.planFeatures}>
