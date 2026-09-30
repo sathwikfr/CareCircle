@@ -3,7 +3,7 @@
 # Aaptha — project guide for Claude sessions
 
 > Full audit + bug/security pass + Sarvam call pipeline: 2026-09-30. Calling is fully built and tested against a fake Sarvam;
-> it is switched OFF until the `SARVAM_*` env vars are set (see `docs/sarvam-agent.md`).
+> as of 2026-10-01 the `SARVAM_*` keys are set but no real call has been placed yet (needs a public https URL + cron + the live test) (see `docs/sarvam-agent.md`).
 > **Brand rename (2026-10-01): CareCircle → Aaptha.** All user-visible text, emails, legal pages, receipts and docs say Aaptha (Saathi AI keeps its name).
 > Internal identifiers deliberately keep the old name so nothing breaks: session cookie `carecircle_session` (renaming signs everyone out),
 > Razorpay note keys `carecircle_user_id` / `carecircle_plan_id`, sandbox HMAC seed, process-global cache names `__carecircle_*`, synthetic
@@ -51,15 +51,15 @@
 | AI | Groq vision via `fetch` (images only; PDFs rejected with a clear message). |
 | Calling | **Built** on Sarvam Voice Agents: `lib/sarvam.ts` (client), `lib/callDispatch.ts` (scheduler/retries), `lib/callResults.ts` (webhook), `lib/alerts.ts` + `lib/safety.ts` (alerts + emergency scan). Inactive until `SARVAM_*` are set; then `/api/cron/dispatch` (external cron) places calls. Twilio/Groq-calling removed. |
 | Page guards | `src/proxy.ts` redirects signed-out users away from /dashboard, /onboarding, /account, /checkout. |
-| Deploy | Target Vercel, not deployed. Cron = any external scheduler hitting `/api/cron/dispatch` every ~5 min (Vercel Cron needs a paid plan for that interval; no `vercel.json`). |
+| Deploy | Vercel, live since 2026-10-01 at https://saathi-ai-delta.vercel.app. Cron = any external scheduler hitting `/api/cron/dispatch` every ~5 min (Vercel Cron needs a paid plan for that interval; no `vercel.json`). |
 
-Env keys (names only): `DATABASE_URL`, `DIRECT_URL`, `GROQ_API_KEY`, `GROQ_VISION_MODEL`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_PLAN_ID_FAMILY`, `RAZORPAY_PLAN_ID_EXTENDED`, `GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `CRON_SECRET`, `SARVAM_API_KEY`, `SARVAM_ORG_ID`, `SARVAM_WORKSPACE_ID`, `SARVAM_APP_ID`, `SARVAM_APP_VERSION`, `SARVAM_CONNECTION_ID`, `SARVAM_AGENT_PHONE_NUMBER`, `SARVAM_WEBHOOK_SECRET` (generated locally), optional `SARVAM_API_BASE`, `ADMIN_EMAILS` (comma-separated; who can open `/admin`). Removed: `GROQ_CALL_MODEL`, `TWILIO_*`, `JWT_SECRET`. **Keys go in `.env.local`** (Next.js reads it before `.env`; several keys existed in both and `.env.local` silently won). Also `NEXT_PUBLIC_SUPPORT_EMAIL` (Privacy/Terms contact). As of 2026-09-30 the Razorpay keys are placeholders, Sarvam/Google/Resend-domain/support email are unset. Run `npm run check:setup` to see exactly what is missing (never prints values).
+Env keys (names only): `DATABASE_URL`, `DIRECT_URL`, `GROQ_API_KEY`, `GROQ_VISION_MODEL`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_PLAN_ID_FAMILY`, `RAZORPAY_PLAN_ID_EXTENDED`, `GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `CRON_SECRET`, `SARVAM_API_KEY`, `SARVAM_ORG_ID`, `SARVAM_WORKSPACE_ID`, `SARVAM_APP_ID`, `SARVAM_APP_VERSION`, `SARVAM_CONNECTION_ID`, `SARVAM_AGENT_PHONE_NUMBER`, `SARVAM_WEBHOOK_SECRET` (generated locally), optional `SARVAM_API_BASE`, `ADMIN_EMAILS` (comma-separated; who can open `/admin`). Removed: `GROQ_CALL_MODEL`, `TWILIO_*`, `JWT_SECRET`. **Keys go in `.env.local`** (Next.js reads it before `.env`; several keys existed in both and `.env.local` silently won). Also `NEXT_PUBLIC_SUPPORT_EMAIL` (Privacy/Terms contact). As of 2026-10-01 (`check:setup`): Sarvam and Groq READY; Razorpay in test mode but plan ids missing; `NEXT_PUBLIC_APP_URL` not https; Resend sender is still resend.dev; Google unset. Run `npm run check:setup` to see exactly what is missing (never prints values).
 
 ## 5. Folder map
 
 ```
 prisma/schema.prisma        17 models (see §6); prisma/seed.ts (demo data, NOT applied to live DB)
-scripts/                    tsx scripts. `test-call-pipeline.ts` = 139-check suite (see §9); `test-billing-emails.ts` = 68-check suite for billing/lifecycle emails (see §7a); `check-setup.ts` (`npm run check:setup`); `create-razorpay-plans.ts`; clear-database.ts = DANGEROUS
+scripts/                    tsx scripts. `test-call-pipeline.ts` = 144-check suite (see §9); `test-billing-emails.ts` = 68-check suite for billing/lifecycle emails (see §7a); `check-setup.ts` (`npm run check:setup`); `create-razorpay-plans.ts`; clear-database.ts = DANGEROUS
 .github/workflows/dispatch-calls.yml   free 5-minute cron calling /api/cron/dispatch (needs APP_URL + CRON_SECRET repo secrets)
 docs/launch-checklist.md    every account/key still needed, in order
 docs/sarvam-agent.md        how to build the Saathi agent in Sarvam: prompt, input/output variables, tool, cron, live test
@@ -184,7 +184,7 @@ Cron reminders are fail-closed (no EmailLog row = no email, so they never repeat
 | Caregiver invites | PARTIAL: row only; no email, no invitee access |
 | Smart call-time suggestions | PARTIAL: accept/dismiss works; **no generator** |
 | Alert engine + family email | DONE (levels 1–4, dedupe, prefs, co-managers). WhatsApp/SMS NOT built |
-| Saathi voice calling (Sarvam) | BUILT + tested with a fake Sarvam (138 checks). NOT live: needs Sarvam account, KYC, agent, `SARVAM_*` env, public URL, cron |
+| Saathi voice calling (Sarvam) | BUILT + tested with a fake Sarvam (144 checks). `SARVAM_*` keys set 2026-10-01; 0 real calls so far. Still needs public https URL, cron, live test |
 | Cron dispatcher | DONE (`/api/cron/dispatch`); an external scheduler still has to be set up |
 | `preferredLanguage` | NOT STARTED |
 | Calls per day vs plan | ENFORCED at dispatch: `callsPerDay` Free 1 / Family 3 / Extended 3 (earliest slots win); dashboard warns when a schedule exceeds it |
@@ -211,7 +211,7 @@ emergency scan reads **parent turns only** (Sarvam supplies English `en_text`); 
 a 401/403 from Sarvam (our config) never alerts families; failed test calls never alert families.
 The agent contract (variable names, prompt, tool) is in **`docs/sarvam-agent.md`** and must stay in sync with `lib/sarvam.ts` / `lib/callInterpretation.ts`.
 
-**Tests:** `npx tsx scripts/test-call-pipeline.ts` (138 checks; pure logic + full pipeline on throwaway DB rows with a fake Sarvam,
+**Tests:** `npx tsx scripts/test-call-pipeline.ts` (144 checks; pure logic + full pipeline on throwaway DB rows with a fake Sarvam,
 fake clock and fake email; every dispatch is scoped with `parentIds` so real parents are never touched; cleans up after itself).
 
 Unverified against real Sarvam: per-minute price, DND/NDNC handling, webhook retry behaviour, exact webhook `interaction_transcript` shape in practice, API tool bearer-auth setup. Do the live test in `docs/sarvam-agent.md` §8 first.
