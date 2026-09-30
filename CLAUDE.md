@@ -26,7 +26,7 @@
 ## 2. Product summary
 
 - **Aaptha** (renamed from Aaptha on 2026-10-01): platform for adult children in India to look after elderly parents living apart. Paying customer = the child.
-- **Saathi AI**: voice companion that phones the parent on schedule: medicine confirmation, one wellbeing question, reminders; results update the child's dashboard and raise alerts.
+- **Saathi AI**: voice companion that phones the parent on schedule: short medicine-reminder calls (did you take it? yes or no), no small talk, but anything the parent volunteers is passed on; results update the child's dashboard and raise alerts.
 - Core loop: call → ask 2–3 questions → record answers → update dashboard → alert if needed. Alert levels 0 (fine) … 4 (emergency).
 - Plans (`src/lib/plans.ts`): **Free Trial** ₹0 (7 days from account creation, 1 parent, 1 call/day, then calls stop; can't be restarted), Family ₹1,299 (2 parents, 14-day trial, 3 calls/day), Extended ₹2,999 (5 parents, 14-day trial, 3 calls/day). Cost model + margins are in the comment at the top of `plans.ts`. `getEffectivePlan(subscription, user.createdAt)` decides which limits apply (returns a synthetic `expired` plan with 0 calls once the trial is over; the dispatcher, test calls and adding parents all respect it). Every new account gets a free-trial `UserSubscription` row; a paid checkout replaces it.
 - Parked, do not build: wearable integration.
@@ -47,7 +47,7 @@
 | Data layer | `src/lib/db.ts` is **Prisma-only** (no caches); write helpers throw on failure. |
 | Auth | Custom. bcrypt passwords; opaque DB sessions (`sess_…` in cookie `carecircle_session`), checked against `DBSession` on every request; no JWT. Google = Google Identity Services ID token verified server-side (needs `GOOGLE_CLIENT_ID`). OTP = DB-stored hashed codes; **no SMS provider**, so phone OTP only works under `next dev` (503 elsewhere). Master OTP `123456` works only under `next dev`. |
 | Payments | Razorpay Checkout + server signature verification + subscription ownership check (notes.carecircle_user_id). Without real keys: local sandbox **only under `next dev`**; production returns 503. Webhook requires valid signature. |
-| Email | Resend. Default sender `onboarding@resend.dev` only delivers to the Resend account owner (warning logged); needs a verified domain in `RESEND_FROM_EMAIL`. |
+| Email | Resend (`lib/email.ts`). Default sender `onboarding@resend.dev` only delivers to the Resend account owner (warning logged); needs a verified domain in `RESEND_FROM_EMAIL`. Replies go to `NEXT_PUBLIC_SUPPORT_EMAIL`. Billing emails are sent once each via `lib/emailLog.ts` (see §7a). |
 | AI | Groq vision via `fetch` (images only; PDFs rejected with a clear message). |
 | Calling | **Built** on Sarvam Voice Agents: `lib/sarvam.ts` (client), `lib/callDispatch.ts` (scheduler/retries), `lib/callResults.ts` (webhook), `lib/alerts.ts` + `lib/safety.ts` (alerts + emergency scan). Inactive until `SARVAM_*` are set; then `/api/cron/dispatch` (external cron) places calls. Twilio/Groq-calling removed. |
 | Page guards | `src/proxy.ts` redirects signed-out users away from /dashboard, /onboarding, /account, /checkout. |
@@ -58,8 +58,8 @@ Env keys (names only): `DATABASE_URL`, `DIRECT_URL`, `GROQ_API_KEY`, `GROQ_VISIO
 ## 5. Folder map
 
 ```
-prisma/schema.prisma        16 models (see §6); prisma/seed.ts (demo data, NOT applied to live DB)
-scripts/                    tsx scripts. `test-call-pipeline.ts` = 138-check suite (see §9); `check-setup.ts` (`npm run check:setup`); `create-razorpay-plans.ts`; clear-database.ts = DANGEROUS
+prisma/schema.prisma        17 models (see §6); prisma/seed.ts (demo data, NOT applied to live DB)
+scripts/                    tsx scripts. `test-call-pipeline.ts` = 139-check suite (see §9); `test-billing-emails.ts` = 68-check suite for billing/lifecycle emails (see §7a); `check-setup.ts` (`npm run check:setup`); `create-razorpay-plans.ts`; clear-database.ts = DANGEROUS
 .github/workflows/dispatch-calls.yml   free 5-minute cron calling /api/cron/dispatch (needs APP_URL + CRON_SECRET repo secrets)
 docs/launch-checklist.md    every account/key still needed, in order
 docs/sarvam-agent.md        how to build the Saathi agent in Sarvam: prompt, input/output variables, tool, cron, live test
@@ -75,7 +75,9 @@ src/lib/
   medicineReportIntake.ts   shared upload parsing + extraction (no sample fallback)
   redirect.ts               safeRedirectPath() (client-safe)
   types.ts, plans.ts        domain types; plans + getEffectivePlan()
-  email.ts                  Resend templates
+  email.ts                  Resend transport + templates (receipt, activated, payment failed, stopped, cancelled, trial reminders, alerts)
+  emailLog.ts               sendOnce()/markEmailSent(): once-only emails via the EmailLog unique key
+  lifecycleEmails.ts        runLifecycleEmails(): free-trial ending/ended + paid-trial-ending reminders (run by the cron route)
   groqVision.ts, medicineExtractor.ts   extraction internals (don't touch)
   scheduleGenerator.ts      medicines → call slots + per-medicine question scripts
   phone.ts                  E.164 normaliser
@@ -101,7 +103,7 @@ src/app/                    pages: landing, login, signup, reset-password, onboa
 
 ## 6. Data model (prisma/schema.prisma)
 
-User · DBSession · OTPRecord · PasswordResetRecord · OAuthAccount (Google links) · UserSubscription · Invoice · **ParentProfile** · **ScheduledCallSlot** · **Medicine** · EmergencyContact · **CallLog** · **AlertRecord** · ScheduleSuggestion · CaregiverInvite · NotificationPreferences · MedicineReport (now persisted).
+User · **EmailLog** (once-only email guard, added 2026-09-30) · DBSession · OTPRecord · PasswordResetRecord · OAuthAccount (Google links) · UserSubscription · Invoice · **ParentProfile** · **ScheduledCallSlot** · **Medicine** · EmergencyContact · **CallLog** · **AlertRecord** · ScheduleSuggestion · CaregiverInvite · NotificationPreferences · MedicineReport (now persisted).
 
 Call-relevant fields:
 - `ParentProfile`: phone (E.164), `language` (free text; **no `preferredLanguage` yet**), timezone, `callTime` (legacy display), isPaused, pauseReason, pauseUntil (real Date), consentGiven, isDeleted.
@@ -129,7 +131,7 @@ All private routes: **S** = `requireUser`, **O** = `requireOwnedParent` (404 for
 | /api/account/billing | GET/POST | invoices; cancel (also cancels Razorpay at cycle end), reactivate (only before period end), switch-plan (**Free only**; paid → 402 + checkoutUrl; blocked if over parent limit) | S |
 | /api/razorpay/create-subscription | POST | Razorpay subscription for the logged-in user (sandbox only under dev) | S |
 | /api/razorpay/verify | POST | signature + ownership verification → activate | S |
-| /api/razorpay/webhook | POST | signed events → active / past_due / cancelled | signature |
+| /api/razorpay/webhook | POST | signed events → active / past_due / cancelled; also invoice + emails (§7a) | signature |
 | /api/parents | GET/POST | list; create parent + slots + meds + contacts (validated first; soft-deletes on partial failure) | S |
 | /api/parents/[id] | GET/PATCH/DELETE | details; pause (future ISO date), resume (clears reason/until), update (whitelisted), archive | O |
 | /api/parents/[id]/medicines | POST/PATCH | add (+ links into call slots, may create a slot) / toggle | O |
@@ -140,10 +142,25 @@ All private routes: **S** = `requireUser`, **O** = `requireOwnedParent` (404 for
 | /api/parents/[id]/medicine-reports/[reportId]/confirm | POST | save confirmed meds, link into schedule, mark report confirmed (once) | O |
 | /api/medicine-reports/extract | GET/POST | samples list / onboarding extraction | GET —, POST S |
 | /api/calls/trigger | POST | owner "call now" (rate-limited, no retry) | S |
-| /api/cron/dispatch | GET/POST | `runDispatch()`; `x-cron-secret` or `Bearer CRON_SECRET`; no-op when Sarvam not configured | cron secret |
+| /api/cron/dispatch | GET/POST | `runDispatch()` (no-op when Sarvam not configured) **and** `runLifecycleEmails()` (runs even without Sarvam); `x-cron-secret` or `Bearer CRON_SECRET` | cron secret |
 | /api/calls/sarvam-webhook | POST | end-of-call result; `?token=SARVAM_WEBHOOK_SECRET`; idempotent | token |
 | /api/calls/escalate | POST | Sarvam API tool: mid-call emergency -> level-4 alert; `Bearer SARVAM_WEBHOOK_SECRET` | secret |
-| /api/dev/emails | GET/POST | dev outbox; **404 outside `next dev`** | dev only |
+| /api/dev/emails | GET/POST | dev outbox + sample sends (`type`: password_reset, verification, receipt, alert, activated, payment_failed, stopped, cancelled, trial_ending, trial_ended, paid_trial_ending); **404 outside `next dev`** | dev only |
+
+### 7a. Billing and lifecycle emails (added 2026-09-30)
+Every email goes through `lib/email.ts` (Resend). Anything that must reach the customer exactly once claims a row in `EmailLog` first (`sendOnce()`; unique on userId+kind+refKey; a failed send releases the claim so it retries).
+
+| Email | Sent by | Once-only key |
+|---|---|---|
+| Subscription activated / free-trial started | `/api/razorpay/verify` | `subscription_activated` + Razorpay subscription id |
+| Payment receipt (+ saves an `Invoice`) | webhook `subscription.charged` | `payment_receipt` + payment id (invoice number `CC-<year>-<last 6 of payment id>` is shared with checkout) |
+| Payment failed | webhook `payment.failed` / `subscription.pending` | first failure of a streak only (status -> `past_due` via `updateMany`); recovers on the next charge |
+| Subscription stopped (Razorpay gave up) | webhook `subscription.halted` | `subscription_ended` + subscription id. **Halted now sets status `cancelled`**, so calls stop when the paid period ends (it used to stay `past_due`, i.e. free service forever) |
+| Cancelled | in-app cancel (`/api/account/billing`) or webhook `subscription.cancelled` | same `subscription_ended` key, so the customer gets one email even when both fire |
+| Free trial ending (48 h before) / ended (up to 3 days after) | `runLifecycleEmails()` via cron | `trial_ending` / `trial_ended` + `free-trial`; accounts whose trial ended long ago are never emailed |
+| Paid trial ending (3 days before first charge) | `runLifecycleEmails()` via cron | `paid_trial_ending` + trial end date |
+
+Cron reminders are fail-closed (no EmailLog row = no email, so they never repeat every 5 minutes); payment/cancel notices are fail-open. Dates in emails are IST. Tests: `npx tsx scripts/test-billing-emails.ts` (68 checks; throwaway `billing-test-*@example.com` accounts, Resend key removed in-process, reminder runs scoped by `userIds`). Not built: email-verification flow, caregiver invite emails.
 
 ## 8. Status (plan vs reality)
 
@@ -184,7 +201,7 @@ Sarvam agent calls the parent (rented number, Vobiz underneath)
        failed -> no retry, level-2 alert (DND reason kept)
    no result within 45 min -> closed as failed `result_not_received` (a late webhook still applies)
 ```
-Rules baked in: wellness-only calls count as "medication confirmed"; alerts dedupe per call+title (webhook, tool and scan never double-alert);
+Rules baked in: a call that connects but where the parent never speaks (transcript has no parent turn, or the agent reports `not_asked`; agent nudges then hangs up) is treated like an unanswered call (`failureReason: no_response`, retry +15 min, then the level-2 alert); wellness-only calls count as "medication confirmed"; alerts dedupe per call+title (webhook, tool and scan never double-alert);
 emergency scan reads **parent turns only** (Sarvam supplies English `en_text`); a newly added parent is first called the next day;
 a 401/403 from Sarvam (our config) never alerts families; failed test calls never alert families.
 The agent contract (variable names, prompt, tool) is in **`docs/sarvam-agent.md`** and must stay in sync with `lib/sarvam.ts` / `lib/callInterpretation.ts`.

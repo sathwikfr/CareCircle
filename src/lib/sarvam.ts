@@ -107,6 +107,16 @@ export function buildMedicineChecklist(medicines: LinkedMedicineDetail[]): strin
     .join('\n');
 }
 
+/**
+ * Spoken name of the first medicine, used inside the agent's greeting so the very first turn already asks
+ * about a tablet (Sarvam waits for the caller after the greeting). "Telmisartan (BP Tablet)" -> "Telmisartan".
+ */
+export function firstMedicineSpoken(medicines: LinkedMedicineDetail[]): string {
+  const name = medicines[0]?.name || '';
+  const cleaned = name.replace(/\(.*?\)/g, ' ').replace(/(tab|tablet|cap|capsule)\.?/gi, ' ').replace(/\s+/g, ' ').trim();
+  return cleaned || name.trim() || 'medicine';
+}
+
 export function buildOutboundRequest(cfg: SarvamConfig, input: OutboundCallInput) {
   const webhookUrl = `${cfg.appUrl}/api/calls/sarvam-webhook?token=${encodeURIComponent(cfg.webhookSecret)}`;
   return {
@@ -127,6 +137,7 @@ export function buildOutboundRequest(cfg: SarvamConfig, input: OutboundCallInput
         slot_label: input.slotLabel,
         has_medicines: input.medicines.length > 0 ? 'yes' : 'no',
         medicine_count: String(input.medicines.length),
+        first_medicine: firstMedicineSpoken(input.medicines),
         medicines_checklist: buildMedicineChecklist(input.medicines)
       },
       app_overrides: {

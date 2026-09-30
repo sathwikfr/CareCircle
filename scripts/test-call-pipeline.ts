@@ -127,6 +127,18 @@ function partA() {
   const unknown = interpretCallResult({ final_agent_variables: null }, meds, 'Amma');
   check('missing variables → unknown, not confirmed', !unknown.medicationConfirmed && unknown.medicineResults.every(r => r.status === 'unknown'));
 
+  const silentTranscript = [
+    { role: 'agent', text: 'Hello Amma garu, did you take your Telmisartan tablet?' },
+    { role: 'agent', text: 'Hello, are you there?' },
+    { role: 'agent', text: 'I did not get any response, so I am ending the call.' }
+  ];
+  const silent = interpretCallResult({ final_agent_variables: { all_medicines_taken: 'not_asked' }, interaction_transcript: silentTranscript }, meds, 'Amma');
+  check('picked up but never replied → noResponse', silent.noResponse === true);
+  const spoke = interpretCallResult({ final_agent_variables: null, interaction_transcript: [...silentTranscript, { role: 'user', text: 'hmm' }] }, meds, 'Amma');
+  check('parent spoke (even unclear) → not noResponse', spoke.noResponse === false);
+  check('no data at all → not assumed silent', unknown.noResponse === false);
+  check('no medicines → never noResponse', interpretCallResult({ final_agent_variables: { mood: 'calm' }, interaction_transcript: silentTranscript }, [], 'Appa').noResponse === false);
+
   console.log('\nA5. Outbound request');
   const cfg = fakeConfig();
   const body = buildOutboundRequest(cfg, {
@@ -246,6 +258,7 @@ async function partB() {
     check('X-API-Key header sent', req1?.headers['X-API-Key'] === 'test-key');
     check('language Telugu', req1?.body.app_config.app_overrides.initial_language_name === 'Telugu');
     check('2 medicines in checklist', req1?.body.app_config.agent_variables.medicine_count === '2');
+    check('first_medicine is the clean first tablet name', req1?.body.app_config.agent_variables.first_medicine === 'Telmisartan');
     const log1 = await prisma.callLog.findFirst({ where: { parentId: parent.id, callDate: '2026-10-05', slot: 'morning' } });
     check('CallLog placed with provider id', log1?.status === 'placed' && !!log1.providerAttemptId && log1.attemptNumber === 1, log1);
     check('metadata callLogId matches', req1?.body.webhook_config.metadata.callLogId === log1?.id);
@@ -302,10 +315,21 @@ async function partB() {
     await runDispatch({ now: day1(15, 35), fetchImpl: sarvam5.fetchImpl, config: cfg, alertDeps, parentIds: scope }); // 09:05 PM IST
     const a1 = await prisma.callLog.findFirst({ where: { parentId: parent.id, slot: 'bedtime', attemptNumber: 1 } });
     check('bedtime attempt 1 placed', a1?.status === 'placed');
-    const o5a = await processSarvamWebhook({ attempt_id: a1!.providerAttemptId, status: 'no_answer' }, { now: day1(15, 36), deps: alertDeps });
+    // Attempt 1: the line connects but the parent never says anything (agent nudges, then hangs up) → same as unanswered.
+    const o5a = await processSarvamWebhook({
+      attempt_id: a1!.providerAttemptId,
+      status: 'connected',
+      duration: 25,
+      final_agent_variables: { all_medicines_taken: 'not_asked', mood: 'neutral' },
+      interaction_transcript: [
+        { role: 'agent', text: 'Did you take your tablet?' },
+        { role: 'agent', text: 'I did not get any response, so I am ending the call.' }
+      ]
+    }, { now: day1(15, 36), deps: alertDeps });
     check('retry scheduled', o5a.status === 'processed' && !!o5a.retryAt, o5a);
     const a1after = await prisma.callLog.findUnique({ where: { id: a1!.id } });
-    check('attempt 1 unanswered with nextRetryAt +15m', a1after?.status === 'unanswered' && a1after.nextRetryAt?.getTime() === day1(15, 51).getTime(), a1after?.nextRetryAt);
+    check('attempt 1 (silent pickup) unanswered with nextRetryAt +15m', a1after?.status === 'unanswered' && a1after.nextRetryAt?.getTime() === day1(15, 51).getTime(), a1after?.nextRetryAt);
+    check('silent pickup marked no_response, not a missed medicine', a1after?.failureReason === 'no_response' && a1after.medicationConfirmed !== true);
     check('no alert yet (retry pending)', (await prisma.alertRecord.count({ where: { callLogId: a1!.id } })) === 0);
     const early = await runDispatch({ now: day1(15, 45), fetchImpl: sarvam5.fetchImpl, config: cfg, alertDeps, parentIds: scope });
     check('too early: no retry', early.retried === 0);

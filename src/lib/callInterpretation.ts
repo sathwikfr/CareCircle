@@ -43,6 +43,8 @@ export interface Interpretation {
   feedback: string | null;
   summary: string;
   transcript: TranscriptTurn[];
+  /** The line connected but the parent never answered (nothing said, nothing confirmed): treated like a missed call. */
+  noResponse: boolean;
 }
 
 export interface AlertDecision {
@@ -169,7 +171,18 @@ export function interpretCallResult(
     summary = parts.join(' ');
   }
 
-  return { medicationConfirmed, medicineResults, mood, healthConcern, emergencyFlag, feedback, summary, transcript };
+  // Picked up but silent: the agent asked, got nothing and hung up. Only applies to calls that had medicines to ask about.
+  const parentSpoke = transcript.some(t => t.role === 'user');
+  const nothingConfirmed = medicineResults.every(r => r.status === 'unknown');
+  const noResponse =
+    medicines.length > 0 &&
+    nothingConfirmed &&
+    !emergencyFlag &&
+    !healthConcern &&
+    !feedback &&
+    (transcript.length > 0 ? !parentSpoke : allTaken === 'not_asked');
+
+  return { medicationConfirmed, medicineResults, mood, healthConcern, emergencyFlag, feedback, summary, transcript, noResponse };
 }
 
 /**

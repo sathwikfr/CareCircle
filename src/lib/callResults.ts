@@ -92,9 +92,14 @@ export async function processSarvamWebhook(
   const alertResults: RaiseAlertResult[] = [];
 
   // ---------------------------------------------------------------- answered
-  if (status === 'connected') {
-    const medicines = readMedicineSnapshot(log.resultJson);
-    const interp = interpretCallResult(payload, medicines, parent.name);
+  const connectedMedicines = status === 'connected' ? readMedicineSnapshot(log.resultJson) : [];
+  const connectedInterp = status === 'connected' ? interpretCallResult(payload, connectedMedicines, parent.name) : null;
+  // Picked up but never replied (the agent nudged and hung up): handled like an unanswered call below.
+  const silentPickup = !!connectedInterp?.noResponse;
+
+  if (status === 'connected' && connectedInterp && !silentPickup) {
+    const medicines = connectedMedicines;
+    const interp = connectedInterp;
 
     await prisma.callLog.update({
       where: { id: log.id },
@@ -167,12 +172,14 @@ export async function processSarvamWebhook(
     where: { id: log.id },
     data: {
       status: finalStatus,
-      durationSeconds: 0,
+      durationSeconds: silentPickup ? duration : 0,
       interactionId,
-      failureReason,
+      failureReason: silentPickup ? 'no_response' : failureReason,
       nextRetryAt: retryAt,
       endedAt: now,
-      summary: `${parent.name} did not pick up the ${slotLabel} call (${finalStatus === 'busy' ? 'line busy' : 'no answer'}).${retryAt ? ' We will try again shortly.' : ''}`
+      summary: silentPickup
+        ? `${parent.name} picked up the ${slotLabel} call but did not reply.${retryAt ? ' We will try again shortly.' : ''}`
+        : `${parent.name} did not pick up the ${slotLabel} call (${finalStatus === 'busy' ? 'line busy' : 'no answer'}).${retryAt ? ' We will try again shortly.' : ''}`
     }
   });
 
