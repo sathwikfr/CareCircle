@@ -24,7 +24,7 @@
 - **CareCircle**: platform for adult children in India to look after elderly parents living apart. Paying customer = the child.
 - **Saathi AI**: voice companion that phones the parent on schedule: medicine confirmation, one wellbeing question, reminders; results update the child's dashboard and raise alerts.
 - Core loop: call → ask 2–3 questions → record answers → update dashboard → alert if needed. Alert levels 0 (fine) … 4 (emergency).
-- Plans (`src/lib/plans.ts`): Free ₹0 (1 parent, "1 daily call"), Family ₹399 (2 parents, 14-day trial), Extended ₹699 (5 parents). `getEffectivePlan()` decides which limits apply.
+- Plans (`src/lib/plans.ts`): Free ₹0 (1 parent, 1 call/day), Family ₹1,299 (2 parents, 14-day trial, 3 calls/day), Extended ₹2,999 (5 parents, 14-day trial, 3 calls/day). Cost model + margins are in the comment at the top of `plans.ts`. `getEffectivePlan()` decides which limits apply.
 - Parked, do not build: wearable integration.
 
 ## 3. AI safety rules (non-negotiable)
@@ -190,7 +190,8 @@ Unverified against real Sarvam: per-minute price, DND/NDNC handling, webhook ret
 - Calling is not live: needs Sarvam account/KYC, agent, `SARVAM_*`, public HTTPS URL (ngrok locally), and an external cron.
 - No SMS provider (phone OTP dev-only), no email verification flow, no caregiver invite emails/access, no WhatsApp/SMS alerts.
 - Rate limits are per-process memory (weak on serverless). All parent times are treated as IST (single timezone).
-- Pricing vs call cost (~₹2–5/min): the cap limits exposure (Free is roughly ₹90–180/parent/month at 1 call/day) but the ₹399 Family plan can still lose money at 3 calls/day for 2 parents. Decision pending.
+- Pricing (set 2026-09-30 at ₹1,299 / ₹2,999): ~55% margin at typical use, ~8–14% at the 3-calls/day cap, loses money only if Sarvam charges ~₹5/min AND every call is used. Free costs ~₹180/user/month (plan: make it a 7-day trial). Re-check when Sarvam quotes real prices. GST not included in prices.
+- Razorpay plans for the new prices must be created: `npx tsx scripts/create-razorpay-plans.ts` (dry run) then `--confirm`, with real keys; put the printed ids in `RAZORPAY_PLAN_ID_FAMILY` / `_EXTENDED`. Plans are immutable in Razorpay, so a price change needs new plans.
 - Razorpay live path and Google sign-in are implemented but untested with real credentials.
 - 3 old CallLogs in the DB are from earlier tests (left untouched). `db push` is used, not migrations (the call-pipeline columns were applied as reviewed additive SQL; never `--accept-data-loss`).
 - A dev server started before a schema change keeps a stale Prisma client: restart `next dev` after schema changes. On Windows `prisma generate` can fail with EPERM while a dev server holds the engine DLL.
@@ -199,7 +200,7 @@ Unverified against real Sarvam: per-minute price, DND/NDNC handling, webhook ret
 - `scripts/cleanup-e2e-account.ts <claude-e2e-…@example.com> [--confirm]` removes one throwaway test account (dry run by default).
 
 ## 11. Open questions for the user
-- Pricing: raise prices or lower `callsPerDay` (see §10).
+- Free plan → 7-day trial (agreed for next session).
 - `preferredLanguage`: not added; `toSarvamLanguage()` derives it from the free-text `language`. Add a column later if needed.
 - Hosting/cron provider (Vercel vs other).
 - Adopt `prisma migrate` (baseline the current DB)?
