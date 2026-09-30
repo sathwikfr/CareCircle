@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Fraunces, Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
+import { THEME_INIT_SCRIPT } from '@/lib/theme';
 
 const fraunces = Fraunces({
   subsets: ['latin'],
@@ -24,7 +25,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#f8f4ec',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f8f4ec' },
+    { media: '(prefers-color-scheme: dark)', color: '#121615' },
+  ],
 };
 
 export default function RootLayout({
@@ -33,7 +37,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
+    <html lang="en" data-theme="light" className={`${fraunces.variable} ${inter.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body>
         <a href="#main" className="skip-link">Skip to content</a>
         <AuthProvider>

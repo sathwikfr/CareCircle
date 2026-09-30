@@ -1,0 +1,162 @@
+import {
+  ParentProfile,
+  Medicine,
+  EmergencyContact,
+  CallLog,
+  AlertRecord,
+  ScheduleSuggestion,
+  CaregiverInvite,
+  NotificationPreferences,
+  FoodRelation,
+  ScheduledCallSlot
+} from '@/lib/types';
+import { timeToMinutes } from '@/lib/scheduleGenerator';
+
+export type ParentDetails = {
+  parent: ParentProfile;
+  medicines: Medicine[];
+  emergencyContacts: EmergencyContact[];
+  callLogs: CallLog[];
+  alerts: AlertRecord[];
+  suggestions: ScheduleSuggestion[];
+  caregivers: CaregiverInvite[];
+  notifPrefs: NotificationPreferences;
+};
+
+export type Toast = { text: string; type: 'success' | 'info' | 'error' };
+
+export const MOOD_LABELS: Record<string, string> = {
+  cheerful: 'Cheerful',
+  calm: 'Calm',
+  neutral: 'Neutral',
+  anxious: 'Anxious',
+  unwell: 'Unwell'
+};
+
+export function moodLabel(mood?: string) {
+  return mood ? MOOD_LABELS[mood] || mood : '—';
+}
+
+export function foodRelationLabel(rel?: FoodRelation) {
+  if (rel === 'before_food') return 'Before food';
+  if (rel === 'after_food') return 'After food';
+  if (rel === 'with_food') return 'With food';
+  return null;
+}
+
+export function formatCallTime(value: string) {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime())
+    ? value
+    : d.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+}
+
+export function formatDuration(seconds: number) {
+  if (!seconds) return null;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return m ? `${m}m ${s}s` : `${s}s`;
+}
+
+export function initial(name?: string) {
+  return (name || '?').trim().charAt(0).toUpperCase() || '?';
+}
+
+function callDate(c: CallLog) {
+  const d = new Date(c.createdAt || c.scheduledTime);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+const sameDay = (a: Date | null, b: Date) => !!a && a.toDateString() === b.toDateString();
+
+export type DayBar = { day: string; total: number; pct: number; mood?: string; concern: boolean };
+
+export type CallStats = {
+  now: Date;
+  completedCalls: CallLog[];
+  latestToday?: CallLog;
+  activeSlots: ScheduledCallSlot[];
+  nextSlot?: ScheduledCallSlot;
+  nowMinutes: number;
+  last30: CallLog[];
+  answered30: CallLog[];
+  confirmed30: number;
+  reachabilityPct: number | null;
+  adherencePct: number | null;
+  moodBreakdown: { mood: string; pct: number }[];
+  last7Days: DayBar[];
+};
+
+/** Real call analytics for one parent; no demo numbers. */
+export function computeCallStats(callLogs: CallLog[], schedule: ScheduledCallSlot[]): CallStats {
+  const now = new Date();
+  // Calls still being placed / waiting for a result are not outcomes yet.
+  const completedCalls = callLogs.filter(c => c.status !== 'scheduled' && c.status !== 'placed');
+  const latestToday = completedCalls.find(c => sameDay(callDate(c), now));
+  const activeSlots = [...schedule]
+    .filter(s => s.isActive)
+    .sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const nextSlot = activeSlots.find(s => timeToMinutes(s.time) > nowMinutes);
+
+  const last30 = completedCalls.filter(c => {
+    const d = callDate(c);
+    return !!d && now.getTime() - d.getTime() <= 30 * 86400000;
+  });
+  const answered30 = last30.filter(c => c.status === 'answered');
+  const confirmed30 = answered30.filter(c => c.medicationConfirmed).length;
+  const reachabilityPct = last30.length ? Math.round((answered30.length / last30.length) * 100) : null;
+  const adherencePct = answered30.length ? Math.round((confirmed30 / answered30.length) * 100) : null;
+
+  const moodCounts = answered30.reduce<Record<string, number>>((acc, c) => {
+    acc[c.mood] = (acc[c.mood] || 0) + 1;
+    return acc;
+  }, {});
+  const moodBreakdown = Object.entries(moodCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([mood, count]) => ({ mood, pct: Math.round((count / answered30.length) * 100) }));
+
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now);
+    d.setDate(now.getDate() - (6 - i));
+    const calls = completedCalls.filter(c => sameDay(callDate(c), d));
+    const answered = calls.filter(c => c.status === 'answered');
+    const confirmed = answered.filter(c => c.medicationConfirmed);
+    return {
+      day: d.toLocaleDateString('en-IN', { weekday: 'short' }),
+      total: calls.length,
+      pct: calls.length ? Math.round((confirmed.length / calls.length) * 100) : 0,
+      mood: answered[0]?.mood,
+      concern: answered.some(c => c.mood === 'unwell' || c.mood === 'anxious') || answered.length < calls.length
+    };
+  });
+
+  return {
+    now,
+    completedCalls,
+    latestToday,
+    activeSlots,
+    nextSlot,
+    nowMinutes,
+    last30,
+    answered30,
+    confirmed30,
+    reachabilityPct,
+    adherencePct,
+    moodBreakdown,
+    last7Days
+  };
+}
+
+export function downloadFile(filename: string, content: string, type: string) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function safeFileName(name: string) {
+  return name.replace(/[^a-zA-Z0-9]/g, '_');
+}

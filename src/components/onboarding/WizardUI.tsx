@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Check, X } from 'lucide-react';
 import { Brand } from '@/components/Navbar';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { FoodRelation, MedicineTimingSlot } from '@/lib/types';
 
 const STEPS = ['Parent', 'Medicines', 'Call times', 'Contacts', 'Consent'];
@@ -16,9 +17,12 @@ export function WizardShell({ step, children }: { step: number; children: React.
       <header className="wizard-top">
         <div className="wrap wizard-top-inner">
           <Brand href="/dashboard" />
-          <Link href="/dashboard" className="btn btn-quiet btn-sm">
-            <X size={16} /> Exit setup
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <ThemeToggle />
+            <Link href="/dashboard" className="btn btn-quiet btn-sm">
+              <X size={16} /> Exit setup
+            </Link>
+          </div>
         </div>
         <div className="wizard-progress" aria-hidden="true">
           <i style={{ width: `${step > STEPS.length ? 100 : pct}%` }} />

@@ -1,25 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
+import { AccountShell } from '@/components/account/AccountUI';
+import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/context/AuthContext';
 import { PLANS, getEffectivePlan } from '@/lib/plans';
 import { PlanId, Invoice, UserSubscription } from '@/lib/types';
-import {
-  CreditCard,
-  Calendar,
-  AlertTriangle,
-  CheckCircle,
-  Download,
-  ArrowUpRight,
-  Shield,
-  HelpCircle,
-  X,
-  HeartCrack,
-  Check
-} from 'lucide-react';
+import { CreditCard, AlertTriangle, CheckCircle, Download, ArrowUpRight, Shield, X, HeartCrack } from 'lucide-react';
 
 export default function AccountBillingPage() {
   const { user, refreshUser } = useAuth();
@@ -136,9 +123,9 @@ export default function AccountBillingPage() {
     }
   };
 
-  // Mock Invoice PDF download
+  // Plain-text receipt of a recorded payment
   const handleDownloadInvoice = (inv: Invoice) => {
-    const text = `=====================================\nCARECIRCLE TAX INVOICE\n=====================================\nInvoice: ${inv.invoiceNumber}\nDate: ${inv.date}\nAmount: ₹${inv.amount}\nPlan: ${inv.planName}\nPayment Method: ${inv.paymentMethod}\nStatus: ${inv.status.toUpperCase()}\n=====================================\nThank you for choosing CareCircle for your parents!\n`;
+    const text = `=====================================\nCARECIRCLE PAYMENT RECEIPT\n=====================================\nReceipt: ${inv.invoiceNumber}\nDate: ${inv.date}\nAmount: ₹${inv.amount}\nPlan: ${inv.planName}\nPayment Method: ${inv.paymentMethod}\nStatus: ${inv.status.toUpperCase()}\n=====================================\nThank you for choosing CareCircle for your parents!\n`;
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -148,188 +135,173 @@ export default function AccountBillingPage() {
     URL.revokeObjectURL(url);
   };
 
+  const status = subscription?.status || 'free';
+  const isFree = currentPlan.priceMonthly === 0;
+  const formatDate = (d?: string) =>
+    d ? new Date(d).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+  const periodEnd = formatDate(subscription?.currentPeriodEnd);
+  const trialEnd = formatDate(subscription?.trialEndsAt);
+
+  const statusBadge =
+    status === 'cancelled'
+      ? { cls: 'badge-amber', text: periodEnd ? `Ends ${periodEnd}` : 'Cancelled' }
+      : status === 'trialing'
+        ? { cls: 'badge-gold', text: `Free trial${trialEnd ? ` until ${trialEnd}` : ''}` }
+        : status === 'past_due'
+          ? { cls: 'badge-red', text: 'Payment due' }
+          : status === 'active'
+            ? { cls: 'badge-green', text: 'Active' }
+            : { cls: 'badge-neutral', text: 'Free plan' };
+
+  const hasMethod = !!(subscription?.paymentMethodBrand || subscription?.paymentMethodLast4);
+
   return (
-    <>
-      <Navbar />
+    <AccountShell active="billing" title="Subscription & billing" sub="Your plan, payments and receipts.">
+      {notification && (
+        <div className={`alert-box ${notification.type}`} role={notification.type === 'error' ? 'alert' : 'status'}>
+          {notification.type === 'success' ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
+          <span style={{ flex: 1 }}>{notification.message}</span>
+          <button className="icon-btn" onClick={() => setNotification(null)} aria-label="Dismiss" style={{ width: '24px', height: '24px' }}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
-      <main style={{ padding: '48px 0 96px' }}>
-        <div className="wrap-checkout">
-          <div style={{ marginBottom: '32px' }}>
-            <h1 style={{ fontSize: 'clamp(1.9rem, 3.2vw, 2.4rem)', marginBottom: '8px' }}>
-              Subscription & Billing
-            </h1>
-            <p style={{ fontSize: '0.96rem', color: 'var(--ink-muted)' }}>
-              Manage your CareCircle tier, billing frequency, payment methods, and tax receipts.
-            </p>
-          </div>
-
-          {notification && (
-            <div className={`alert-box ${notification.type}`} style={{ marginBottom: '24px' }}>
-              {notification.type === 'success' ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
-              <span>{notification.message}</span>
-            </div>
-          )}
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '28px', marginBottom: '36px' }}>
-            {/* CURRENT SUBSCRIPTION CARD */}
-            <div className="card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+      {loading ? (
+        <div className="panel-grid">
+          <div className="skeleton" style={{ height: '260px', borderRadius: 'var(--r-xl)' }} />
+          <div className="skeleton" style={{ height: '260px', borderRadius: 'var(--r-xl)' }} />
+        </div>
+      ) : (
+        <>
+          <div className="panel-grid" style={{ marginBottom: '20px' }}>
+            {/* CURRENT PLAN */}
+            <section className="panel" aria-labelledby="plan-title">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '18px' }}>
                 <div>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-                    <span
-                      className={`badge ${
-                        subscription?.status === 'cancelled'
-                          ? 'badge-red'
-                          : subscription?.status === 'trialing'
-                          ? 'badge-gold'
-                          : 'badge-teal'
-                      }`}
-                    >
-                      {subscription?.status === 'cancelled'
-                        ? 'Cancels at Period End'
-                        : subscription?.status === 'trialing'
-                        ? '14-Day Free Trial'
-                        : subscription?.status === 'free'
-                        ? 'Free Starter'
-                        : 'Active Subscription'}
-                    </span>
-                  </div>
-                  <h3 style={{ fontSize: '1.4rem' }}>{currentPlan.name}</h3>
+                  <span className={`badge ${statusBadge.cls}`} style={{ marginBottom: '10px' }}>{statusBadge.text}</span>
+                  <h2 id="plan-title" style={{ fontSize: '1.6rem', letterSpacing: '-0.02em' }}>{currentPlan.name}</h2>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--ink-muted)', marginTop: '2px' }}>{currentPlan.tagline}</p>
                 </div>
-
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2rem', fontWeight: 600, color: 'var(--teal)' }}>
-                    {currentPlan.currency}{currentPlan.priceMonthly}
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2.2rem', fontWeight: 500, letterSpacing: '-0.03em', lineHeight: 1 }}>
+                    ₹{currentPlan.priceMonthly}
                   </div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--ink-muted)' }}>monthly billing</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '4px' }}>{isFree ? 'forever' : 'per month'}</div>
                 </div>
               </div>
 
-              <div style={{ background: 'var(--panel)', padding: '16px', borderRadius: '12px', margin: '16px 0', display: 'grid', gap: '8px', fontSize: '0.86rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--ink-muted)' }}>Next billing date:</span>
-                  <strong>
-                    {subscription?.currentPeriodEnd
-                      ? new Date(subscription.currentPeriodEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })
-                      : 'N/A'}
-                  </strong>
+              <div className="summary">
+                <div className="summary-row">
+                  <span>Parents</span>
+                  <b>Up to {currentPlan.parentsIncluded}</b>
                 </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--ink-muted)' }}>Parents included:</span>
-                  <strong>Up to {currentPlan.parentsIncluded} parent profiles</strong>
+                <div className="summary-row">
+                  <span>Calls per parent</span>
+                  <b>Up to {currentPlan.callsPerDay} a day</b>
                 </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--ink-muted)' }}>AutoPay mandate:</span>
-                  <strong>{subscription?.razorpaySubscriptionId || 'sub_cc_active_mandate'}</strong>
-                </div>
-              </div>
-
-              {/* ACTION BUTTONS */}
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '20px' }}>
-                <button
-                  onClick={() => setShowSwitchModal(true)}
-                  className="btn btn-primary btn-sm"
-                >
-                  Change Plan <ArrowUpRight size={14} />
-                </button>
-
-                {subscription?.status === 'cancelled' ? (
-                  <button
-                    onClick={handleReactivate}
-                    className="btn btn-ghost btn-sm"
-                    style={{ color: 'var(--teal)' }}
-                  >
-                    Resume Subscription
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setShowCancelModal(true)}
-                    className="btn btn-ghost btn-sm"
-                    style={{ color: 'var(--red)' }}
-                  >
-                    Cancel Subscription
-                  </button>
+                {!isFree && periodEnd && (
+                  <div className="summary-row">
+                    <span>{status === 'cancelled' ? 'Access until' : status === 'trialing' ? 'First charge' : 'Next charge'}</span>
+                    <b>{status === 'trialing' && trialEnd ? trialEnd : periodEnd}</b>
+                  </div>
+                )}
+                {subscription?.razorpaySubscriptionId && (
+                  <div className="summary-row">
+                    <span>AutoPay mandate</span>
+                    <b><span className="mono">{subscription.razorpaySubscriptionId}</span></b>
+                  </div>
                 )}
               </div>
-            </div>
 
-            {/* PAYMENT METHOD ON FILE */}
-            <div className="card">
-              <h3 style={{ fontSize: '1.25rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CreditCard size={18} color="var(--teal)" />
-                Payment Method on File
-              </h3>
+              {status === 'past_due' && (
+                <div className="alert-box error" style={{ marginTop: '16px', marginBottom: 0 }}>
+                  <AlertTriangle size={18} />
+                  <span>Your last payment didn&apos;t go through. Razorpay will retry; update your AutoPay method in your UPI or banking app if needed.</span>
+                </div>
+              )}
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', border: '1px solid var(--line)', borderRadius: '12px', marginBottom: '16px' }}>
-                <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'var(--teal-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--teal)' }}>
-                  <CreditCard size={22} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.94rem', fontWeight: 600 }}>
-                    {subscription?.paymentMethodBrand || 'UPI AutoPay / HDFC Bank'}
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
-                    Mandate ending in •••• {subscription?.paymentMethodLast4 || '4242'}
-                  </div>
-                </div>
-                <span className="badge badge-teal">Primary</span>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '20px' }}>
+                <button onClick={() => setShowSwitchModal(true)} className="btn btn-primary btn-sm">
+                  {isFree ? 'Upgrade' : 'Change plan'} <ArrowUpRight size={14} />
+                </button>
+                {status === 'cancelled' ? (
+                  <button onClick={handleReactivate} className="btn btn-ghost btn-sm">Keep my subscription</button>
+                ) : !isFree ? (
+                  <button onClick={() => setShowCancelModal(true)} className="btn btn-quiet btn-sm" style={{ color: 'var(--red)' }}>
+                    Cancel subscription
+                  </button>
+                ) : null}
+              </div>
+            </section>
+
+            {/* PAYMENT METHOD */}
+            <section className="panel" aria-labelledby="method-title">
+              <div className="panel-head" style={{ marginBottom: '14px' }}>
+                <h3 id="method-title">Payment method</h3>
               </div>
 
-              <div style={{ fontSize: '0.82rem', color: 'var(--ink-muted)', lineHeight: 1.5 }}>
-                🔒 Card & mandate authorization tokens are encrypted and handled directly by Razorpay under RBI AutoPay recurring subscription guidelines.
-              </div>
-            </div>
+              {hasMethod ? (
+                <div className="list-row" style={{ marginBottom: '14px' }}>
+                  <div className="row-main" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <span className="icon-tile" style={{ width: '40px', height: '40px' }}><CreditCard size={18} /></span>
+                    <div>
+                      <div className="row-title">{subscription?.paymentMethodBrand || 'AutoPay'}</div>
+                      {subscription?.paymentMethodLast4 && <div className="row-sub">Ending in •••• {subscription.paymentMethodLast4}</div>}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p style={{ fontSize: '0.92rem', color: 'var(--ink-muted)', marginBottom: '14px' }}>
+                  {isFree ? 'None needed on the Free plan.' : 'Your AutoPay details are held by Razorpay.'}
+                </p>
+              )}
+
+              <p className="fine-print">
+                <Shield size={16} />
+                <span>Cards and UPI mandates are handled by Razorpay under RBI recurring-payment rules. CareCircle never sees your card number or UPI PIN.</span>
+              </p>
+            </section>
           </div>
 
-          {/* BILLING HISTORY / INVOICES TABLE */}
-          <div className="card">
-            <h3 style={{ fontSize: '1.25rem', marginBottom: '18px' }}>Billing History & Invoices</h3>
+          {/* RECEIPTS */}
+          <section className="panel" aria-labelledby="receipts-title">
+            <div className="panel-head">
+              <h3 id="receipts-title">Payments</h3>
+            </div>
 
             {invoices.length === 0 ? (
-              <p style={{ fontSize: '0.9rem', color: 'var(--ink-muted)' }}>No past invoices found.</p>
+              <p style={{ fontSize: '0.92rem', color: 'var(--ink-muted)' }}>
+                {isFree ? 'No payments yet. The Free plan never charges you.' : 'No payments yet. Your first one will appear here.'}
+              </p>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+              <div className="table-wrap">
+                <table className="data">
                   <thead>
-                    <tr style={{ borderBottom: '1px solid var(--line)', color: 'var(--ink-muted)' }}>
-                      <th style={{ padding: '12px 14px' }}>Invoice ID</th>
-                      <th style={{ padding: '12px 14px' }}>Date</th>
-                      <th style={{ padding: '12px 14px' }}>Plan Description</th>
-                      <th style={{ padding: '12px 14px' }}>Amount</th>
-                      <th style={{ padding: '12px 14px' }}>Status</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'right' }}>Receipt</th>
+                    <tr>
+                      <th>Receipt</th>
+                      <th>Date</th>
+                      <th>Plan</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'right' }}><span className="sr-only">Download</span></th>
                     </tr>
                   </thead>
                   <tbody>
                     {invoices.map((inv) => (
-                      <tr key={inv.id} style={{ borderBottom: '1px solid var(--line-subtle)' }}>
-                        <td style={{ padding: '14px', fontWeight: 600 }}>{inv.invoiceNumber}</td>
-                        <td style={{ padding: '14px', color: 'var(--ink-muted)' }}>{inv.date}</td>
-                        <td style={{ padding: '14px' }}>{inv.planName}</td>
-                        <td style={{ padding: '14px', fontWeight: 600 }}>₹{inv.amount}</td>
-                        <td style={{ padding: '14px' }}>
-                          <span className="badge badge-green" style={{ textTransform: 'capitalize' }}>
+                      <tr key={inv.id}>
+                        <td style={{ fontWeight: 600 }}>{inv.invoiceNumber}</td>
+                        <td style={{ color: 'var(--ink-muted)' }}>{inv.date}</td>
+                        <td>{inv.planName}</td>
+                        <td style={{ fontWeight: 600 }}>₹{inv.amount}</td>
+                        <td>
+                          <span className={`badge ${inv.status === 'paid' ? 'badge-green' : inv.status === 'failed' ? 'badge-red' : 'badge-amber'}`} style={{ textTransform: 'capitalize' }}>
                             {inv.status}
                           </span>
                         </td>
-                        <td style={{ padding: '14px', textAlign: 'right' }}>
-                          <button
-                            onClick={() => handleDownloadInvoice(inv)}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: 'var(--teal)',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontSize: '0.82rem',
-                              fontWeight: 600
-                            }}
-                          >
-                            <Download size={14} /> Download
+                        <td style={{ textAlign: 'right' }}>
+                          <button onClick={() => handleDownloadInvoice(inv)} className="btn btn-quiet btn-sm">
+                            <Download size={14} /> Receipt
                           </button>
                         </td>
                       </tr>
@@ -338,195 +310,77 @@ export default function AccountBillingPage() {
                 </table>
               </div>
             )}
-          </div>
+          </section>
+        </>
+      )}
+
+      {/* CHANGE PLAN */}
+      <Modal open={showSwitchModal} onClose={() => setShowSwitchModal(false)} labelledBy="switch-title">
+        <h2 id="switch-title" style={{ fontSize: '1.45rem', letterSpacing: '-0.02em', marginBottom: '6px', paddingRight: '32px' }}>Change your plan</h2>
+        <p style={{ fontSize: '0.92rem', color: 'var(--ink-muted)', marginBottom: '20px' }}>
+          Your parents&apos; schedules stay as they are. Paid plans go through Razorpay checkout.
+        </p>
+
+        <div role="radiogroup" aria-label="Plans" style={{ display: 'grid', gap: '8px', marginBottom: '22px' }}>
+          {(['free', 'family', 'extended'] as PlanId[]).map((pid) => {
+            const p = PLANS[pid];
+            const isCurrent = currentPlan.id === pid;
+            return (
+              <button
+                key={pid}
+                type="button"
+                role="radio"
+                aria-checked={selectedNewPlan === pid}
+                className="plan-option"
+                onClick={() => setSelectedNewPlan(pid)}
+                style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px' }}
+              >
+                <div style={{ display: 'grid', gap: '2px' }}>
+                  <strong style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {p.name}
+                    {isCurrent && <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>Current</span>}
+                  </strong>
+                  <span>{p.parentsIncluded} parent{p.parentsIncluded === 1 ? '' : 's'} · up to {p.callsPerDay} call{p.callsPerDay === 1 ? '' : 's'} a day</span>
+                </div>
+                <strong style={{ fontSize: '1rem' }}>{p.priceMonthly === 0 ? 'Free' : `₹${p.priceMonthly}/mo`}</strong>
+              </button>
+            );
+          })}
         </div>
 
-        {/* CHANGE PLAN MODAL */}
-        {showSwitchModal && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0, 0, 0, 0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 999,
-              padding: '20px'
-            }}
-          >
-            <div className="card" style={{ maxWidth: '520px', width: '100%', position: 'relative' }}>
-              <button
-                onClick={() => setShowSwitchModal(false)}
-                style={{
-                  position: 'absolute',
-                  top: '20px',
-                  right: '20px',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--ink-muted)'
-                }}
-              >
-                <X size={20} />
-              </button>
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+          <button type="button" onClick={() => setShowSwitchModal(false)} className="btn btn-ghost">Cancel</button>
+          <button type="button" disabled={switchLoading || selectedNewPlan === currentPlan.id} onClick={handleSwitchPlan} className="btn btn-primary">
+            {switchLoading ? <><span className="spinner" /> Updating…</> : selectedNewPlan === 'free' ? 'Switch to Free' : 'Continue'}
+          </button>
+        </div>
+      </Modal>
 
-              <h3 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>Change your CareCircle plan</h3>
-              <p style={{ fontSize: '0.88rem', color: 'var(--ink-muted)', marginBottom: '20px' }}>
-                Your existing parent check-ins will smoothly transfer to the updated tier.
-              </p>
+      {/* CANCEL */}
+      <Modal open={showCancelModal} onClose={() => setShowCancelModal(false)} labelledBy="cancel-title">
+        <span className="icon-tile gold" style={{ marginBottom: '14px' }}><HeartCrack size={20} /></span>
+        <h2 id="cancel-title" style={{ fontSize: '1.45rem', letterSpacing: '-0.02em', marginBottom: '6px', paddingRight: '32px' }}>Cancel your subscription?</h2>
+        <p style={{ fontSize: '0.92rem', color: 'var(--ink-muted)', marginBottom: '18px' }}>
+          Your parents&apos; check-in calls continue until <strong style={{ color: 'var(--ink)' }}>{periodEnd || 'the end of this billing period'}</strong>, then you move to the Free plan. You won&apos;t be charged again.
+        </p>
 
-              <div style={{ display: 'grid', gap: '10px', marginBottom: '24px' }}>
-                {(['free', 'family', 'extended'] as PlanId[]).map((pid) => {
-                  const p = PLANS[pid];
-                  const isSelected = selectedNewPlan === pid;
-                  return (
-                    <div
-                      key={pid}
-                      onClick={() => setSelectedNewPlan(pid)}
-                      style={{
-                        padding: '14px',
-                        borderRadius: '12px',
-                        border: isSelected ? '2px solid var(--teal)' : '1px solid var(--line)',
-                        background: isSelected ? 'var(--teal-light)' : '#fff',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: '0.96rem' }}>{p.name}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
-                          {p.tagline} · {p.parentsIncluded} {p.parentsIncluded === 1 ? 'Parent' : 'Parents'}
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--teal)' }}>
-                          {p.currency}{p.priceMonthly}/mo
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+        <div className="form-group">
+          <label className="form-label" htmlFor="cancel-reason">What made you cancel? <span className="form-hint">Optional</span></label>
+          <select id="cancel-reason" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} className="form-input">
+            <option value="Parent moved in with me">My parent moved in with me</option>
+            <option value="Timing of calls didn't suit">The call times didn&apos;t suit them</option>
+            <option value="Temporary financial reason">Taking a break</option>
+            <option value="Other">Something else</option>
+          </select>
+        </div>
 
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowSwitchModal(false)}
-                  className="btn btn-ghost"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={switchLoading}
-                  onClick={handleSwitchPlan}
-                  className="btn btn-primary"
-                >
-                  {switchLoading ? 'Updating Plan...' : 'Confirm Plan Switch'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* SELF-SERVICE CANCELLATION MODAL (WITH RETENTION COPY AS MANDATED) */}
-        {showCancelModal && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0, 0, 0, 0.55)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 999,
-              padding: '20px'
-            }}
-          >
-            <div className="card" style={{ maxWidth: '480px', width: '100%', position: 'relative' }}>
-              <button
-                onClick={() => setShowCancelModal(false)}
-                style={{
-                  position: 'absolute',
-                  top: '20px',
-                  right: '20px',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--ink-muted)'
-                }}
-              >
-                <X size={20} />
-              </button>
-
-              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--gold-soft)', color: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px' }}>
-                <HeartCrack size={26} />
-              </div>
-
-              <h3 style={{ fontSize: '1.35rem', marginBottom: '8px' }}>
-                Are you sure you want to cancel?
-              </h3>
-
-              {/* EMPATHETIC RETENTION MESSAGE */}
-              <div
-                style={{
-                  background: 'var(--panel)',
-                  padding: '14px',
-                  borderRadius: '10px',
-                  fontSize: '0.86rem',
-                  color: 'var(--ink-muted)',
-                  lineHeight: 1.5,
-                  marginBottom: '18px'
-                }}
-              >
-                Amma & Appa’s daily scheduled medicine check-ins and mood summaries will discontinue at the end of your current cycle on{' '}
-                <strong>
-                  {subscription?.currentPeriodEnd
-                    ? new Date(subscription.currentPeriodEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })
-                    : 'the billing cycle'}
-                </strong>.
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '20px' }}>
-                <label className="form-label">Help us improve: Why are you cancelling?</label>
-                <select
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  className="form-input"
-                >
-                  <option value="Parent moved in with me">Parent moved in with me / living together</option>
-                  <option value="Timing of calls didn't suit">Timing of calls didn&apos;t suit parent</option>
-                  <option value="Temporary financial reason">Temporary pause</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowCancelModal(false)}
-                  className="btn btn-ghost"
-                >
-                  Keep My Plan
-                </button>
-                <button
-                  type="button"
-                  disabled={cancelLoading}
-                  onClick={handleCancelSubscription}
-                  className="btn btn-danger"
-                >
-                  {cancelLoading ? 'Cancelling...' : 'Confirm Self-Service Cancellation'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-
-      <Footer />
-    </>
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '8px' }}>
+          <button type="button" onClick={() => setShowCancelModal(false)} className="btn btn-ghost">Keep my plan</button>
+          <button type="button" disabled={cancelLoading} onClick={handleCancelSubscription} className="btn btn-danger">
+            {cancelLoading ? <><span className="spinner" /> Cancelling…</> : 'Cancel subscription'}
+          </button>
+        </div>
+      </Modal>
+    </AccountShell>
   );
 }

@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, Eye, EyeOff } from 'lucide-react';
 import { Brand } from '@/components/Navbar';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 type AuthShellProps = {
   children: React.ReactNode;
@@ -25,9 +26,12 @@ export function AuthShell({ children, asideTitle, asidePoints = DEFAULT_POINTS }
       <main id="main" className="auth-main">
         <div className="auth-top">
           <Brand />
-          <Link href="/" className="btn btn-quiet btn-sm">
-            <ArrowLeft size={15} /> Home
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <ThemeToggle />
+            <Link href="/" className="btn btn-quiet btn-sm">
+              <ArrowLeft size={15} /> Home
+            </Link>
+          </div>
         </div>
         <div className="auth-body animate-fade-in">{children}</div>
       </main>

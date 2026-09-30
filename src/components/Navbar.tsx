@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Heart, User as UserIcon, LogOut, CreditCard, ChevronDown, LayoutDashboard, UserPlus, Menu, X } from 'lucide-react';
 
 const MARKETING_LINKS = [
@@ -89,6 +90,7 @@ export function Navbar() {
         </nav>
 
         <div className="nav-actions">
+          <ThemeToggle />
           {user ? (
             <div ref={menuRef} style={{ position: 'relative' }}>
               <button

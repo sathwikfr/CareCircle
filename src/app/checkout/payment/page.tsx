@@ -3,13 +3,11 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
-import { CheckoutStepper } from '@/components/CheckoutStepper';
+import { CheckoutShell, PageTitle, SummaryRow } from '@/components/checkout/CheckoutUI';
 import { getPlan } from '@/lib/plans';
 import { PlanId } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
-import { Lock, ShieldCheck, AlertTriangle, RefreshCw, ArrowRight } from 'lucide-react';
+import { Lock, ShieldCheck, AlertTriangle, ArrowRight } from 'lucide-react';
 
 interface RazorpaySuccessResponse {
   razorpay_payment_id: string;
@@ -178,195 +176,138 @@ function PaymentContent() {
 
   if (!authLoading && !user) {
     return (
-      <div className="wrap-checkout" style={{ padding: '80px 20px', textAlign: 'center' }}>
-        <div className="card" style={{ maxWidth: '480px', margin: '0 auto' }}>
-          <h2 style={{ marginBottom: '12px' }}>Please log in to continue</h2>
-          <p style={{ color: 'var(--ink-muted)', marginBottom: '20px' }}>You need a CareCircle account before starting a subscription.</p>
+      <CheckoutShell step={3} wide={false}>
+        <div className="panel empty">
+          <span className="icon-tile"><Lock size={22} /></span>
+          <h3>Please log in to continue</h3>
+          <p style={{ marginBottom: '20px' }}>You need a CareCircle account before starting a subscription.</p>
           <Link href={`/login?redirect=${encodeURIComponent(`/checkout/payment?plan=${plan.id}`)}`} className="btn btn-primary">
-            Log in <ArrowRight size={16} />
+            Log in <ArrowRight size={16} className="arrow" />
           </Link>
         </div>
-      </div>
+      </CheckoutShell>
     );
   }
 
-  const trialText = plan.hasTrial ? `Start your ${plan.trialDays}-day free trial. ₹0 charged today.` : `₹${plan.priceMonthly} charged today.`;
+  const firstCharge = new Date(pageLoadedAt + plan.trialDays * 86400000).toLocaleDateString('en-IN', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
 
   return (
-    <div className="wrap-checkout" style={{ padding: '36px 20px 80px' }}>
-      <CheckoutStepper currentStep={3} />
+    <CheckoutShell step={3}>
+      <PageTitle
+        title={plan.hasTrial ? 'Set up AutoPay for your trial' : 'Payment'}
+        sub={plan.hasTrial ? `Nothing is charged today. Your first ₹${plan.priceMonthly} payment is on ${firstCharge}.` : `₹${plan.priceMonthly} will be charged today.`}
+      />
 
-      <div style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto 32px' }}>
-        <h1 style={{ fontSize: 'clamp(1.9rem, 3.2vw, 2.4rem)', marginBottom: '8px' }}>Payment & AutoPay Setup</h1>
-        <p style={{ fontSize: '0.94rem', color: 'var(--ink-muted)' }}>{trialText}</p>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px', alignItems: 'start' }}>
-        <div>
-          <div className="card">
-            {(errorMessage || initError) && (
-              <div className="alert-box error" style={{ marginBottom: '22px' }}>
-                <AlertTriangle size={20} style={{ flexShrink: 0 }} />
-                <div>
-                  <strong style={{ display: 'block', marginBottom: '2px' }}>
-                    {initError ? 'Checkout unavailable' : 'Payment unsuccessful'}
-                  </strong>
-                  <span>{errorMessage || initError}</span>
-                </div>
-              </div>
-            )}
-
-            <h4 style={{ fontSize: '0.88rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--ink-muted)', marginBottom: '10px' }}>
-              Billing contact
-            </h4>
-            <p style={{ marginBottom: '20px', fontSize: '0.94rem' }}>
-              <strong>{user?.name}</strong>
-              <br />
-              <span style={{ color: 'var(--ink-muted)' }}>{user?.email}</span>
-            </p>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                background: 'var(--panel)',
-                padding: '12px 14px',
-                borderRadius: '10px',
-                fontSize: '0.82rem',
-                color: 'var(--ink-muted)',
-                marginBottom: '20px'
-              }}
-            >
-              <Lock size={16} color="var(--teal)" style={{ flexShrink: 0 }} />
-              <span>
-                You&apos;ll choose UPI AutoPay, card, or netbanking in the secure <strong>Razorpay</strong> window.
-                CareCircle never sees or stores your card number, UPI PIN, or CVV.
-              </span>
-            </div>
-
-            {subscriptionData?.isSandbox && (
-              <div
-                style={{
-                  border: '1px dashed var(--gold)',
-                  background: 'var(--gold-soft)',
-                  padding: '12px 14px',
-                  borderRadius: '10px',
-                  marginBottom: '20px',
-                  fontSize: '0.8rem'
-                }}
-              >
-                <div style={{ fontWeight: 600, color: 'var(--gold-hover)', marginBottom: '6px' }}>
-                  🛠️ Local sandbox (no Razorpay keys configured) — no real payment happens:
-                </div>
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  {(['success', 'declined', 'network'] as const).map(outcome => (
-                    <label key={outcome} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="simulateOutcome"
-                        value={outcome}
-                        checked={simulateOutcome === outcome}
-                        onChange={() => setSimulateOutcome(outcome)}
-                      />
-                      <span>{outcome === 'declined' ? 'Declined' : outcome === 'network' ? 'Network failure' : 'Success'}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={subscriptionData?.isSandbox ? handleSandboxCheckout : handleRazorpayCheckout}
-              disabled={processing || !subscriptionData}
-              className="btn btn-primary btn-block btn-lg"
-            >
-              {processing ? (
-                <>
-                  <RefreshCw size={18} style={{ animation: 'spin 1s linear infinite' }} />
-                  Waiting for Razorpay...
-                </>
-              ) : !subscriptionData && !initError ? (
-                'Preparing secure checkout...'
-              ) : (
-                <>
-                  {plan.hasTrial ? `Authorize ${plan.trialDays}-Day Free Trial (₹0)` : `Pay ₹${plan.priceMonthly}`} <ArrowRight size={18} />
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* ORDER SUMMARY SIDEBAR */}
-        <div>
-          <div className="card">
-            <h3 style={{ fontSize: '1.25rem', marginBottom: '16px' }}>Order summary</h3>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '14px', borderBottom: '1px solid var(--line-subtle)' }}>
+      <div className="checkout-grid">
+        <section className="panel" aria-labelledby="pay-title">
+          {(errorMessage || initError) && (
+            <div className="alert-box error" role="alert">
+              <AlertTriangle size={18} />
               <div>
-                <strong style={{ fontSize: '1.05rem', color: 'var(--ink)' }}>{plan.name}</strong>
-                <p style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>Recurring Monthly Subscription</p>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: '1.1rem', fontWeight: 600 }}>₹{plan.priceMonthly}</span>
-                <span style={{ fontSize: '0.8rem', color: 'var(--ink-muted)' }}>/mo</span>
+                <strong style={{ display: 'block', marginBottom: '2px' }}>
+                  {initError ? 'Checkout unavailable' : 'Payment didn’t go through'}
+                </strong>
+                <span>{errorMessage || initError}</span>
               </div>
             </div>
+          )}
 
-            {plan.hasTrial && (
-              <div style={{ padding: '16px 0', borderBottom: '1px solid var(--line-subtle)', display: 'grid', gap: '10px', fontSize: '0.88rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--ink-muted)' }}>Trial duration:</span>
-                  <strong>{plan.trialDays} Days Free</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--ink-muted)' }}>Due today:</span>
-                  <strong style={{ color: 'var(--green)' }}>₹0</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--ink-muted)' }}>First charge on:</span>
-                  <strong>
-                    {new Date(pageLoadedAt + plan.trialDays * 86400000).toLocaleDateString('en-IN', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--ink-muted)' }}>First charge:</span>
-                  <strong>₹{plan.priceMonthly}</strong>
-                </div>
-              </div>
-            )}
-
-            <div style={{ marginTop: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', color: 'var(--teal)', fontWeight: 600, marginBottom: '8px' }}>
-                <ShieldCheck size={18} />
-                <span>Cancel anytime</span>
-              </div>
-              <p style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', lineHeight: 1.5 }}>
-                Cancel with one click in your account settings before your trial ends and you won&apos;t be charged.
-              </p>
+          <h2 id="pay-title" className="panel-label" style={{ marginBottom: '10px' }}>Billing contact</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '22px' }}>
+            <span className="avatar" style={{ width: '40px', height: '40px', fontSize: '0.85rem' }}>{user?.avatar || 'CC'}</span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 600 }}>{user?.name}</div>
+              <div style={{ fontSize: '0.86rem', color: 'var(--ink-muted)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.email}</div>
             </div>
           </div>
-        </div>
+
+          <div className="notice teal" style={{ marginBottom: '20px' }}>
+            <Lock size={18} />
+            <span>
+              You&apos;ll choose UPI AutoPay, card or netbanking in Razorpay&apos;s secure window. CareCircle never sees your card number, UPI PIN or CVV.
+            </span>
+          </div>
+
+          {subscriptionData?.isSandbox && (
+            <div className="notice amber" style={{ display: 'block' }}>
+              <strong style={{ marginBottom: '8px' }}>Local sandbox: no real payment happens</strong>
+              <div className="segmented" role="radiogroup" aria-label="Simulated outcome">
+                {(['success', 'declined', 'network'] as const).map(outcome => (
+                  <button
+                    key={outcome}
+                    type="button"
+                    role="radio"
+                    aria-checked={simulateOutcome === outcome}
+                    className={simulateOutcome === outcome ? 'active' : ''}
+                    onClick={() => setSimulateOutcome(outcome)}
+                  >
+                    {outcome === 'declined' ? 'Declined' : outcome === 'network' ? 'Network error' : 'Success'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={subscriptionData?.isSandbox ? handleSandboxCheckout : handleRazorpayCheckout}
+            disabled={processing || !subscriptionData}
+            className="btn btn-primary btn-block btn-lg"
+          >
+            {processing ? (
+              <><span className="spinner" /> Waiting for Razorpay…</>
+            ) : !subscriptionData && !initError ? (
+              <><span className="spinner" /> Preparing secure checkout…</>
+            ) : (
+              <>
+                {plan.hasTrial ? `Start ${plan.trialDays}-day free trial` : `Pay ₹${plan.priceMonthly}`} <ArrowRight size={18} className="arrow" />
+              </>
+            )}
+          </button>
+
+          <div style={{ textAlign: 'center', marginTop: '14px' }}>
+            <Link href={`/checkout/confirm?plan=${plan.id}`} className="link" style={{ fontSize: '0.88rem' }}>Change plan</Link>
+          </div>
+        </section>
+
+        {/* ORDER SUMMARY */}
+        <section className="panel" aria-labelledby="order-title">
+          <h3 id="order-title" style={{ fontSize: '1.2rem', marginBottom: '14px' }}>Order summary</h3>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', marginBottom: '14px' }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '1.02rem' }}>{plan.name}</div>
+              <div style={{ fontSize: '0.84rem', color: 'var(--ink-muted)' }}>Monthly subscription</div>
+            </div>
+            <div style={{ fontWeight: 600 }}>₹{plan.priceMonthly}<span style={{ color: 'var(--ink-muted)', fontWeight: 400, fontSize: '0.84rem' }}>/mo</span></div>
+          </div>
+
+          {plan.hasTrial && (
+            <div className="summary" style={{ marginBottom: '16px' }}>
+              <SummaryRow label="Free trial" value={`${plan.trialDays} days`} />
+              <SummaryRow label="Due today" value="₹0" tone="green" strong />
+              <SummaryRow label={`First charge on ${firstCharge}`} value={`₹${plan.priceMonthly}`} />
+            </div>
+          )}
+
+          <p className="fine-print">
+            <ShieldCheck size={16} />
+            <span>Cancel any time from your billing page. {plan.hasTrial ? 'Cancel before your trial ends and you won’t be charged.' : ''}</span>
+          </p>
+        </section>
       </div>
-    </div>
+    </CheckoutShell>
   );
 }
 
 export default function PaymentPage() {
   return (
-    <>
-      <Navbar />
-      <main>
-        <Suspense fallback={<div style={{ textAlign: 'center', padding: '60px' }}>Loading payment gateway...</div>}>
-          <PaymentContent />
-        </Suspense>
-      </main>
-      <Footer />
-    </>
+    <Suspense fallback={<div className="wrap" style={{ paddingTop: '120px' }}><div className="skeleton" style={{ height: '420px', maxWidth: '1000px', margin: '0 auto' }} /></div>}>
+      <PaymentContent />
+    </Suspense>
   );
 }

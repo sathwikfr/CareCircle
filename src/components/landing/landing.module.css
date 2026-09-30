@@ -219,7 +219,7 @@
 .langTabs button[aria-pressed='true'] {
   background: var(--teal);
   border-color: var(--teal);
-  color: #fff;
+  color: var(--on-teal);
 }
 
 .transcript {
@@ -276,7 +276,7 @@
 .parent {
   align-self: flex-end;
   background: var(--teal);
-  color: #fff;
+  color: var(--on-teal);
   border-radius: 16px 16px 4px 16px;
 }
 
@@ -306,7 +306,8 @@
 }
 
 .typing.right i {
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--on-teal);
+  opacity: 0.8;
 }
 
 .typing i:nth-child(2) { animation-delay: 150ms; }
@@ -460,7 +461,7 @@
 }
 
 .compareHead > div:last-child {
-  color: #fff;
+  color: var(--on-teal);
   background: var(--teal);
 }
 
@@ -604,7 +605,7 @@
   height: 56px;
   border-radius: 50%;
   background: var(--teal);
-  color: #fff;
+  color: var(--on-teal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -675,7 +676,7 @@
 .day.today {
   background: var(--teal);
   border-color: var(--teal);
-  color: #fff;
+  color: var(--on-teal);
 }
 
 .dayDots {
@@ -694,7 +695,7 @@
 
 .dayDots i.miss { background: var(--gold); }
 .dayDots i.todo { background: var(--line-strong); }
-.day.today .dayDots i { background: rgba(255, 255, 255, 0.9); }
+.day.today .dayDots i { background: var(--on-teal); }
 .day.today .dayDots i.todo { background: rgba(255, 255, 255, 0.35); }
 
 .slot {
@@ -865,7 +866,7 @@
   top: -13px;
   left: 28px;
   background: var(--teal);
-  color: #fff;
+  color: var(--on-teal);
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.08em;

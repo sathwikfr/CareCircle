@@ -38,7 +38,7 @@
 | Area | Reality |
 |---|---|
 | Framework | Next.js **16.3.6** App Router, React 19.2, TypeScript strict. |
-| Styling | Plain CSS (`src/app/globals.css`) + inline styles + `lucide-react`. **No Tailwind / shadcn.** |
+| Styling | Plain CSS design system in `src/app/globals.css` (tokens on `:root`, dark theme under `[data-theme='dark']`, shared classes: `.btn`, `.panel`, `.form-input`, `.segmented`, `.badge`, `.notice`, …) + CSS module for the landing page + `lucide-react`. Use tokens (`var(--teal)`, `--on-teal`, `--teal-text`), never raw hex. Dark mode: inline `<head>` script from `lib/theme.ts` + `ThemeToggle`. **No Tailwind / shadcn.** |
 | DB | Prisma 6 + Supabase Postgres. `db push`, no migrations history. |
 | Data layer | `src/lib/db.ts` is **Prisma-only** (no caches); write helpers throw on failure. |
 | Auth | Custom. bcrypt passwords; opaque DB sessions (`sess_…` in cookie `carecircle_session`), checked against `DBSession` on every request; no JWT. Google = Google Identity Services ID token verified server-side (needs `GOOGLE_CLIENT_ID`). OTP = DB-stored hashed codes; **no SMS provider**, so phone OTP only works under `next dev` (503 elsewhere). Master OTP `123456` works only under `next dev`. |
@@ -82,8 +82,13 @@ src/lib/
   alerts.ts                 raiseAlert() (dedupe per call+title, email via Resend), raiseUnreachableAlert()
   secrets.ts                timing-safe secret compare, Bearer/header reader
 src/components/GoogleSignInButton.tsx   GIS button (hidden when not configured)
+src/components/               Navbar (+Brand), Footer, Reveal, ThemeToggle, ui/Modal (portal),
+                              auth/AuthUI (AuthShell, PasswordField, PhoneField, StrengthMeter),
+                              onboarding/WizardUI (WizardShell, StepHeader, SlotPicker, FoodPicker),
+                              checkout/CheckoutUI, account/AccountUI, landing/* (CallDemo, DashboardPreview),
+                              dashboard/* (helpers.computeCallStats, 6 panels, DashboardModals)
 src/app/                    pages: landing, login, signup, reset-password, onboarding (6 steps),
-                            dashboard (6 tabs, one 80 KB file), account/profile, account/billing,
+                            dashboard (6 tabs; panels in components/dashboard), account/profile, account/billing,
                             checkout/confirm → payment → success
 ```
 
@@ -144,7 +149,7 @@ All private routes: **S** = `requireUser`, **O** = `requireOwnedParent` (404 for
 | Razorpay subscriptions | DONE in code; needs real keys, plan ids and webhook secret; untested against live Razorpay |
 | Groq vision draft → confirm | DONE; reports persisted; no sample fallback; PDFs rejected |
 | Onboarding wizard | DONE (meds keep timing/food relation; Malayalam added; honest test-call) |
-| Dashboard | Today card, Trends, call history from real data; CSV export. Still one big file (split NOT STARTED) |
+| Dashboard | Today card, Trends, call history from real data; CSV export. Split into `components/dashboard/*` (DONE 2026-09-30) |
 | Pause/resume | DONE (real dates) |
 | Caregiver invites | PARTIAL: row only; no email, no invitee access |
 | Smart call-time suggestions | PARTIAL: accept/dismiss works; **no generator** |
@@ -189,7 +194,9 @@ Unverified against real Sarvam: per-minute price, DND/NDNC handling, webhook ret
 - Razorpay live path and Google sign-in are implemented but untested with real credentials.
 - 3 old CallLogs in the DB are from earlier tests (left untouched). `db push` is used, not migrations (the call-pipeline columns were applied as reviewed additive SQL; never `--accept-data-loss`).
 - A dev server started before a schema change keeps a stale Prisma client: restart `next dev` after schema changes. On Windows `prisma generate` can fail with EPERM while a dev server holds the engine DLL.
-- Lint: ~11 pre-existing errors (react-hooks set-state-in-effect, `any`) in dashboard/onboarding/billing/AuthContext.
+- Lint: 8 pre-existing errors (react-hooks set-state-in-effect in data-loading effects, one `any` in onboarding, `prefer-const` in medicineExtractor).
+- UI shows sample prescriptions only under `next dev`. Privacy policy / Terms pages do not exist yet (signup text mentions them).
+- `scripts/cleanup-e2e-account.ts <claude-e2e-…@example.com> [--confirm]` removes one throwaway test account (dry run by default).
 
 ## 11. Open questions for the user
 - Pricing: raise prices or lower `callsPerDay` (see §10).
