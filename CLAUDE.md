@@ -186,6 +186,7 @@ Cron reminders are fail-closed (no EmailLog row = no email, so they never repeat
 | Calls per day vs plan | ENFORCED at dispatch: `callsPerDay` Free 1 / Family 3 / Extended 3 (earliest slots win); dashboard warns when a schedule exceeds it |
 | Replace legacy db.ts with Prisma | DONE (same exports, Prisma-only) |
 | E.164 phone normalisation | DONE |
+| International customers' phone numbers | DONE 2026-09-30: `PhoneField` has a country picker (`PHONE_COUNTRIES` in `lib/phone.ts`; typing a full `+44…` switches it); signup/login/OTP validate with `normalizePhone()` and send E.164. The **parent's** phone stays India-only (`indiaOnly`, fixed +91) because Saathi calls Indian numbers |
 
 ## 9. Sarvam call pipeline (built 2026-09-30)
 
