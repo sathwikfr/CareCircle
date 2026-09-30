@@ -6,12 +6,13 @@ type RevealProps = {
   children: React.ReactNode;
   delay?: number;
   as?: 'div' | 'section' | 'li' | 'article';
+  variant?: 'up' | 'fade' | 'scale' | 'left' | 'right';
   className?: string;
   style?: React.CSSProperties;
 };
 
 /** Fades its children up the first time they scroll into view. */
-export function Reveal({ children, delay = 0, as = 'div', className = '', style }: RevealProps) {
+export function Reveal({ children, delay = 0, as = 'div', variant = 'up', className = '', style }: RevealProps) {
   const ref = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -35,7 +36,7 @@ export function Reveal({ children, delay = 0, as = 'div', className = '', style 
   return (
     <Tag
       ref={ref}
-      className={`reveal${visible ? ' in' : ''}${className ? ` ${className}` : ''}`}
+      className={`reveal${variant !== 'up' ? ` v-${variant}` : ''}${visible ? ' in' : ''}${className ? ` ${className}` : ''}`}
       style={{ ...style, ['--reveal-delay' as string]: `${delay}ms` }}
     >
       {children}

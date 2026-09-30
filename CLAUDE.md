@@ -38,7 +38,7 @@
 | Area | Reality |
 |---|---|
 | Framework | Next.js **16.3.6** App Router, React 19.2, TypeScript strict. |
-| Styling | Plain CSS design system in `src/app/globals.css` (tokens on `:root`, dark theme under `[data-theme='dark']`, shared classes: `.btn`, `.panel`, `.form-input`, `.segmented`, `.badge`, `.notice`, …) + CSS module for the landing page + `lucide-react`. Use tokens (`var(--teal)`, `--on-teal`, `--teal-text`), never raw hex. Dark mode: inline `<head>` script from `lib/theme.ts` + `ThemeToggle`. **No Tailwind / shadcn.** |
+| Styling | Plain CSS design system in `src/app/globals.css` (tokens on `:root`, dark theme under `[data-theme='dark']`, shared classes: `.btn`, `.panel`, `.form-input`, `.segmented`, `.badge`, `.notice`, …) + CSS module for the landing page + `lucide-react`. Palette is white + blue (brand `--teal` = royal blue #2563eb, accent `--gold` = sky blue, deep navy `--teal-deep`); the token names are legacy. Use tokens (`var(--teal)`, `--on-teal`, `--teal-text`), never raw hex. Dark mode: inline `<head>` script from `lib/theme.ts` + `ThemeToggle`. **No Tailwind / shadcn.** |
 | DB | Prisma 6 + Supabase Postgres. `db push`, no migrations history. |
 | Data layer | `src/lib/db.ts` is **Prisma-only** (no caches); write helpers throw on failure. |
 | Auth | Custom. bcrypt passwords; opaque DB sessions (`sess_…` in cookie `carecircle_session`), checked against `DBSession` on every request; no JWT. Google = Google Identity Services ID token verified server-side (needs `GOOGLE_CLIENT_ID`). OTP = DB-stored hashed codes; **no SMS provider**, so phone OTP only works under `next dev` (503 elsewhere). Master OTP `123456` works only under `next dev`. |

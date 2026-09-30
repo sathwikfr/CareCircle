@@ -122,7 +122,7 @@ function PaymentContent() {
       name: 'CareCircle',
       description: `${plan.name} — monthly subscription`,
       prefill: { name: user.name, email: user.email, contact: user.phone || '' },
-      theme: { color: '#2f4a45' },
+      theme: { color: '#2563eb' },
       handler: async (resp: RazorpaySuccessResponse) => {
         try {
           await verifyWithServer(resp, 'Razorpay');

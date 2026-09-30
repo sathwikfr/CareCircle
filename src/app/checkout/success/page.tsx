@@ -25,7 +25,7 @@ function SuccessContent() {
   useEffect(() => {
     try {
       if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 }, colors: ['#2f4a45', '#c2822f', '#e9b877', '#6fb0a4'] });
+        confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 }, colors: ['#2563eb', '#0284c7', '#7dd3fc', '#60a5fa'] });
       }
     } catch {
       // safe fallback if canvas is unavailable

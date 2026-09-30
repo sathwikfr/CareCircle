@@ -7,6 +7,10 @@ import { Footer } from '@/components/Footer';
 import { Reveal } from '@/components/Reveal';
 import { CallDemo } from '@/components/landing/CallDemo';
 import { DashboardPreview } from '@/components/landing/DashboardPreview';
+import { ScrollProgress } from '@/components/motion/ScrollProgress';
+import { FloatingCta } from '@/components/motion/FloatingCta';
+import { Ticker } from '@/components/motion/Ticker';
+import { WaveBand } from '@/components/motion/WaveBand';
 import styles from '@/components/landing/landing.module.css';
 import { PLANS } from '@/lib/plans';
 import { PlanId } from '@/lib/types';
@@ -15,6 +19,21 @@ import {
   ArrowRight, Check, X, Phone, Languages, ShieldCheck, Camera, CalendarClock, LineChart,
   PauseCircle, Download, Stethoscope, Siren, HeartHandshake, ClipboardCheck, Plus
 } from 'lucide-react';
+
+const TICKER = [
+  { icon: <Languages size={16} />, text: 'हिंदी' },
+  { text: 'తెలుగు' },
+  { text: 'தமிழ்' },
+  { text: 'മലയാളം' },
+  { text: 'ಕನ್ನಡ' },
+  { text: 'বাংলা' },
+  { text: 'मराठी' },
+  { text: 'ગુજરાતી' },
+  { text: 'English' },
+  { icon: <Phone size={16} />, text: 'Works on any phone, even a landline' },
+  { icon: <ShieldCheck size={16} />, text: 'Never gives medical advice' },
+  { icon: <HeartHandshake size={16} />, text: 'Your parent agrees before any call' },
+];
 
 const COMPARE = [
   { app: 'Needs a smartphone, unlocked and online', call: 'Any phone that rings, even a basic keypad phone' },
@@ -81,27 +100,30 @@ export default function LandingPage() {
 
   return (
     <>
+      <ScrollProgress />
+      <FloatingCta href={primaryHref} label={user ? 'Open dashboard' : 'Start free'} />
       <Navbar />
 
       <main id="main">
         {/* HERO */}
         <section className={styles.hero}>
           <div className={`wrap ${styles.heroGrid}`}>
-            <div className="animate-fade-in">
-              <span className="chip" style={{ marginBottom: '24px' }}>
+            <div>
+              <span className="chip anim-load d1" style={{ marginBottom: '24px' }}>
                 <span className="dot live" />
                 Meet Saathi, a voice companion for your parents
               </span>
 
               <h1 className={`h-display ${styles.heroTitle}`}>
-                A daily call for your parents. <em>Peace of mind</em> for you.
+                <span className="anim-load d2" style={{ display: 'block' }}>A daily call for your parents.</span>
+                <span className="anim-load d3" style={{ display: 'block' }}><em className="draw-line">Peace of mind</em> for you.</span>
               </h1>
 
-              <p className={styles.heroLead}>
+              <p className={`${styles.heroLead} anim-load d4`}>
                 Saathi phones your parents at the times you choose, in their own language. It checks on their medicines and how they are feeling, and every call lands on your dashboard.
               </p>
 
-              <div className={styles.heroCtas}>
+              <div className={`${styles.heroCtas} anim-load d5`}>
                 <Link href={primaryHref} className="btn btn-primary btn-lg">
                   {user ? 'Go to your dashboard' : 'Start free'} <ArrowRight size={18} className="arrow" />
                 </Link>
@@ -110,23 +132,25 @@ export default function LandingPage() {
                 </Link>
               </div>
 
-              <div className={styles.proofRow}>
+              <div className={`${styles.proofRow} anim-load-fade d6`}>
                 <span><Phone size={16} /> No app or smartphone needed</span>
                 <span><Languages size={16} /> 9 Indian languages</span>
                 <span><ShieldCheck size={16} /> Never gives medical advice</span>
               </div>
             </div>
 
-            <div className="animate-fade-in" style={{ animationDelay: '120ms' }}>
+            <div className="anim-load-scale d3" style={{ position: 'relative' }}>
               <CallDemo />
             </div>
           </div>
         </section>
 
+        <Ticker items={TICKER} />
+
         {/* WHY A PHONE CALL */}
         <section id="why" className="section section-alt">
           <div className="wrap grid-2">
-            <Reveal>
+            <Reveal variant="left">
               <span className="eyebrow">Why a phone call</span>
               <h2 className="h-section">Your parents already know how to answer a phone.</h2>
               <p className="lead" style={{ marginBottom: '16px' }}>
@@ -137,7 +161,7 @@ export default function LandingPage() {
               </p>
             </Reveal>
 
-            <Reveal delay={120}>
+            <Reveal delay={120} variant="right">
               <div className={styles.compare}>
                 <div className={styles.compareHead}>
                   <div>Reminder apps</div>
@@ -159,7 +183,7 @@ export default function LandingPage() {
           <div className="wrap">
             <Reveal className="section-head">
               <span className="eyebrow">How it works</span>
-              <h2 className="h-section">Set it up once. Saathi takes it from there.</h2>
+              <h2 className="h-section split-lines"><span><span style={{ '--line': 0 } as React.CSSProperties}>Set it up once.</span></span> <span><span style={{ '--line': 1 } as React.CSSProperties}>Saathi takes it from there.</span></span></h2>
               <p className="lead">You add your parent and their medicines. Saathi calls on schedule, and you see how each call went.</p>
             </Reveal>
 
@@ -257,7 +281,7 @@ export default function LandingPage() {
               </div>
             </Reveal>
 
-            <Reveal delay={120}>
+            <Reveal delay={120} variant="scale">
               <DashboardPreview />
             </Reveal>
           </div>
@@ -267,7 +291,7 @@ export default function LandingPage() {
         <section id="safety" className={`section ${styles.safety}`}>
           <div className="wrap grid-2" style={{ alignItems: 'start' }}>
             <Reveal>
-              <span className="eyebrow" style={{ color: '#e9b877' }}>Built with care</span>
+              <span className="eyebrow" style={{ color: '#7dd3fc' }}>Built with care</span>
               <h2 className="h-section">A companion, <em>not a doctor.</em></h2>
               <p style={{ fontSize: '1.08rem', lineHeight: 1.65, maxWidth: '44ch' }}>
                 Saathi is designed to be gentle and to know its limits. It never tries to replace the people and professionals in your parent’s life. It helps them stay connected to you.
@@ -350,7 +374,8 @@ export default function LandingPage() {
         {/* FINAL CTA */}
         <section className="section">
           <div className="wrap">
-            <Reveal className={styles.finalCta}>
+            <Reveal className={styles.finalCta} variant="scale">
+              <div className={styles.waveWrap}><WaveBand /></div>
               <h2 className="h-section" style={{ maxWidth: '18ch', margin: '0 auto 16px' }}>
                 Tomorrow morning, someone will ask how she’s doing.
               </h2>

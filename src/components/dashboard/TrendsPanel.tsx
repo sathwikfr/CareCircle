@@ -3,6 +3,7 @@
 import React from 'react';
 import { Download, LineChart } from 'lucide-react';
 import { CallStats, moodLabel } from './helpers';
+import { CountUp } from '@/components/motion/CountUp';
 
 export function TrendsPanel({ parentName, stats, onExport }: { parentName: string; stats: CallStats; onExport: () => void }) {
   const { completedCalls, adherencePct, reachabilityPct, answered30, last30, confirmed30, moodBreakdown, last7Days } = stats;
@@ -24,14 +25,14 @@ export function TrendsPanel({ parentName, stats, onExport }: { parentName: strin
       <div className="stat-grid">
         <div className="stat">
           <span className="panel-label">Medicines taken</span>
-          <div className="stat-value" style={{ color: 'var(--teal)' }}>{adherencePct === null ? '—' : `${adherencePct}%`}</div>
+          <div className="stat-value" style={{ color: 'var(--teal)' }}>{adherencePct === null ? '—' : <CountUp value={adherencePct} suffix="%" />}</div>
           <p>{confirmed30} of {answered30.length} answered calls, last 30 days</p>
           <div className="meter" aria-hidden="true"><i style={{ width: `${adherencePct ?? 0}%` }} /></div>
         </div>
 
         <div className="stat">
           <span className="panel-label">Picked up</span>
-          <div className="stat-value" style={{ color: 'var(--green)' }}>{reachabilityPct === null ? '—' : `${reachabilityPct}%`}</div>
+          <div className="stat-value" style={{ color: 'var(--green)' }}>{reachabilityPct === null ? '—' : <CountUp value={reachabilityPct} suffix="%" />}</div>
           <p>{answered30.length} of {last30.length} calls, last 30 days</p>
           <div className="meter" aria-hidden="true"><i style={{ width: `${reachabilityPct ?? 0}%`, background: 'var(--green)' }} /></div>
         </div>
@@ -66,7 +67,7 @@ export function TrendsPanel({ parentName, stats, onExport }: { parentName: strin
               <span className="pct">{bar.total ? `${bar.pct}%` : ''}</span>
               <div
                 className={`bar ${!bar.total ? 'none' : bar.concern ? 'warn' : ''}`}
-                style={{ height: bar.total ? `${Math.max(bar.pct, 6) * 1.5}px` : '4px' }}
+                style={{ height: bar.total ? `${Math.max(bar.pct, 6) * 1.5}px` : '4px', '--i': i } as React.CSSProperties}
               />
             </div>
           ))}

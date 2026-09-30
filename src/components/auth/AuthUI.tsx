@@ -38,7 +38,7 @@ export function AuthShell({ children, asideTitle, asidePoints = DEFAULT_POINTS }
 
       <aside className="auth-aside" aria-hidden="true">
         <div>
-          <span className="eyebrow" style={{ color: '#e9b877' }}>CareCircle</span>
+          <span className="eyebrow" style={{ color: '#7dd3fc' }}>CareCircle</span>
           <h2>{asideTitle ?? <>Stay close to your parents, <em>even from far away.</em></>}</h2>
         </div>
 
@@ -71,7 +71,7 @@ function ExampleCallCard() {
           <span
             style={{
               width: '36px', height: '36px', borderRadius: '50%',
-              background: 'linear-gradient(145deg, #e4a857, #b87320)', color: '#fff',
+              background: 'linear-gradient(145deg, #60a5fa, #1d4ed8)', color: '#fff',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontFamily: 'var(--font-serif)', fontWeight: 600
             }}
