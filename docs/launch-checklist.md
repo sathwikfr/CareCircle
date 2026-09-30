@@ -25,7 +25,7 @@ same names under Project → Settings → Environment Variables.
 5. Repeat 1-3 with **Live** keys when you go live. Live and test plan ids are different. GST: prices do not include it; decide whether to add it.
 
 ## 3. Email
-Resend → Domains → verify a domain you own → set `RESEND_FROM_EMAIL=CareCircle <no-reply@yourdomain>`. Also set `NEXT_PUBLIC_SUPPORT_EMAIL` (shown on the Privacy and Terms pages).
+Resend → Domains → verify a domain you own → set `RESEND_FROM_EMAIL=Aaptha <no-reply@yourdomain>`. Also set `NEXT_PUBLIC_SUPPORT_EMAIL` (shown on the Privacy and Terms pages).
 
 ## 4. Deploy (Vercel)
 1. Import the GitHub repo. Framework: Next.js. Build command stays `npm run build`.

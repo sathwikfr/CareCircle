@@ -1,7 +1,7 @@
 /**
  * src/lib/phone.ts
  *
- * E.164 phone normalisation for CareCircle.
+ * E.164 phone normalisation for Aaptha.
  *
  * Rules (India-first, international-aware):
  *  - Strip spaces, dashes, dots, brackets, parentheses

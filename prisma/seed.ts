@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding CareCircle database...');
+  console.log('Seeding Aaptha database...');
 
   const salt = await bcrypt.genSalt(10);
   const passwordHash = await bcrypt.hash('CareCircleDemo2025!', salt);

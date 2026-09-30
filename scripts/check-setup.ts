@@ -31,7 +31,7 @@ const GROUPS: Group[] = [
     checks: [
       {
         name: 'NEXT_PUBLIC_APP_URL',
-        hint: 'Your public https address, e.g. https://carecircle.in (an ngrok URL works for local call tests)',
+        hint: 'Your public https address, e.g. https://your-domain.com (an ngrok URL works for local call tests)',
         valid: v => (/^https:\/\//.test(v) ? (/localhost|127\.0\.0\.1/.test(v) ? 'still localhost' : null) : 'must start with https:// for production')
       },
       { name: 'CRON_SECRET', hint: 'Any long random string (already generated locally)', valid: v => (v.length >= 24 ? null : 'too short (use 24+ characters)') },
@@ -45,7 +45,7 @@ const GROUPS: Group[] = [
       { name: 'RESEND_API_KEY', hint: 'Resend dashboard → API Keys' },
       {
         name: 'RESEND_FROM_EMAIL',
-        hint: 'An address on a domain you verified in Resend, e.g. CareCircle <no-reply@yourdomain.com>',
+        hint: 'An address on a domain you verified in Resend, e.g. Aaptha <no-reply@yourdomain.com>',
         valid: v => (/@resend\.dev/i.test(v) ? 'resend.dev only delivers to your own address' : null)
       }
     ]
@@ -139,7 +139,7 @@ async function main() {
   const env = process.env;
   let notReady = 0;
 
-  console.log('CareCircle launch readiness\n');
+  console.log('Aaptha launch readiness\n');
 
   const conflicts: string[] = [];
   const local = readKeys('.env.local');

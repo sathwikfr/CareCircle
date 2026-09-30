@@ -1,5 +1,5 @@
 /**
- * CareCircle data access layer.
+ * Aaptha data access layer.
  *
  * Prisma (Supabase Postgres) is the single source of truth. There are no
  * in-memory caches: on serverless each instance would hold a different copy,

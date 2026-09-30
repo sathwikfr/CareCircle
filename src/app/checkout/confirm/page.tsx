@@ -40,7 +40,7 @@ function ConfirmContent() {
     }
 
     if (!termsChecked) {
-      setErrorNotice('Please confirm you understand CareCircle is not a medical or emergency service.');
+      setErrorNotice('Please confirm you understand Aaptha is not a medical or emergency service.');
       return;
     }
 
@@ -149,7 +149,7 @@ function ConfirmContent() {
             I&apos;ve told my parent(s) about Saathi and they&apos;re happy to receive check-in calls on their phone.
           </CheckRow>
           <CheckRow checked={termsChecked} onChange={(v) => { setTermsChecked(v); setErrorNotice(''); }} title="Not a medical service">
-            I understand CareCircle is a family check-in companion, not a doctor or an emergency service.
+            I understand Aaptha is a family check-in companion, not a doctor or an emergency service.
             {' '}By continuing I agree to the <Link href="/terms" target="_blank">Terms of Service</Link> and <Link href="/privacy" target="_blank">Privacy Policy</Link>.
           </CheckRow>
 

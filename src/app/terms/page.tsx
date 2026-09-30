@@ -4,8 +4,8 @@ import { LegalPage, ContactLine } from '@/components/LegalPage';
 import { PLANS, FREE_TRIAL_DAYS } from '@/lib/plans';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service — CareCircle',
-  description: 'The rules for using CareCircle and Saathi AI check-in calls.'
+  title: 'Terms of Service — Aaptha',
+  description: 'The rules for using Aaptha and Saathi AI check-in calls.'
 };
 
 /*
@@ -17,14 +17,14 @@ export default function TermsPage() {
   return (
     <LegalPage
       title="Terms of Service"
-      intro="These are the ground rules for using CareCircle. By creating an account you agree to them and to our Privacy Policy."
+      intro="These are the ground rules for using Aaptha. By creating an account you agree to them and to our Privacy Policy."
     >
       <div className="callout">
-        <b>CareCircle is not a medical or emergency service.</b> Saathi is an AI that checks in and passes information to
+        <b>Aaptha is not a medical or emergency service.</b> Saathi is an AI that checks in and passes information to
         you. It cannot examine anyone, give medical advice, or send help. In an emergency call <b>112</b>.
       </div>
 
-      <h2>1. What CareCircle does</h2>
+      <h2>1. What Aaptha does</h2>
       <p>
         We phone the parent or relative you add, on the schedule you set, using an AI voice called Saathi. It asks whether
         medicines were taken and how they are feeling, then shows you the result and alerts you if something needs
@@ -46,7 +46,7 @@ export default function TermsPage() {
         <li>Calls can go unanswered, fail, or be blocked by the network or phone settings such as Do Not Disturb. We try again and tell you when we cannot reach your parent, but we cannot promise every call connects.</li>
         <li>The AI can mishear or misunderstand, especially on a poor line. Treat the summaries as helpful information, not as medical records or advice.</li>
         <li>Medicine lists read from a prescription photo are only a draft. You must check and confirm them, and we are not responsible for errors you did not correct.</li>
-        <li>Never rely on CareCircle to notice an emergency. It is an extra pair of ears, not a replacement for a carer, doctor or emergency services.</li>
+        <li>Never rely on Aaptha to notice an emergency. It is an extra pair of ears, not a replacement for a carer, doctor or emergency services.</li>
       </ul>
 
       <h2>4. Plans and payment</h2>
@@ -71,13 +71,13 @@ export default function TermsPage() {
 
       <h2>5. Using the service properly</h2>
       <p>
-        Do not use CareCircle to harass anyone, to call people who have not agreed, to try to break or overload the service,
+        Do not use Aaptha to harass anyone, to call people who have not agreed, to try to break or overload the service,
         or for anything unlawful. We may pause or close an account that does.
       </p>
 
       <h2>6. Our responsibility</h2>
       <p>
-        We work hard to keep CareCircle reliable, but it is provided as is, and outages and errors can happen. To the fullest
+        We work hard to keep Aaptha reliable, but it is provided as is, and outages and errors can happen. To the fullest
         extent the law allows, we are not liable for indirect or consequential loss, or for harm arising from a missed,
         failed or misunderstood call. Nothing here limits any right you have under law that cannot be excluded, and our
         total liability for any claim is limited to what you paid us in the three months before it arose.
@@ -92,7 +92,7 @@ export default function TermsPage() {
 
       <h2>8. Changes, law and contact</h2>
       <p>
-        We may update these terms and will tell you about material changes before they apply; continuing to use CareCircle
+        We may update these terms and will tell you about material changes before they apply; continuing to use Aaptha
         afterwards means you accept them. These terms are governed by the laws of India, and the courts of competent
         jurisdiction in India will decide disputes. Questions or complaints: write to <ContactLine />.
       </p>

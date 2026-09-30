@@ -1,5 +1,5 @@
 /**
- * Creates the CareCircle monthly plans in Razorpay at the prices in src/lib/plans.ts.
+ * Creates the Aaptha monthly plans in Razorpay at the prices in src/lib/plans.ts.
  *
  *   npx tsx scripts/create-razorpay-plans.ts             dry run: shows what would be created
  *   npx tsx scripts/create-razorpay-plans.ts --confirm   creates the plans
@@ -58,7 +58,7 @@ async function main() {
   const results: Record<string, string> = {};
   for (const plan of [PLANS.family, PLANS.extended]) {
     const amountPaise = plan.priceMonthly * 100;
-    const name = `CareCircle ${plan.name} (monthly)`;
+    const name = `Aaptha ${plan.name} (monthly)`;
     const found = existing.find(
       p => p.item.name === name && p.item.amount === amountPaise && p.item.currency === 'INR' && p.period === 'monthly' && p.interval === 1
     );

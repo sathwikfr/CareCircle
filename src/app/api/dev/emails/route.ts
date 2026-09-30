@@ -16,7 +16,7 @@ export async function GET() {
   if (blocked) return blocked;
   const emails = getRecentEmails(30);
   const resendApiKeyConfigured = Boolean(process.env.RESEND_API_KEY);
-  const fromEmail = process.env.RESEND_FROM_EMAIL || 'CareCircle <onboarding@resend.dev>';
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'Aaptha <onboarding@resend.dev>';
 
   return NextResponse.json({
     status: 'ok',

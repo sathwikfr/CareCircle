@@ -3,8 +3,8 @@ import Link from 'next/link';
 import { LegalPage, ContactLine } from '@/components/LegalPage';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — CareCircle',
-  description: 'What CareCircle collects, why, who helps us process it, and the choices you have.'
+  title: 'Privacy Policy — Aaptha',
+  description: 'What Aaptha collects, why, who helps us process it, and the choices you have.'
 };
 
 /*
@@ -15,12 +15,12 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title="Privacy Policy"
-      intro="CareCircle phones your parents for a short daily check-in and tells you how it went. That means we handle personal and health information, so we keep to what we need and explain it plainly."
+      intro="Aaptha phones your parents for a short daily check-in and tells you how it went. That means we handle personal and health information, so we keep to what we need and explain it plainly."
     >
       <h2>1. Who is who</h2>
       <p>
         <b>You</b> are the family member who creates the account and adds a parent. <b>Your parent</b> receives the check-in
-        calls. We ask you to confirm that your parent knows about the calls and agrees to them. CareCircle is the service that
+        calls. We ask you to confirm that your parent knows about the calls and agrees to them. Aaptha is the service that
         decides how this information is used.
       </p>
 
@@ -44,7 +44,7 @@ export default function PrivacyPage() {
       </ul>
 
       <h2>4. Who helps us process it</h2>
-      <p>We use these providers only to run CareCircle. Each receives only what it needs:</p>
+      <p>We use these providers only to run Aaptha. Each receives only what it needs:</p>
       <ul>
         <li><b>Sarvam AI</b> — places the voice calls, understands speech and produces the transcript and summary.</li>
         <li><b>Groq</b> — reads the medicines from a prescription photo you upload. The image is sent for reading and we do not keep the file; we keep only the medicine list you review and confirm.</li>
@@ -62,7 +62,7 @@ export default function PrivacyPage() {
       <p>
         Saathi is an AI voice. It does not diagnose, give medical advice, or change any medicine. When your parent mentions
         something worrying, we tell you and suggest speaking to them or their doctor. If a call suggests a possible
-        emergency, we alert you straight away, but CareCircle is not an emergency service. In an emergency call <b>112</b>.
+        emergency, we alert you straight away, but Aaptha is not an emergency service. In an emergency call <b>112</b>.
       </p>
 
       <h2>6. How long we keep it</h2>
@@ -93,7 +93,7 @@ export default function PrivacyPage() {
       </p>
 
       <h2>9. Children</h2>
-      <p>CareCircle is for adults. We do not knowingly collect information from anyone under 18.</p>
+      <p>Aaptha is for adults. We do not knowingly collect information from anyone under 18.</p>
 
       <h2>10. Changes and contact</h2>
       <p>

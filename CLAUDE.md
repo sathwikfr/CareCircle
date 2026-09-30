@@ -1,9 +1,13 @@
 @AGENTS.md
 
-# CareCircle — project guide for Claude sessions
+# Aaptha — project guide for Claude sessions
 
 > Full audit + bug/security pass + Sarvam call pipeline: 2026-09-30. Calling is fully built and tested against a fake Sarvam;
 > it is switched OFF until the `SARVAM_*` env vars are set (see `docs/sarvam-agent.md`).
+> **Brand rename (2026-10-01): CareCircle → Aaptha.** All user-visible text, emails, legal pages, receipts and docs say Aaptha (Saathi AI keeps its name).
+> Internal identifiers deliberately keep the old name so nothing breaks: session cookie `carecircle_session` (renaming signs everyone out),
+> Razorpay note keys `carecircle_user_id` / `carecircle_plan_id`, sandbox HMAC seed, process-global cache names `__carecircle_*`, synthetic
+> `@carecircle.user` OTP emails, seed account `demo@carecircle.in`, placeholder plan ids, the GitHub repo/folder name and `package.json` name.
 > When code and this file disagree, **trust the code** and update this file.
 
 ## 1. Rules for working in this repo (read first)
@@ -21,7 +25,7 @@
 
 ## 2. Product summary
 
-- **CareCircle**: platform for adult children in India to look after elderly parents living apart. Paying customer = the child.
+- **Aaptha** (renamed from Aaptha on 2026-10-01): platform for adult children in India to look after elderly parents living apart. Paying customer = the child.
 - **Saathi AI**: voice companion that phones the parent on schedule: medicine confirmation, one wellbeing question, reminders; results update the child's dashboard and raise alerts.
 - Core loop: call → ask 2–3 questions → record answers → update dashboard → alert if needed. Alert levels 0 (fine) … 4 (emergency).
 - Plans (`src/lib/plans.ts`): **Free Trial** ₹0 (7 days from account creation, 1 parent, 1 call/day, then calls stop; can't be restarted), Family ₹1,299 (2 parents, 14-day trial, 3 calls/day), Extended ₹2,999 (5 parents, 14-day trial, 3 calls/day). Cost model + margins are in the comment at the top of `plans.ts`. `getEffectivePlan(subscription, user.createdAt)` decides which limits apply (returns a synthetic `expired` plan with 0 calls once the trial is over; the dispatcher, test calls and adding parents all respect it). Every new account gets a free-trial `UserSubscription` row; a paid checkout replaces it.

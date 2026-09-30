@@ -1,5 +1,5 @@
 /**
- * Turns Sarvam's end-of-call data into CareCircle's call record and alert
+ * Turns Sarvam's end-of-call data into Aaptha's call record and alert
  * decisions. Pure functions: no database or network access.
  *
  * The Sarvam agent's OUTPUT variables (docs/sarvam-agent.md) are the contract:

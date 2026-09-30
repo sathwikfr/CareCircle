@@ -19,9 +19,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'CareCircle — Stay close, even from far away',
-  description: 'A daily phone call for your parents, in their language. Saathi checks on medicines and wellbeing, and you see every call on your CareCircle dashboard.',
-  keywords: ['carecircle', 'elder care', 'ai voice companion', 'parents check-in', 'medication reminder', 'india elder care']
+  title: 'Aaptha — Stay close, even from far away',
+  description: 'A daily phone call for your parents, in their language. Saathi checks on medicines and wellbeing, and you see every call on your Aaptha dashboard.',
+  keywords: ['aaptha', 'elder care', 'ai voice companion', 'parents check-in', 'medication reminder', 'india elder care']
 };
 
 export const viewport: Viewport = {

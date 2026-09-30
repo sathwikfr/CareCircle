@@ -125,7 +125,7 @@ export default function AccountBillingPage() {
 
   // Plain-text receipt of a recorded payment
   const handleDownloadInvoice = (inv: Invoice) => {
-    const text = `=====================================\nCARECIRCLE PAYMENT RECEIPT\n=====================================\nReceipt: ${inv.invoiceNumber}\nDate: ${inv.date}\nAmount: ₹${inv.amount}\nPlan: ${inv.planName}\nPayment Method: ${inv.paymentMethod}\nStatus: ${inv.status.toUpperCase()}\n=====================================\nThank you for choosing CareCircle for your parents!\n`;
+    const text = `=====================================\nAAPTHA PAYMENT RECEIPT\n=====================================\nReceipt: ${inv.invoiceNumber}\nDate: ${inv.date}\nAmount: ₹${inv.amount}\nPlan: ${inv.planName}\nPayment Method: ${inv.paymentMethod}\nStatus: ${inv.status.toUpperCase()}\n=====================================\nThank you for choosing Aaptha for your parents!\n`;
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -261,7 +261,7 @@ export default function AccountBillingPage() {
 
               <p className="fine-print">
                 <Shield size={16} />
-                <span>Cards and UPI mandates are handled by Razorpay under RBI recurring-payment rules. CareCircle never sees your card number or UPI PIN.</span>
+                <span>Cards and UPI mandates are handled by Razorpay under RBI recurring-payment rules. Aaptha never sees your card number or UPI PIN.</span>
               </p>
             </section>
           </div>

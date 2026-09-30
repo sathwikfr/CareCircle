@@ -39,7 +39,7 @@ export function Footer() {
           <div>
             <h4>Not an emergency service</h4>
             <p style={{ fontSize: '0.84rem', lineHeight: 1.6 }}>
-              CareCircle is a family check-in companion. It does not give medical advice and is not a replacement for a doctor or for emergency services. In an emergency, call <strong style={{ color: '#fff' }}>112</strong>.
+              Aaptha is a family check-in companion. It does not give medical advice and is not a replacement for a doctor or for emergency services. In an emergency, call <strong style={{ color: '#fff' }}>112</strong>.
             </p>
           </div>
         </div>
@@ -56,7 +56,7 @@ export function Footer() {
             color: 'rgba(255,255,255,0.5)'
           }}
         >
-          <span>© {new Date().getFullYear()} CareCircle</span>
+          <span>© {new Date().getFullYear()} Aaptha</span>
           <span style={{ display: 'inline-flex', gap: '18px', flexWrap: 'wrap' }}>
             <Link href="/terms">Terms</Link>
             <Link href="/privacy">Privacy</Link>

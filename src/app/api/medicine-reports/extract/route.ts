@@ -59,7 +59,7 @@ export async function POST(req: Request) {
       modelUsed: result.modelUsed
     });
   } catch (err) {
-    console.error('[CareCircle API] Medicine extraction error:', err);
+    console.error('[Aaptha API] Medicine extraction error:', err);
     return NextResponse.json({ error: 'Failed to process the report. You can enter medicines manually.' }, { status: 500 });
   }
 }

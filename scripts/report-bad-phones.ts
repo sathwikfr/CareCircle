@@ -14,7 +14,7 @@ import { normalizePhone } from '../src/lib/phone';
 
 async function main() {
   console.log('\n══════════════════════════════════════════════════════════');
-  console.log('  CareCircle — Bad Phone Report (READ-ONLY)');
+  console.log('  Aaptha — Bad Phone Report (READ-ONLY)');
   console.log('══════════════════════════════════════════════════════════\n');
 
   // ── Parent phones ────────────────────────────────────────────────────────

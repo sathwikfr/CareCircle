@@ -12,7 +12,7 @@ export function ContactLine() {
   return email ? (
     <a href={`mailto:${email}`}>{email}</a>
   ) : (
-    <span>us from the email address registered on your CareCircle account</span>
+    <span>us from the email address registered on your Aaptha account</span>
   );
 }
 
@@ -26,7 +26,7 @@ export function LegalPage({ title, intro, children }: { title: string; intro: st
         <div className="wrap-narrow" style={{ padding: '56px 20px 96px' }}>
           <article className="legal">
             <p style={{ fontSize: '0.84rem', color: 'var(--ink-muted)', marginBottom: '10px' }}>
-              <Link href="/">CareCircle</Link> · Last updated {LEGAL_UPDATED}
+              <Link href="/">Aaptha</Link> · Last updated {LEGAL_UPDATED}
             </p>
             <h1 style={{ fontSize: 'clamp(2rem, 4vw, 2.6rem)', marginBottom: '14px' }}>{title}</h1>
             <p className="legal-intro">{intro}</p>

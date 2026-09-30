@@ -229,7 +229,7 @@ export async function extractMedicinesWithGroqVision({
     ? imageBase64
     : `data:${mimeType};base64,${imageBase64}`;
 
-  console.log(`[CareCircle Groq Vision] Dispatched image to model "${model}"...`);
+  console.log(`[Aaptha Groq Vision] Dispatched image to model "${model}"...`);
 
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -259,7 +259,7 @@ export async function extractMedicinesWithGroqVision({
 
     if (!response.ok) {
       const errMsg = responseData.error?.message || `Groq API Error (${response.status})`;
-      console.error(`[CareCircle Groq Vision] API Error:`, responseData);
+      console.error(`[Aaptha Groq Vision] API Error:`, responseData);
       return {
         success: false,
         extractedMedicines: [],
@@ -272,14 +272,14 @@ export async function extractMedicinesWithGroqVision({
     }
 
     const rawContent = responseData.choices?.[0]?.message?.content || '{}';
-    console.log(`[CareCircle Groq Vision] Raw Model Response:\n${rawContent}`);
+    console.log(`[Aaptha Groq Vision] Raw Model Response:\n${rawContent}`);
 
     // Parse JSON
     let parsed: { medicines?: RawGroqMedicine[] } = {};
     try {
       parsed = JSON.parse(rawContent);
     } catch {
-      console.error('[CareCircle Groq Vision] Failed to parse JSON from model output');
+      console.error('[Aaptha Groq Vision] Failed to parse JSON from model output');
       return {
         success: false,
         extractedMedicines: [],
@@ -320,7 +320,7 @@ export async function extractMedicinesWithGroqVision({
       // 1. Strict Name Validation Check
       const validation = isValidMedicineName(rawName);
       if (!validation.valid) {
-        console.warn(`[CareCircle Groq Vision] Filtered out invalid medicine name "${rawName}": ${validation.reason}`);
+        console.warn(`[Aaptha Groq Vision] Filtered out invalid medicine name "${rawName}": ${validation.reason}`);
         continue;
       }
 
@@ -444,7 +444,7 @@ export async function extractMedicinesWithGroqVision({
     };
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
-    console.error(`[CareCircle Groq Vision] Execution Exception:`, errMsg);
+    console.error(`[Aaptha Groq Vision] Execution Exception:`, errMsg);
     return {
       success: false,
       extractedMedicines: [],

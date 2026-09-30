@@ -423,7 +423,7 @@ function SignUpContent() {
       )}
 
       <p style={{ fontSize: '0.8rem', color: 'var(--ink-subtle)', marginTop: '18px', textAlign: 'center', lineHeight: 1.5 }}>
-        By continuing you agree to CareCircle&apos;s terms of service and privacy policy.
+        By continuing you agree to Aaptha&apos;s terms of service and privacy policy.
       </p>
 
       <p className="auth-foot" style={{ marginTop: '16px' }}>

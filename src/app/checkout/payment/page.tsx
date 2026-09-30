@@ -119,7 +119,7 @@ function PaymentContent() {
     const rzp = new window.Razorpay({
       key: subscriptionData.keyId,
       subscription_id: subscriptionData.subscriptionId,
-      name: 'CareCircle',
+      name: 'Aaptha',
       description: `${plan.name} — monthly subscription`,
       prefill: { name: user.name, email: user.email, contact: user.phone || '' },
       theme: { color: '#2563eb' },
@@ -180,7 +180,7 @@ function PaymentContent() {
         <div className="panel empty">
           <span className="icon-tile"><Lock size={22} /></span>
           <h3>Please log in to continue</h3>
-          <p style={{ marginBottom: '20px' }}>You need a CareCircle account before starting a subscription.</p>
+          <p style={{ marginBottom: '20px' }}>You need a Aaptha account before starting a subscription.</p>
           <Link href={`/login?redirect=${encodeURIComponent(`/checkout/payment?plan=${plan.id}`)}`} className="btn btn-primary">
             Log in <ArrowRight size={16} className="arrow" />
           </Link>
@@ -228,7 +228,7 @@ function PaymentContent() {
           <div className="notice teal" style={{ marginBottom: '20px' }}>
             <Lock size={18} />
             <span>
-              You&apos;ll choose UPI AutoPay, card or netbanking in Razorpay&apos;s secure window. CareCircle never sees your card number, UPI PIN or CVV.
+              You&apos;ll choose UPI AutoPay, card or netbanking in Razorpay&apos;s secure window. Aaptha never sees your card number, UPI PIN or CVV.
             </span>
           </div>
 

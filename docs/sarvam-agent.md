@@ -1,6 +1,6 @@
 # Saathi AI on Sarvam Voice Agents — setup guide
 
-CareCircle's code is finished on its side (scheduler, call placement, webhook, alerts). This guide is the
+Aaptha's code is finished on its side (scheduler, call placement, webhook, alerts). This guide is the
 **agent you build in the Sarvam dashboard** and the settings that connect the two. The variable names below are a
 contract: `src/lib/sarvam.ts` sends the *input* variables and `src/lib/callInterpretation.ts` reads the *output* variables.
 
@@ -29,7 +29,7 @@ external cron ──every 5 min──► POST /api/cron/dispatch  (x-cron-secret
 5. **Ask Sarvam** (not in their docs): per-minute price, whether DND/NDNC-registered numbers can receive
    service calls, whether webhooks are retried, and how unanswered calls are billed.
 
-## 3. Input variables (sent by CareCircle on every call)
+## 3. Input variables (sent by Aaptha on every call)
 
 | Variable | Example | Use |
 |---|---|---|
@@ -43,7 +43,7 @@ external cron ──every 5 min──► POST /api/cron/dispatch  (x-cron-secret
 | `medicine_count` | `2` | |
 | `medicines_checklist` | `1. Telmisartan (40mg) — Did you take …?` | Numbered questions to ask, in order |
 
-The call starts in the language CareCircle picks from the parent's profile (`initial_language_name`).
+The call starts in the language Aaptha picks from the parent's profile (`initial_language_name`).
 
 ## 4. Output variables (extracted after the call; set the extraction prompts as written)
 
@@ -58,7 +58,7 @@ The call starts in the language CareCircle picks from the parent's profile (`ini
 | `feedback` | String | Anything the parent asked or wants the family to know (e.g. "call me Sunday", "need more tablets"). `none` if nothing. |
 | `call_summary` | String | Two short English sentences summarising the call for the family. |
 
-CareCircle also scans the transcript itself for emergency phrases in all supported languages, so a missed
+Aaptha also scans the transcript itself for emergency phrases in all supported languages, so a missed
 `emergency` flag still raises the alert.
 
 ## 5. API tool: `escalate_emergency`
@@ -74,7 +74,7 @@ Create an **API tool** (run: *During conversation*):
 ## 6. Agent instructions (draft — paste and adjust)
 
 ```
-You are Saathi, a warm, respectful voice companion from CareCircle. You are phoning {{parent_name}}, who is
+You are Saathi, a warm, respectful voice companion from Aaptha. You are phoning {{parent_name}}, who is
 {{caregiver_name}}'s {{relationship}}. {{caregiver_name}} has asked you to check in. This is a {{slot}} check-in.
 Address them the way an affectionate younger relative would, using the respectful forms natural to the language
 (for example "ji" in Hindi, "garu" in Telugu).

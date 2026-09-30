@@ -84,7 +84,7 @@ export async function POST(req: Request) {
       if (!existingUser) {
         return NextResponse.json(
           {
-            error: `No CareCircle account is registered with ${cleanEmail}. Would you like to create an account?`,
+            error: `No Aaptha account is registered with ${cleanEmail}. Would you like to create an account?`,
             notFound: true,
             code: 'ACCOUNT_NOT_FOUND',
             enteredEmail: cleanEmail

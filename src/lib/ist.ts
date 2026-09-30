@@ -1,6 +1,6 @@
 /**
  * India Standard Time helpers. IST is a fixed UTC+05:30 (no daylight saving),
- * and all parent call times in CareCircle are expressed in IST.
+ * and all parent call times in Aaptha are expressed in IST.
  */
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 

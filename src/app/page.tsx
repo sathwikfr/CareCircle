@@ -83,8 +83,8 @@ const FAQ = [
     a: 'The call shows up as missed on your dashboard, along with the medicines that were not confirmed, so you know to check in yourself.',
   },
   {
-    q: 'Is CareCircle a medical or emergency service?',
-    a: 'No. CareCircle is a family check-in companion. It does not replace a doctor, a caregiver or emergency services. In an emergency, call 112.',
+    q: 'Is Aaptha a medical or emergency service?',
+    a: 'No. Aaptha is a family check-in companion. It does not replace a doctor, a caregiver or emergency services. In an emergency, call 112.',
   },
   {
     q: 'Can I pause or cancel?',

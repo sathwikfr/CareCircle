@@ -6,7 +6,7 @@ function getResendClient() {
 }
 
 function getFromEmail() {
-  return process.env.RESEND_FROM_EMAIL || 'CareCircle <onboarding@resend.dev>';
+  return process.env.RESEND_FROM_EMAIL || 'Aaptha <onboarding@resend.dev>';
 }
 
 export interface SentEmailRecord {
@@ -38,10 +38,10 @@ export function getRecentEmails(limit = 20): SentEmailRecord[] {
 }
 
 /**
- * Base email layout matching CareCircle visual style:
+ * Base email layout matching Aaptha visual style:
  * Cream/Paper background (#f7f3ec), Deep Teal (#2f4a45) branding, Gold (#c98a3a) accents.
  */
-function renderCareCircleTemplate({
+function renderAapthaTemplate({
   title,
   badge,
   contentHtml,
@@ -171,7 +171,7 @@ function renderCareCircleTemplate({
       <!-- Header -->
       <tr>
         <td class="header">
-          <div class="logo-text">CareCircle<span class="logo-dot">.</span></div>
+          <div class="logo-text">Aaptha<span class="logo-dot">.</span></div>
           <div class="tagline">Daily AI Care Companion for Aging Parents</div>
         </td>
       </tr>
@@ -204,9 +204,9 @@ function renderCareCircleTemplate({
       <!-- Footer -->
       <tr>
         <td class="footer">
-          <p style="margin: 0 0 6px;">CareCircle &bull; Bangalore &bull; support@carecircle.in</p>
+          <p style="margin: 0 0 6px;">Aaptha${process.env.NEXT_PUBLIC_SUPPORT_EMAIL ? ` &bull; ${process.env.NEXT_PUBLIC_SUPPORT_EMAIL}` : ''}</p>
           <p style="margin: 0; color: #9c9488;">
-            Security Notice: CareCircle will never ask for your password via phone or message. If you did not initiate this request, please contact our support team.
+            Security Notice: Aaptha will never ask for your password via phone or message. If you did not initiate this request, please contact our support team.
           </p>
         </td>
       </tr>
@@ -242,7 +242,7 @@ async function dispatchEmail({
     // own address; every other recipient is rejected. Set RESEND_FROM_EMAIL to
     // an address on a domain verified in Resend.
     console.warn(
-      `[CareCircle Email] Sending from ${senderEmail}: Resend only delivers this to your own Resend account email. ` +
+      `[Aaptha Email] Sending from ${senderEmail}: Resend only delivers this to your own Resend account email. ` +
         'Verify a domain in Resend and set RESEND_FROM_EMAIL to fix delivery to real users.'
     );
   }
@@ -260,7 +260,7 @@ async function dispatchEmail({
   };
 
   console.log(`\n======================================================`);
-  console.log(`[CareCircle Email Gateway] Trigger: ${templateName}`);
+  console.log(`[Aaptha Email Gateway] Trigger: ${templateName}`);
   console.log(`  To:      ${to}`);
   console.log(`  From:    ${senderEmail}`);
   console.log(`  Subject: ${subject}`);
@@ -325,13 +325,13 @@ export async function sendPasswordResetEmail({
   expiresInMinutes?: number;
 }) {
   const recipientName = name ? name.split(' ')[0] : 'there';
-  const title = 'Reset your CareCircle password';
+  const title = 'Reset your Aaptha password';
   const contentHtml = `
     <p>Hi ${recipientName},</p>
-    <p>We received a request to reset the password for your CareCircle account associated with <strong>${to}</strong>.</p>
+    <p>We received a request to reset the password for your Aaptha account associated with <strong>${to}</strong>.</p>
     <p>Click the button below to choose a new password. For your security, this single-use link will expire in <strong>${expiresInMinutes} minutes</strong>.</p>
   `;
-  const html = renderCareCircleTemplate({
+  const html = renderAapthaTemplate({
     title,
     badge: 'Security Request',
     contentHtml,
@@ -339,11 +339,11 @@ export async function sendPasswordResetEmail({
     ctaUrl: resetUrl,
     secondaryNote: `If you didn't request a password reset, you can safely ignore this email. Your current password remains secure.`
   });
-  const text = `Hi ${recipientName},\n\nWe received a request to reset your CareCircle password. Use the following link within ${expiresInMinutes} minutes to choose a new password:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email.`;
+  const text = `Hi ${recipientName},\n\nWe received a request to reset your Aaptha password. Use the following link within ${expiresInMinutes} minutes to choose a new password:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email.`;
 
   return dispatchEmail({
     to,
-    subject: 'Reset your CareCircle password',
+    subject: 'Reset your Aaptha password',
     html,
     text,
     templateName: 'password_reset'
@@ -363,25 +363,25 @@ export async function sendVerificationEmail({
   verifyUrl: string;
 }) {
   const recipientName = name ? name.split(' ')[0] : 'there';
-  const title = 'Welcome to CareCircle! Please verify your email';
+  const title = 'Welcome to Aaptha! Please verify your email';
   const contentHtml = `
     <p>Hi ${recipientName},</p>
-    <p>Thank you for joining CareCircle. We are honored to help you look after your parents with caring, daily AI check-ins.</p>
+    <p>Thank you for joining Aaptha. We are honored to help you look after your parents with caring, daily AI check-ins.</p>
     <p>Please verify your email address to secure your account and activate your family notifications.</p>
   `;
-  const html = renderCareCircleTemplate({
+  const html = renderAapthaTemplate({
     title,
-    badge: 'Welcome to CareCircle',
+    badge: 'Welcome to Aaptha',
     contentHtml,
     ctaText: 'Verify My Email',
     ctaUrl: verifyUrl,
     secondaryNote: 'After verifying, you will be directed straight to parent routine setup.'
   });
-  const text = `Hi ${recipientName},\n\nWelcome to CareCircle! Please verify your email by clicking the link below:\n\n${verifyUrl}`;
+  const text = `Hi ${recipientName},\n\nWelcome to Aaptha! Please verify your email by clicking the link below:\n\n${verifyUrl}`;
 
   return dispatchEmail({
     to,
-    subject: 'Welcome to CareCircle — Please verify your email',
+    subject: 'Welcome to Aaptha — Please verify your email',
     html,
     text,
     templateName: 'email_verification'
@@ -403,26 +403,26 @@ export async function sendOtpEmail({
   expiresInMinutes?: number;
 }) {
   const recipientName = name ? name.split(' ')[0] : 'there';
-  const title = 'Your CareCircle Verification Code';
+  const title = 'Your Aaptha Verification Code';
   const contentHtml = `
     <p>Hi ${recipientName},</p>
-    <p>Here is your one-time verification code to sign in to CareCircle:</p>
+    <p>Here is your one-time verification code to sign in to Aaptha:</p>
     <div style="background-color: #f7f3ec; border: 2px dashed #2f4a45; border-radius: 12px; padding: 18px; text-align: center; margin: 24px 0;">
       <span style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #2f4a45; font-family: monospace;">${code}</span>
     </div>
     <p style="font-size: 13px; color: #7a7267;">This code is valid for <strong>${expiresInMinutes} minutes</strong>. Do not share this code with anyone.</p>
   `;
-  const html = renderCareCircleTemplate({
+  const html = renderAapthaTemplate({
     title,
     badge: 'Security Code',
     contentHtml,
     secondaryNote: `If you didn't request this code, someone may have entered your email address by mistake.`
   });
-  const text = `Hi ${recipientName},\n\nYour CareCircle verification code is: ${code}\n\nIt expires in ${expiresInMinutes} minutes.`;
+  const text = `Hi ${recipientName},\n\nYour Aaptha verification code is: ${code}\n\nIt expires in ${expiresInMinutes} minutes.`;
 
   return dispatchEmail({
     to,
-    subject: `${code} is your CareCircle verification code`,
+    subject: `${code} is your Aaptha verification code`,
     html,
     text,
     templateName: 'otp_code'
@@ -455,7 +455,7 @@ export async function sendPaymentReceiptEmail({
   const title = 'Payment Confirmation & Receipt';
   const contentHtml = `
     <p>Hi ${recipientName},</p>
-    <p>Thank you for subscribing to CareCircle. Your subscription payment has been processed successfully.</p>
+    <p>Thank you for subscribing to Aaptha. Your subscription payment has been processed successfully.</p>
     <div class="info-card">
       <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
         <tr>
@@ -492,7 +492,7 @@ export async function sendPaymentReceiptEmail({
     </div>
     <p>Your parents' daily calls, medicine reminders, and family health summaries are actively configured.</p>
   `;
-  const html = renderCareCircleTemplate({
+  const html = renderAapthaTemplate({
     title,
     badge: 'Receipt & Subscription Active',
     contentHtml,
@@ -500,11 +500,11 @@ export async function sendPaymentReceiptEmail({
     ctaUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/account/billing`,
     secondaryNote: 'You can download tax invoices or update payment methods anytime from your Account settings.'
   });
-  const text = `Hi ${recipientName},\n\nPayment Receipt from CareCircle\nInvoice: ${invoiceNumber}\nPlan: ${planName}\nAmount: ₹${amount}\nDate: ${date}\n\nThank you for choosing CareCircle.`;
+  const text = `Hi ${recipientName},\n\nPayment Receipt from Aaptha\nInvoice: ${invoiceNumber}\nPlan: ${planName}\nAmount: ₹${amount}\nDate: ${date}\n\nThank you for choosing Aaptha.`;
 
   return dispatchEmail({
     to,
-    subject: `Receipt for your CareCircle subscription (${invoiceNumber})`,
+    subject: `Receipt for your Aaptha subscription (${invoiceNumber})`,
     html,
     text,
     templateName: 'payment_receipt'
@@ -528,13 +528,13 @@ export async function sendPaymentFailedEmail({
   retryUrl: string;
 }) {
   const recipientName = name ? name.split(' ')[0] : 'there';
-  const title = 'Payment Issue with Your CareCircle Subscription';
+  const title = 'Payment Issue with Your Aaptha Subscription';
   const contentHtml = `
     <p>Hi ${recipientName},</p>
     <p>We were unable to process your recurring subscription payment of <strong>₹${amount}</strong> for the <strong>${planName}</strong> plan.</p>
     <p>To avoid any interruption in your parents' daily check-in calls and medication alerts, please update your payment method or retry the charge using the button below.</p>
   `;
-  const html = renderCareCircleTemplate({
+  const html = renderAapthaTemplate({
     title,
     badge: 'Payment Action Required',
     contentHtml,
@@ -542,11 +542,11 @@ export async function sendPaymentFailedEmail({
     ctaUrl: retryUrl,
     secondaryNote: 'We will retry the payment in 48 hours. Your care services remain active during this grace period.'
   });
-  const text = `Hi ${recipientName},\n\nYour CareCircle payment of ₹${amount} could not be processed. Please update your payment method to ensure uninterrupted service:\n\n${retryUrl}`;
+  const text = `Hi ${recipientName},\n\nYour Aaptha payment of ₹${amount} could not be processed. Please update your payment method to ensure uninterrupted service:\n\n${retryUrl}`;
 
   return dispatchEmail({
     to,
-    subject: 'Action Required: CareCircle subscription payment failed',
+    subject: 'Action Required: Aaptha subscription payment failed',
     html,
     text,
     templateName: 'payment_failed'
@@ -568,26 +568,26 @@ export async function sendSubscriptionCancelledEmail({
   accessUntil: string;
 }) {
   const recipientName = name ? name.split(' ')[0] : 'there';
-  const title = 'Your CareCircle subscription has been cancelled';
+  const title = 'Your Aaptha subscription has been cancelled';
   const contentHtml = `
     <p>Hi ${recipientName},</p>
     <p>As requested, your subscription to <strong>${planName}</strong> has been cancelled.</p>
     <p>You will retain full access to your parents' daily calls, reports, and AI logs until the end of your billing cycle on <strong>${accessUntil}</strong>.</p>
     <p>Your configured parent preferences and history will be safely preserved in your account if you choose to reactivate in the future.</p>
   `;
-  const html = renderCareCircleTemplate({
+  const html = renderAapthaTemplate({
     title,
     badge: 'Subscription Update',
     contentHtml,
     ctaText: 'Reactivate Subscription Anytime',
     ctaUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/account/billing`,
-    secondaryNote: 'Thank you for allowing CareCircle to be a part of your family care circle.'
+    secondaryNote: 'Thank you for allowing Aaptha to be a part of your family care circle.'
   });
-  const text = `Hi ${recipientName},\n\nYour CareCircle subscription to ${planName} has been cancelled. You have access until ${accessUntil}.`;
+  const text = `Hi ${recipientName},\n\nYour Aaptha subscription to ${planName} has been cancelled. You have access until ${accessUntil}.`;
 
   return dispatchEmail({
     to,
-    subject: 'CareCircle subscription cancellation confirmed',
+    subject: 'Aaptha subscription cancellation confirmed',
     html,
     text,
     templateName: 'subscription_cancelled'
@@ -619,14 +619,14 @@ export async function sendUrgentAlertEmail({
   const title = `${levelLabel}: ${parentName}`;
   const contentHtml = `
     <p>Hi ${recipientName},</p>
-    <p>CareCircle's AI companion detected a health update during the latest check-in call with <strong>${parentName}</strong>.</p>
+    <p>Aaptha's AI companion detected a health update during the latest check-in call with <strong>${parentName}</strong>.</p>
     <div class="info-card" style="border-left: 4px solid #ef4444;">
       <div style="font-weight: 700; color: #b91c1c; margin-bottom: 6px;">${alertType}</div>
       <p style="margin: 0; font-size: 14px; color: #2b2621;">${summary}</p>
     </div>
     <p>Please review the full call transcript and verify that your parent is resting comfortably.</p>
   `;
-  const html = renderCareCircleTemplate({
+  const html = renderAapthaTemplate({
     title,
     badge: levelLabel,
     contentHtml,

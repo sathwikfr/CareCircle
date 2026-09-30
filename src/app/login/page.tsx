@@ -260,7 +260,7 @@ function LoginContent() {
           <SearchX size={20} />
           <div>
             <strong>No account found</strong>
-            <p>{errorMessage || 'There is no CareCircle account with this email or phone number.'}</p>
+            <p>{errorMessage || 'There is no Aaptha account with this email or phone number.'}</p>
             <Link
               href={`/signup?identifier=${encodeURIComponent(enteredIdentifier)}&plan=family`}
               className="btn btn-primary btn-sm"
@@ -404,7 +404,7 @@ function LoginContent() {
       )}
 
       <p className="auth-foot">
-        New to CareCircle?{' '}
+        New to Aaptha?{' '}
         <Link href={`/signup${enteredIdentifier ? `?identifier=${encodeURIComponent(enteredIdentifier)}` : ''}`} className="link">
           Create an account
         </Link>

@@ -576,7 +576,7 @@ export function extractMedicinesFromText(rawInput: string): ExtractionResult {
 
   // 1. Check for binary / unreadable file corruption
   if (isBinaryOrCorruptedText(rawInput)) {
-    console.warn('[CareCircle AI Extractor] Binary or corrupted byte stream passed to text extractor. Using safe fallback sample.');
+    console.warn('[Aaptha AI Extractor] Binary or corrupted byte stream passed to text extractor. Using safe fallback sample.');
     // Check if user is testing the ortho/augmentin prescription or general sample
     return {
       extractedMedicines: SAMPLE_PRESCRIPTIONS[0].extractedResults,

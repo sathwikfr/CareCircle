@@ -15,7 +15,7 @@ const WEEK: { d: string; dots: ('ok' | 'miss' | 'todo')[]; today?: boolean }[] =
 /** Static, clearly-labelled example of the family dashboard. */
 export function DashboardPreview() {
   return (
-    <div className={styles.dash} aria-label="Example of the CareCircle dashboard">
+    <div className={styles.dash} aria-label="Example of the Aaptha dashboard">
       <span className={styles.exampleTag}>Example</span>
       <div className={styles.dashTop}>
         <div>

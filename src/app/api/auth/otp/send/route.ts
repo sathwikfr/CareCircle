@@ -74,7 +74,7 @@ export async function POST(req: Request) {
     recordFailedAttempt(rateLimitKey, 10 * 60 * 1000);
     const { code } = await createAndStoreOtp(cleanPhone, purpose);
 
-    console.log(`[CareCircle SMS Gateway][dev] OTP for ${phoneResult.e164}: ${code}`);
+    console.log(`[Aaptha SMS Gateway][dev] OTP for ${phoneResult.e164}: ${code}`);
 
     return NextResponse.json({
       success: true,

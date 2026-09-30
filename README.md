@@ -1,9 +1,9 @@
-# CareCircle 🩺
+# Aaptha 🩺
 
-> **CareCircle** is the platform and care ecosystem.  
+> **Aaptha** is the platform and care ecosystem.  
 > **Saathi AI** is the warm, empathetic voice that families and aging parents come to know and trust.
 
-CareCircle is an eldercare and medication management platform built to give families total peace of mind. While adult children manage schedules, reports, and real-time health alerts through the CareCircle dashboard, their aging parents receive friendly daily check-in calls from **Saathi AI** in their preferred language.
+Aaptha is an eldercare and medication management platform built to give families total peace of mind. While adult children manage schedules, reports, and real-time health alerts through the Aaptha dashboard, their aging parents receive friendly daily check-in calls from **Saathi AI** in their preferred language.
 
 ---
 
@@ -11,7 +11,7 @@ CareCircle is an eldercare and medication management platform built to give fami
 
 | Entity | Role & Purpose |
 | :--- | :--- |
-| **CareCircle** | **The Platform & Service**: The family dashboard, medicine scheduling, emergency escalation tree, caregiver permissions, subscription management, and prescription report parsing. |
+| **Aaptha** | **The Platform & Service**: The family dashboard, medicine scheduling, emergency escalation tree, caregiver permissions, subscription management, and prescription report parsing. |
 | **Saathi AI** | **The Voice & Companion**: The AI care companion that dials parents daily at designated times, speaks warmly in regional languages (Hindi, English, etc.), verifies meal-time medication adherence, checks on wellbeing and mood, and flags urgent concerns to the family. |
 
 ---

@@ -40,7 +40,7 @@ function SuccessContent() {
           <CheckCircle2 size={38} />
         </div>
         <h1 style={{ fontSize: 'clamp(1.9rem, 3.4vw, 2.6rem)', letterSpacing: '-0.03em', marginBottom: '10px' }}>
-          {plan.hasTrial ? `Your ${plan.trialDays}-day free trial has started` : 'Welcome to CareCircle'}
+          {plan.hasTrial ? `Your ${plan.trialDays}-day free trial has started` : 'Welcome to Aaptha'}
         </h1>
         <p style={{ fontSize: '1.02rem', color: 'var(--ink-muted)', maxWidth: '46ch', margin: '0 auto' }}>
           You&apos;re on <strong style={{ color: 'var(--ink)' }}>{plan.name}</strong>. One last step: tell us about your parent so Saathi can start calling.

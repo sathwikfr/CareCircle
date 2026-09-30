@@ -38,7 +38,7 @@ export function AuthShell({ children, asideTitle, asidePoints = DEFAULT_POINTS }
 
       <aside className="auth-aside" aria-hidden="true">
         <div>
-          <span className="eyebrow" style={{ color: '#7dd3fc' }}>CareCircle</span>
+          <span className="eyebrow" style={{ color: '#7dd3fc' }}>Aaptha</span>
           <h2>{asideTitle ?? <>Stay close to your parents, <em>even from far away.</em></>}</h2>
         </div>
 

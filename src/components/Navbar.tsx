@@ -22,11 +22,11 @@ const APP_LINKS = [
 
 export function Brand({ href = '/' }: { href?: string }) {
   return (
-    <Link href={href} className="brand-link" aria-label="CareCircle home">
+    <Link href={href} className="brand-link" aria-label="Aaptha home">
       <span className="brand-heart" aria-hidden="true">
         <Heart size={15} fill="white" strokeWidth={0} />
       </span>
-      <span className="brand-word">Care<span>Circle</span></span>
+      <span className="brand-word">Aaptha</span>
     </Link>
   );
 }

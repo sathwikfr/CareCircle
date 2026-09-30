@@ -45,9 +45,9 @@ export async function POST(req: Request) {
         expiresInMinutes: 20
       });
 
-      console.log(`[CareCircle Auth] Password reset email triggered for ${cleanEmail}. Result:`, emailResult);
+      console.log(`[Aaptha Auth] Password reset email triggered for ${cleanEmail}. Result:`, emailResult);
     } else {
-      console.log(`[CareCircle Auth] Forgot password requested for unregistered email ${cleanEmail} (Silently ignored, generic message returned).`);
+      console.log(`[Aaptha Auth] Forgot password requested for unregistered email ${cleanEmail} (Silently ignored, generic message returned).`);
     }
 
     return NextResponse.json({

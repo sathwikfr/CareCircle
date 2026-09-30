@@ -63,7 +63,7 @@ export async function POST(req: Request) {
       to: user.email,
       name: user.name,
       verifyUrl: `${origin}/dashboard`
-    }).catch(err => console.error('[CareCircle Signup] Failed to dispatch welcome email:', err));
+    }).catch(err => console.error('[Aaptha Signup] Failed to dispatch welcome email:', err));
 
     const response = NextResponse.json({ success: true, user });
     response.cookies.set(AUTH_COOKIE_NAME, session.token, {

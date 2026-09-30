@@ -390,8 +390,8 @@ function DashboardContent() {
 
   // Export Parent Data Archive before Deletion
   const handleExportData = () => {
-    const report = `====================================================\nCARECIRCLE PARENT PROFILE ARCHIVE\n====================================================\nParent: ${currentParent.name}\nRelationship: ${currentParent.relationship}\nPhone: ${currentParent.phone}\nLanguage: ${currentParent.language}\nTimezone: ${currentParent.timezone}\nScheduled Call Time: ${currentParent.callTime}\nExport Date: ${new Date().toLocaleString()}\n\nMEDICINES TRACKED:\n${(parentData?.medicines || []).map(m => `- ${m.name} (${m.dosage}, ${m.timeOfDay})`).join('\n')}\n\nCALL HISTORY SUMMARY:\n${(parentData?.callLogs || []).map(c => `[${c.scheduledTime}] ${c.summary}`).join('\n')}\n====================================================\n`;
-    downloadFile(`carecircle_${safeFileName(currentParent.name)}_archive.txt`, report, 'text/plain');
+    const report = `====================================================\nAAPTHA PARENT PROFILE ARCHIVE\n====================================================\nParent: ${currentParent.name}\nRelationship: ${currentParent.relationship}\nPhone: ${currentParent.phone}\nLanguage: ${currentParent.language}\nTimezone: ${currentParent.timezone}\nScheduled Call Time: ${currentParent.callTime}\nExport Date: ${new Date().toLocaleString()}\n\nMEDICINES TRACKED:\n${(parentData?.medicines || []).map(m => `- ${m.name} (${m.dosage}, ${m.timeOfDay})`).join('\n')}\n\nCALL HISTORY SUMMARY:\n${(parentData?.callLogs || []).map(c => `[${c.scheduledTime}] ${c.summary}`).join('\n')}\n====================================================\n`;
+    downloadFile(`aaptha_${safeFileName(currentParent.name)}_archive.txt`, report, 'text/plain');
   };
 
   if (loading) {
@@ -419,7 +419,7 @@ function DashboardContent() {
         <div className="panel empty" style={{ maxWidth: '560px', margin: '48px auto 0', padding: '56px 32px' }}>
           <span className="icon-tile gold"><Heart size={26} /></span>
           <h3 style={{ fontSize: '1.7rem', letterSpacing: '-0.02em' }}>
-            {user?.name ? `Welcome, ${user.name.split(' ')[0]}` : 'Welcome to CareCircle'}
+            {user?.name ? `Welcome, ${user.name.split(' ')[0]}` : 'Welcome to Aaptha'}
           </h3>
           <p style={{ marginBottom: '28px' }}>
             Add your parent, their medicines and the times that suit them. It takes a few minutes, and Saathi takes it from there.
@@ -455,7 +455,7 @@ function DashboardContent() {
       ])
     ];
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-    downloadFile(`carecircle_${safeFileName(currentParent.name)}_calls.csv`, csv, 'text/csv');
+    downloadFile(`aaptha_${safeFileName(currentParent.name)}_calls.csv`, csv, 'text/csv');
   };
 
   const TABS: { id: TabId; label: string; count?: number }[] = [
