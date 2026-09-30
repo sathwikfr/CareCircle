@@ -58,6 +58,17 @@ export function formatDuration(seconds: number) {
   return m ? `${m}m ${s}s` : `${s}s`;
 }
 
+/** "amma" -> "Amma"; leaves names that already have capitals alone. */
+export function displayName(name?: string) {
+  const n = (name || '').trim();
+  return n && n === n.toLowerCase() ? n.charAt(0).toUpperCase() + n.slice(1) : n;
+}
+
+/** "Morning Medicine Reminder — Tab. X, Tab. Y" -> "Morning Medicine Reminder" (medicines are shown separately). */
+export function shortSlotLabel(label?: string) {
+  return (label || 'Check-in call').split(/\s+[—–-]\s+/)[0].trim();
+}
+
 export function initial(name?: string) {
   return (name || '?').trim().charAt(0).toUpperCase() || '?';
 }

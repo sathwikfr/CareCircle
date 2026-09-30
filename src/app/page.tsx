@@ -6,18 +6,27 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Reveal } from '@/components/Reveal';
 import { CallDemo } from '@/components/landing/CallDemo';
-import { DashboardPreview } from '@/components/landing/DashboardPreview';
+import { HeroIllustration } from '@/components/landing/HeroIllustration';
+import { LiveCallPhone } from '@/components/landing/LiveCallPhone';
+import { FlowTabs } from '@/components/landing/FlowTabs';
+import { FamiliesCarousel } from '@/components/landing/FamiliesCarousel';
+import { DashboardShowcase } from '@/components/landing/DashboardShowcase';
 import { ScrollProgress } from '@/components/motion/ScrollProgress';
 import { FloatingCta } from '@/components/motion/FloatingCta';
 import { Ticker } from '@/components/motion/Ticker';
 import { WaveBand } from '@/components/motion/WaveBand';
+import { Parallax } from '@/components/motion/Parallax';
+import { WordReveal } from '@/components/motion/WordReveal';
+import { MagneticLink } from '@/components/motion/MagneticLink';
+import { TiltCard } from '@/components/motion/TiltCard';
 import styles from '@/components/landing/landing.module.css';
+import s from '@/components/landing/home.module.css';
 import { PLANS } from '@/lib/plans';
 import { PlanId } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 import {
-  ArrowRight, Check, X, Phone, Languages, ShieldCheck, Camera, CalendarClock, LineChart,
-  PauseCircle, Download, Stethoscope, Siren, HeartHandshake, ClipboardCheck, Plus
+  ArrowRight, Check, Phone, PhoneCall, Languages, ShieldCheck, Stethoscope, Siren, HeartHandshake,
+  ClipboardCheck, Plus, Sparkles, Smile, LayoutDashboard, Mail, PhoneMissed, AlertTriangle, Minus
 } from 'lucide-react';
 
 const TICKER = [
@@ -35,68 +44,56 @@ const TICKER = [
   { icon: <HeartHandshake size={16} />, text: 'Your parent agrees before any call' },
 ];
 
-const COMPARE = [
-  { app: 'Needs a smartphone, unlocked and online', call: 'Any phone that rings, even a basic keypad phone' },
-  { app: 'Small English notifications', call: 'A warm voice, in the language they think in' },
-  { app: 'Swiped away and forgotten', call: 'A short conversation they answer in their own words' },
-  { app: 'You never know if it worked', call: 'You see what they said, on your dashboard' },
+const LANGS = [
+  { native: 'हिंदी', en: 'Hindi' },
+  { native: 'తెలుగు', en: 'Telugu' },
+  { native: 'தமிழ்', en: 'Tamil' },
+  { native: 'ಕನ್ನಡ', en: 'Kannada' },
+  { native: 'മലയാളം', en: 'Malayalam' },
+  { native: 'বাংলা', en: 'Bengali' },
+  { native: 'मराठी', en: 'Marathi' },
+  { native: 'ગુજરાતી', en: 'Gujarati' },
+  { native: 'English', en: 'or a mix' },
 ];
 
 const SAFETY = [
-  {
-    icon: Stethoscope,
-    title: 'Never plays doctor',
-    body: 'Saathi does not diagnose or give medical advice. For anything health-related it points your parent to their doctor or to you.',
-  },
-  {
-    icon: Siren,
-    title: 'Listens for warning signs',
-    body: 'If your parent mentions a fall, chest pain or feeling faint, Saathi stays calm, asks them to get help, and flags it to you.',
-  },
-  {
-    icon: HeartHandshake,
-    title: 'Consent comes first',
-    body: 'Calls only start once your parent has agreed to them. You can pause or stop the calls at any time.',
-  },
-  {
-    icon: ClipboardCheck,
-    title: 'You confirm every medicine',
-    body: 'Snap a prescription and we draft the list for you, but nothing is saved until you have checked and confirmed it.',
-  },
+  { icon: Stethoscope, title: 'Never plays doctor', body: 'Saathi doesn’t diagnose or advise. For anything health-related it points your parent to their doctor or to you.' },
+  { icon: Siren, title: 'Listens for warning signs', body: 'A fall, chest pain, feeling faint: Saathi stays calm, asks them to get help, and flags it to you.' },
+  { icon: HeartHandshake, title: 'Consent comes first', body: 'Calls only start once your parent has agreed. Pause or stop them any time.' },
+  { icon: ClipboardCheck, title: 'You confirm every medicine', body: 'We draft the list from a prescription photo, but nothing is saved until you’ve checked it.' },
+];
+
+type Cell = true | false | string;
+const COMPARE: { label: string; us: Cell; self: Cell; carer: Cell; app: Cell }[] = [
+  { label: 'Asks about every medicine, every day', us: true, self: 'When you remember', carer: true, app: 'If they open it' },
+  { label: 'Works on any phone, nothing to install', us: true, self: true, carer: true, app: false },
+  { label: 'In their own language', us: true, self: true, carer: 'Depends', app: false },
+  { label: 'A written record you can look back on', us: true, self: false, carer: false, app: 'Partly' },
+  { label: 'Tells you when something seems off', us: true, self: false, carer: 'Depends', app: false },
+  { label: 'Cost', us: 'Free to start', self: 'Your time, daily', carer: 'A monthly salary', app: 'Free' },
 ];
 
 const FAQ = [
-  {
-    q: 'Does my parent need a smartphone or an app?',
-    a: 'No. Saathi calls an ordinary phone number. If it rings and they can answer it, it works, including basic keypad phones and landlines.',
-  },
-  {
-    q: 'Which languages does Saathi speak?',
-    a: 'Hindi, English, Tamil, Telugu, Kannada, Bengali, Marathi, Gujarati and Malayalam. You pick the language when you add your parent, and you can change it later.',
-  },
-  {
-    q: 'What does Saathi actually ask?',
-    a: 'Each call is short. Saathi asks whether they have taken the medicines due at that time, asks one gentle question about how they are feeling, and passes on any reminder you have added.',
-  },
-  {
-    q: 'What happens if they don’t pick up?',
-    a: 'The call shows up as missed on your dashboard, along with the medicines that were not confirmed, so you know to check in yourself.',
-  },
-  {
-    q: 'Is Aaptha a medical or emergency service?',
-    a: 'No. Aaptha is a family check-in companion. It does not replace a doctor, a caregiver or emergency services. In an emergency, call 112.',
-  },
-  {
-    q: 'Can I pause or cancel?',
-    a: 'Yes. Pause calls for a trip or a hospital stay and they resume on the date you choose. Paid plans can be cancelled from your billing page at any time.',
-  },
+  { q: 'Does my parent need a smartphone or an app?', a: 'No. Saathi calls an ordinary phone number. If it rings and they can answer it, it works, including basic keypad phones and landlines.' },
+  { q: 'Which languages does Saathi speak?', a: 'Hindi, English, Tamil, Telugu, Kannada, Bengali, Marathi, Gujarati and Malayalam. You pick the language when you add your parent, and you can change it later.' },
+  { q: 'What does Saathi actually ask?', a: 'Each call is short. Saathi asks whether they have taken the medicines due at that time, asks one gentle question about how they are feeling, and passes on any reminder you have added.' },
+  { q: 'What happens if they don’t pick up?', a: 'The call shows up as missed on your dashboard, along with the medicines that were not confirmed, so you know to check in yourself.' },
+  { q: 'Is Aaptha a medical or emergency service?', a: 'No. Aaptha is a family check-in companion. It does not replace a doctor, a caregiver or emergency services. In an emergency, call 112.' },
+  { q: 'Can I pause or cancel?', a: 'Yes. Pause calls for a trip or a hospital stay and they resume on the date you choose. Paid plans can be cancelled from your billing page at any time.' },
 ];
+
+function CompareCell({ v }: { v: Cell }) {
+  if (v === true) return <Check size={18} className={s.yes} aria-label="Yes" />;
+  if (v === false) return <Minus size={18} className={s.no} aria-label="No" />;
+  return <span className={s.meh}>{v}</span>;
+}
 
 export default function LandingPage() {
   const { user } = useAuth();
 
   const getPlanLink = (planId: PlanId) => (user ? `/checkout/confirm?plan=${planId}` : `/signup?plan=${planId}`);
   const primaryHref = user ? '/dashboard' : '/signup?plan=free';
+  const primaryLabel = user ? 'Go to your dashboard' : 'Start free';
 
   return (
     <>
@@ -106,134 +103,201 @@ export default function LandingPage() {
 
       <main id="main">
         {/* HERO */}
-        <section className={styles.hero}>
-          <div className={`wrap ${styles.heroGrid}`}>
-            <div>
-              <span className="chip anim-load d1" style={{ marginBottom: '24px' }}>
-                <span className="dot live" />
-                Meet Saathi, a voice companion for your parents
-              </span>
+        <section className={s.hero}>
+          <div className="wrap">
+            <span className={`${s.pill} anim-load d1`}>
+              <Sparkles size={14} /> Saathi · a voice companion for parents
+            </span>
 
-              <h1 className={`h-display ${styles.heroTitle}`}>
-                <span className="anim-load d2" style={{ display: 'block' }}>A daily call for your parents.</span>
-                <span className="anim-load d3" style={{ display: 'block' }}><em className="draw-line">Peace of mind</em> for you.</span>
-              </h1>
+            <h1 className={s.heroTitle}>
+              <span className="anim-load d2" style={{ display: 'block' }}>A daily call for your parents.</span>
+              <span className="anim-load d3" style={{ display: 'block' }}><span className={`${s.grad} draw-line`}>Peace of mind</span> for you.</span>
+            </h1>
 
-              <p className={`${styles.heroLead} anim-load d4`}>
-                Saathi phones your parents at the times you choose, in their own language. It checks on their medicines and how they are feeling, and every call lands on your dashboard.
-              </p>
-
-              <div className={`${styles.heroCtas} anim-load d5`}>
-                <Link href={primaryHref} className="btn btn-primary btn-lg">
-                  {user ? 'Go to your dashboard' : 'Start free'} <ArrowRight size={18} className="arrow" />
-                </Link>
-                <Link href="#how" className="btn btn-ghost btn-lg">
-                  See how it works
-                </Link>
+            <div className={`${s.promise} anim-load-scale d4`}>
+              <div className={s.promisePrice}>
+                <small>Start with</small>
+                <b>₹0</b>
               </div>
-
-              <div className={`${styles.proofRow} anim-load-fade d6`}>
-                <span><Phone size={16} /> No app or smartphone needed</span>
-                <span><Languages size={16} /> 9 Indian languages</span>
-                <span><ShieldCheck size={16} /> Never gives medical advice</span>
+              <div className={s.promiseList}>
+                <span><Check size={16} /> No app for your parents</span>
+                <span><Check size={16} /> Set up in a few minutes</span>
               </div>
             </div>
 
-            <div className="anim-load-scale d3" style={{ position: 'relative' }}>
-              <CallDemo />
+            <p className={`${s.heroLead} anim-load d4`}>
+              Saathi phones your parents <b>at the times you choose</b>, in their own language, to check on their medicines and how they’re feeling. <b>Every call lands on your dashboard.</b>
+            </p>
+
+            <div className={`${s.heroCtas} anim-load d5`}>
+              <MagneticLink href={primaryHref} className="btn btn-primary btn-lg">
+                {primaryLabel} <ArrowRight size={18} className="arrow" />
+              </MagneticLink>
+              <Link href="#how" className="btn btn-ghost btn-lg">See how it works</Link>
+            </div>
+
+            <div className={`${s.heroTrust} anim-load-fade d6`}>
+              <span><span className="dot live" /> Free plan, no card needed</span>
+              <span><Languages size={15} /> 9 Indian languages</span>
+              <span><ShieldCheck size={15} /> Never gives medical advice</span>
+            </div>
+
+            <div className={`${s.stage} anim-load-scale d5`}>
+              <Parallax speed={-0.12}>
+                <div className={s.stageArt}>
+                  <HeroIllustration />
+                </div>
+              </Parallax>
+
+              <Parallax speed={0.35} className={`${s.floatWrap} ${s.fcA}`}>
+                <div className={s.floatCard} aria-hidden="true">
+                  <span className={s.floatIcon}><PhoneCall size={17} /></span>
+                  <div><b>Saathi is calling Amma</b><small>8:30 AM · Telugu</small></div>
+                </div>
+              </Parallax>
+              <Parallax speed={0.55} className={`${s.floatWrap} ${s.fcB}`}>
+                <div className={s.floatCard} aria-hidden="true">
+                  <span className={`${s.floatIcon} ${s.green}`}><Check size={17} strokeWidth={3} /></span>
+                  <div><b>BP tablet taken</b><small>After breakfast</small></div>
+                </div>
+              </Parallax>
+              <Parallax speed={0.25} className={`${s.floatWrap} ${s.fcC}`}>
+                <div className={s.floatCard} aria-hidden="true">
+                  <span className={`${s.floatIcon} ${s.amber}`}><Smile size={17} /></span>
+                  <div><b>Mood: cheerful</b><small>“Went for a short walk”</small></div>
+                </div>
+              </Parallax>
+              <Parallax speed={0.45} className={`${s.floatWrap} ${s.fcD}`}>
+                <div className={s.floatCard} aria-hidden="true">
+                  <span className={s.floatIcon}><LayoutDashboard size={17} /></span>
+                  <div><b>Your dashboard updated</b><small>Just now</small></div>
+                </div>
+              </Parallax>
+              <svg className={s.scribble} viewBox="0 0 110 80" fill="none" aria-hidden="true">
+                <path d="M6 10 C 40 0, 90 10, 88 44 C 87 58, 78 66, 64 70" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                <path d="M64 70 L76 62 M64 70 L74 78" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
             </div>
           </div>
         </section>
 
         <Ticker items={TICKER} />
 
-        {/* WHY A PHONE CALL */}
-        <section id="why" className="section section-alt">
-          <div className="wrap grid-2">
-            <Reveal variant="left">
-              <span className="eyebrow">Why a phone call</span>
-              <h2 className="h-section">Your parents already know how to answer a phone.</h2>
-              <p className="lead" style={{ marginBottom: '16px' }}>
-                Reminder apps ask a lot of someone who is 75: unlock the phone, find the notification, read small English text, tap the right button.
-              </p>
-              <p className="lead">
-                A phone call asks for nothing new. It rings, they answer, and they talk to someone patient in the language they are most comfortable in.
-              </p>
+        {/* HOW IT WORKS: live phone */}
+        <section id="how" className={`section ${s.alt}`}>
+          <div className="wrap">
+            <Reveal className={s.head}>
+              <span className={s.pill}><PhoneCall size={14} /> How it works</span>
+              <WordReveal>Set it up once. <span className={s.grad}>Saathi does the rest.</span></WordReveal>
+              <p>Add your parent and their medicines in a few minutes. From then on, Saathi calls on time and you see how each call went.</p>
             </Reveal>
-
-            <Reveal delay={120} variant="right">
-              <div className={styles.compare}>
-                <div className={styles.compareHead}>
-                  <div>Reminder apps</div>
-                  <div>A Saathi call</div>
-                </div>
-                {COMPARE.map((row) => (
-                  <div key={row.call} className={styles.compareRow}>
-                    <div><X size={15} color="var(--ink-subtle)" /> {row.app}</div>
-                    <div><Check size={15} color="var(--teal)" /> {row.call}</div>
-                  </div>
-                ))}
-              </div>
+            <Reveal variant="scale">
+              <LiveCallPhone />
             </Reveal>
           </div>
         </section>
 
-        {/* HOW IT WORKS */}
-        <section id="how" className="section">
+        {/* FLOWS */}
+        <section id="why" className="section">
           <div className="wrap">
-            <Reveal className="section-head">
-              <span className="eyebrow">How it works</span>
-              <h2 className="h-section split-lines"><span><span style={{ '--line': 0 } as React.CSSProperties}>Set it up once.</span></span> <span><span style={{ '--line': 1 } as React.CSSProperties}>Saathi takes it from there.</span></span></h2>
-              <p className="lead">You add your parent and their medicines. Saathi calls on schedule, and you see how each call went.</p>
+            <Reveal className={s.head}>
+              <span className={s.pill}><HeartHandshake size={14} /> Every kind of check-in</span>
+              <WordReveal>One companion, <span className={s.grad}>three kinds of care.</span></WordReveal>
+              <p>Medicine reminders, a daily “how are you”, and a calm response when something isn’t right.</p>
+            </Reveal>
+            <Reveal>
+              <FlowTabs />
+            </Reveal>
+          </div>
+        </section>
+
+        {/* DARK: FAMILIES */}
+        <section className={`section ${s.dark}`}>
+          <div className="wrap">
+            <Reveal className={s.head}>
+              <span className={s.pill}><Sparkles size={14} /> Made for Indian families</span>
+              <WordReveal>Who is <span style={{ color: '#7dd3fc', fontStyle: 'italic' }}>Aaptha</span> for?</WordReveal>
+              <p>Whether your parents live across town or across the world, a short daily call closes the distance.</p>
+            </Reveal>
+          </div>
+          <Reveal variant="fade">
+            <div className="wrap" style={{ paddingInline: 0 }}>
+              <FamiliesCarousel ctaHref={primaryHref} />
+            </div>
+          </Reveal>
+        </section>
+
+        {/* LANGUAGES */}
+        <section className={`section ${s.alt}`}>
+          <div className="wrap grid-2">
+            <Reveal variant="left">
+              <span className={s.pill}><Languages size={14} /> Their language</span>
+              <h2 className="h-section" style={{ fontWeight: 600 }}>Speaks the way <span className={s.grad}>Amma speaks.</span></h2>
+              <p className="lead">
+                Saathi talks in the language your parent thinks in, and understands when they mix in a little English. Switch the example call to hear the difference.
+              </p>
+              <div className={s.langGrid}>
+                {LANGS.map((l) => (
+                  <div key={l.en} className={s.langChip}>
+                    <b>{l.native}</b>
+                    <span>{l.en}</span>
+                  </div>
+                ))}
+              </div>
+            </Reveal>
+            <Reveal variant="right" delay={120}>
+              <CallDemo />
+            </Reveal>
+          </div>
+        </section>
+
+        {/* SUMMARY + ALERTS */}
+        <section className="section">
+          <div className="wrap">
+            <Reveal className={s.head}>
+              <span className={s.pill}><ClipboardCheck size={14} /> After every call</span>
+              <WordReveal>Know how she is <span className={s.grad}>in ten seconds.</span></WordReveal>
+              <p>A short summary of every call, and a clear alert when something needs you. Nothing else to read.</p>
             </Reveal>
 
-            <div className={styles.steps}>
-              <Reveal className={styles.step}>
-                <span className={styles.stepNum}><b>1</b> You set it up</span>
-                <h3>Add their routine</h3>
-                <p>Add your parent’s number, language and medicines. Snap a photo of the prescription and check the draft we read from it.</p>
-                <div className={styles.stepVisual}>
-                  <div className={styles.miniRow}>
-                    <div><strong>Amlodipine 5mg</strong><span>Morning · after breakfast</span></div>
-                    <Check size={16} color="var(--green)" />
-                  </div>
-                  <div className={styles.miniRow}>
-                    <div><strong>Metformin 500mg</strong><span>Night · after dinner</span></div>
-                    <Check size={16} color="var(--green)" />
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: 'var(--ink-subtle)', marginTop: '4px' }}>
-                    <Camera size={14} /> Read from a prescription photo, confirmed by you
-                  </div>
-                </div>
-              </Reveal>
-
-              <Reveal className={styles.step} delay={100}>
-                <span className={styles.stepNum}><b>2</b> Saathi calls</span>
-                <h3>A short, kind call</h3>
-                <p>At each medicine time Saathi rings their phone, asks if they have taken it and how they are feeling, then says goodbye.</p>
-                <div className={styles.stepVisual}>
-                  <div className={styles.ringing}>
-                    <div className={styles.ringIcon}><Phone size={22} /></div>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>Saathi is calling Amma</div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--ink-subtle)' }}>8:30 AM · in Telugu</div>
+            <div className="grid-2" style={{ alignItems: 'center' }}>
+              <Reveal variant="left">
+                <div className={s.summaryWrap}>
+                  <div className={s.syncPill}><span><Check size={16} strokeWidth={3} /></span> On your dashboard</div>
+                  <div className={s.summaryCard}>
+                    <span className={s.exampleTag}>Example</span>
+                    <div style={{ fontSize: '0.74rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-subtle)' }}>
+                      Morning check-in · 8:31 AM
+                    </div>
+                    <p style={{ fontSize: '1rem', lineHeight: 1.55, marginTop: '10px' }}>
+                      Amma took her BP tablet after breakfast. She said she’s feeling okay but her knee has been hurting since yesterday.
+                    </p>
+                    <div className={s.kv}>
+                      <div><span>Amlodipine 5mg</span><b style={{ color: 'var(--green)' }}>✓ Taken</b></div>
+                      <div><span>Mood</span><b>Okay</b></div>
+                      <div><span>Mentioned</span><b>Knee pain</b></div>
+                      <div><span>Call length</span><b>1m 12s</b></div>
                     </div>
                   </div>
                 </div>
               </Reveal>
 
-              <Reveal className={styles.step} delay={200}>
-                <span className={styles.stepNum}><b>3</b> You stay in the loop</span>
-                <h3>See how they are</h3>
-                <p>Every call lands on your dashboard: medicines taken, mood and a short summary. If something needs you, it is flagged.</p>
-                <div className={styles.stepVisual}>
-                  <div className={styles.miniRow}>
-                    <div><strong>Morning check-in</strong><span>Feeling well</span></div>
-                    <span className="badge badge-green">Taken</span>
+              <Reveal variant="right" delay={120}>
+                <div className={s.notifStack}>
+                  <div className={s.notif}>
+                    <span className="icon-tile" style={{ background: 'var(--amber-soft)', color: 'var(--amber)', width: '40px', height: '40px' }}><PhoneMissed size={18} /></span>
+                    <div><b>Appa didn’t pick up twice</b><p>We tried at 9:00 and 9:15 PM. Maybe give him a call?</p></div>
+                    <time>9:31 PM</time>
                   </div>
-                  <div className={styles.miniRow}>
-                    <div><strong>Bedtime check-in</strong><span>Didn’t pick up</span></div>
-                    <span className="badge badge-amber">Missed</span>
+                  <div className={s.notif}>
+                    <span className="icon-tile" style={{ width: '40px', height: '40px' }}><Mail size={18} /></span>
+                    <div><b>Evening tablet not confirmed</b><p>Metformin 500mg, after dinner.</p></div>
+                    <time>9:02 PM</time>
+                  </div>
+                  <div className={s.notif}>
+                    <span className="icon-tile" style={{ background: 'var(--red-soft)', color: 'var(--red)', width: '40px', height: '40px' }}><AlertTriangle size={18} /></span>
+                    <div><b>Amma mentioned feeling dizzy</b><p>Emailed to you straight away.</p></div>
+                    <time>8:33 AM</time>
                   </div>
                 </div>
               </Reveal>
@@ -242,81 +306,85 @@ export default function LandingPage() {
         </section>
 
         {/* DASHBOARD */}
-        <section className="section section-alt">
-          <div className="wrap grid-2">
-            <Reveal>
-              <span className="eyebrow">Your dashboard</span>
-              <h2 className="h-section">Know how Amma’s day went, in ten seconds.</h2>
-              <p className="lead">One calm page for each parent. No noise, just what you need to know and when to call them yourself.</p>
-
-              <div className={styles.featureList}>
-                <div className={styles.feature}>
-                  <span className="icon-tile"><CalendarClock size={20} /></span>
-                  <div>
-                    <h3>Today at a glance</h3>
-                    <p>Which check-ins happened, which medicines were confirmed and what is still to come.</p>
-                  </div>
-                </div>
-                <div className={styles.feature}>
-                  <span className="icon-tile"><LineChart size={20} /></span>
-                  <div>
-                    <h3>Trends over time</h3>
-                    <p>Spot a slipping routine or a run of low moods before it becomes a bigger worry.</p>
-                  </div>
-                </div>
-                <div className={styles.feature}>
-                  <span className="icon-tile"><PauseCircle size={20} /></span>
-                  <div>
-                    <h3>Pause when life happens</h3>
-                    <p>Travelling, visiting you or in hospital? Pause calls and pick the date they resume.</p>
-                  </div>
-                </div>
-                <div className={styles.feature}>
-                  <span className="icon-tile"><Download size={20} /></span>
-                  <div>
-                    <h3>Share with their doctor</h3>
-                    <p>Export the call history as a spreadsheet to bring along to appointments.</p>
-                  </div>
-                </div>
-              </div>
+        <section className={`section ${s.alt}`}>
+          <div className="wrap">
+            <Reveal className={s.head}>
+              <span className={s.pill}><LayoutDashboard size={14} /> Your dashboard</span>
+              <WordReveal>Both parents, <span className={s.grad}>at a glance.</span></WordReveal>
+              <p>What happened today, what’s coming up and what needs you. No jargon, no clutter.</p>
             </Reveal>
-
-            <Reveal delay={120} variant="scale">
-              <DashboardPreview />
+            <Reveal variant="scale">
+              <DashboardShowcase />
             </Reveal>
           </div>
         </section>
 
         {/* SAFETY */}
-        <section id="safety" className={`section ${styles.safety}`}>
-          <div className="wrap grid-2" style={{ alignItems: 'start' }}>
-            <Reveal>
-              <span className="eyebrow" style={{ color: '#7dd3fc' }}>Built with care</span>
-              <h2 className="h-section">A companion, <em>not a doctor.</em></h2>
-              <p style={{ fontSize: '1.08rem', lineHeight: 1.65, maxWidth: '44ch' }}>
-                Saathi is designed to be gentle and to know its limits. It never tries to replace the people and professionals in your parent’s life. It helps them stay connected to you.
-              </p>
+        <section id="safety" className="section">
+          <div className="wrap">
+            <Reveal className={s.head}>
+              <span className={s.pill}><ShieldCheck size={14} /> Built with care</span>
+              <WordReveal>A companion, <span className={s.grad}>not a doctor.</span></WordReveal>
+              <p>Saathi is gentle and knows its limits. It helps your parents stay connected to you, never replaces the people who care for them.</p>
             </Reveal>
-
-            <div className={styles.safetyGrid}>
-              {SAFETY.map((s, i) => (
-                <Reveal key={s.title} delay={i * 80} className={styles.safetyItem}>
-                  <span className={styles.safetyIcon}><s.icon size={20} /></span>
-                  <h3>{s.title}</h3>
-                  <p>{s.body}</p>
+            <div className={s.safetyGrid}>
+              {SAFETY.map((x, i) => (
+                <Reveal key={x.title} delay={i * 90}>
+                  <TiltCard className={s.safetyCard}>
+                    <span className="icon-tile"><x.icon size={20} /></span>
+                    <h3>{x.title}</h3>
+                    <p>{x.body}</p>
+                  </TiltCard>
                 </Reveal>
               ))}
             </div>
           </div>
         </section>
 
+        {/* COMPARE */}
+        <section className={`section ${s.alt}`}>
+          <div className="wrap">
+            <Reveal className={s.head}>
+              <span className={s.pill}><Sparkles size={14} /> Compare</span>
+              <WordReveal>Same worry. <span className={s.grad}>Much less effort.</span></WordReveal>
+              <p>How a daily Saathi call compares with the usual ways families keep an eye on their parents.</p>
+            </Reveal>
+            <Reveal variant="scale">
+              <div className={s.compare}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col"><span className="sr-only">Feature</span></th>
+                      <th scope="col" className={s.us}>Aaptha</th>
+                      <th scope="col">Calling yourself</th>
+                      <th scope="col">A hired caretaker</th>
+                      <th scope="col">Reminder app</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {COMPARE.map((r) => (
+                      <tr key={r.label}>
+                        <th scope="row">{r.label}</th>
+                        <td className={s.us}><CompareCell v={r.us} /></td>
+                        <td><CompareCell v={r.self} /></td>
+                        <td><CompareCell v={r.carer} /></td>
+                        <td><CompareCell v={r.app} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
         {/* PRICING */}
         <section id="plans" className="section">
           <div className="wrap">
-            <Reveal className="section-head">
-              <span className="eyebrow">Pricing</span>
-              <h2 className="h-section">Simple plans, cancel anytime</h2>
-              <p className="lead">Start free with one parent. Paid plans come with a 14-day free trial.</p>
+            <Reveal className={s.head}>
+              <span className={s.pill}><Check size={14} /> Pricing</span>
+              <WordReveal>Simple plans. <span className={s.grad}>Cancel anytime.</span></WordReveal>
+              <p>Start free with one parent. Paid plans come with a 14-day free trial.</p>
             </Reveal>
 
             <div className={styles.plans}>
@@ -329,12 +397,10 @@ export default function LandingPage() {
                     <h3>{plan.name}</h3>
                     <p className={styles.planTag}>{plan.tagline}</p>
                     <div className={styles.price}>
-                      ₹{plan.priceMonthly}
+                      ₹{plan.priceMonthly.toLocaleString('en-IN')}
                       <span>{plan.priceMonthly === 0 ? 'forever' : '/ month'}</span>
                     </div>
-                    <p className={styles.priceNote}>
-                      {plan.hasTrial ? `${plan.trialDays}-day free trial` : ''}
-                    </p>
+                    <p className={styles.priceNote}>{plan.hasTrial ? `${plan.trialDays}-day free trial` : ''}</p>
                     <ul className={styles.planFeatures}>
                       {plan.features.map((f) => (
                         <li key={f}><Check size={15} /> <span>{f}</span></li>
@@ -351,11 +417,11 @@ export default function LandingPage() {
         </section>
 
         {/* FAQ */}
-        <section id="faq" className="section section-alt">
+        <section id="faq" className={`section ${s.alt}`}>
           <div className="wrap">
-            <Reveal className="section-head">
-              <span className="eyebrow">Questions</span>
-              <h2 className="h-section">What families usually ask</h2>
+            <Reveal className={s.head}>
+              <span className={s.pill}><Plus size={14} /> Questions</span>
+              <WordReveal>What families <span className={s.grad}>usually ask.</span></WordReveal>
             </Reveal>
             <Reveal className={styles.faq}>
               {FAQ.map((item) => (
@@ -374,19 +440,16 @@ export default function LandingPage() {
         {/* FINAL CTA */}
         <section className="section">
           <div className="wrap">
-            <Reveal className={styles.finalCta} variant="scale">
-              <div className={styles.waveWrap}><WaveBand /></div>
-              <h2 className="h-section" style={{ maxWidth: '18ch', margin: '0 auto 16px' }}>
-                Tomorrow morning, someone will ask how she’s doing.
-              </h2>
-              <p className="lead" style={{ maxWidth: '48ch', margin: '0 auto 32px' }}>
-                Setting up takes a few minutes. Start with the free plan and upgrade when you are ready.
-              </p>
+            <Reveal className={s.cta} variant="scale">
+              <div className={s.ctaWave}><WaveBand /></div>
+              <span className={s.pill}><Sparkles size={14} /> Start in a few minutes</span>
+              <WordReveal>Tomorrow morning, someone will ask how she’s doing.</WordReveal>
+              <p>Start with the free plan. Upgrade when you’re ready, or never.</p>
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <Link href={primaryHref} className="btn btn-primary btn-lg">
-                  {user ? 'Go to your dashboard' : 'Start free'} <ArrowRight size={18} className="arrow" />
-                </Link>
-                <Link href="#plans" className="btn btn-ghost btn-lg">Compare plans</Link>
+                <MagneticLink href={primaryHref} className={`btn btn-lg ${s.ctaBtn}`}>
+                  {primaryLabel} <ArrowRight size={18} className="arrow" />
+                </MagneticLink>
+                <Link href="#plans" className={`btn btn-ghost btn-lg ${s.ctaGhost}`}>Compare plans</Link>
               </div>
             </Reveal>
           </div>

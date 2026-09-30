@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { AnimatePresence, motion } from 'motion/react';
 import { ArrowRight, X } from 'lucide-react';
 
-/** Small pill that slides in once the visitor has scrolled past the hero. Dismissible. */
+/** "Dynamic island" pill that springs in once the visitor has scrolled past the hero. Dismissible. */
 export function FloatingCta({ href, label }: { href: string; label: string }) {
   const [show, setShow] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -28,17 +29,30 @@ export function FloatingCta({ href, label }: { href: string; label: string }) {
     };
   }, []);
 
-  if (dismissed) return null;
-
   return (
-    <div className={`float-cta${show ? ' show' : ''}`} aria-hidden={!show}>
-      <Link href={href} tabIndex={show ? 0 : -1}>
-        <span><ArrowRight size={16} /></span>
-        {label}
-      </Link>
-      <button type="button" onClick={() => setDismissed(true)} aria-label="Dismiss" tabIndex={show ? 0 : -1}>
-        <X size={14} />
-      </button>
-    </div>
+    <AnimatePresence>
+      {show && !dismissed && (
+        <motion.div
+          className="float-cta show"
+          initial={{ opacity: 0, y: 40, scale: 0.6, width: 56 }}
+          animate={{ opacity: 1, y: 0, scale: 1, width: 'auto' }}
+          exit={{ opacity: 0, y: 30, scale: 0.7 }}
+          transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+          style={{ transform: 'none', overflow: 'hidden' }}
+        >
+          <Link href={href}>
+            <motion.span initial={{ rotate: -90 }} animate={{ rotate: 0 }} transition={{ delay: 0.1 }}>
+              <ArrowRight size={16} />
+            </motion.span>
+            <motion.span initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.12 }} style={{ whiteSpace: 'nowrap' }}>
+              {label}
+            </motion.span>
+          </Link>
+          <button type="button" onClick={() => setDismissed(true)} aria-label="Dismiss">
+            <X size={14} />
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

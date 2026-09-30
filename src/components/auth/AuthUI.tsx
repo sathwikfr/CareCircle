@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Check, Eye, EyeOff } from 'lucide-react';
 import { Brand } from '@/components/Navbar';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { PHONE_COUNTRIES } from '@/lib/phone';
 
 type AuthShellProps = {
   children: React.ReactNode;
@@ -124,18 +125,81 @@ export function PasswordField({ id, value, onChange, show, onToggle, placeholder
   );
 }
 
-export function PhoneField({ id, value, onChange, autoFocus }: { id: string; value: string; onChange: (v: string) => void; autoFocus?: boolean }) {
+type PhoneFieldProps = {
+  id: string;
+  /** Full number as typed, e.g. "+91 98765 43210" (a bare Indian number is also fine). */
+  value: string;
+  onChange: (v: string) => void;
+  autoFocus?: boolean;
+  /** Fixed +91 prefix and no country picker (the parent's phone: Saathi calls numbers in India). */
+  indiaOnly?: boolean;
+};
+
+export function PhoneField({ id, value, onChange, autoFocus, indiaOnly = false }: PhoneFieldProps) {
+  const [selected, setSelected] = React.useState('IN');
+
+  if (indiaOnly) {
+    return (
+      <div className="input-affix">
+        <span>+91</span>
+        <input
+          id={id}
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel-national"
+          placeholder="98765 43210"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          autoFocus={autoFocus}
+          required
+        />
+      </div>
+    );
+  }
+
+  const picked = PHONE_COUNTRIES.find(c => c.code === selected) ?? PHONE_COUNTRIES[0];
+  // If the value already carries a country code (pasted, prefilled or typed as +44...), show that country.
+  const fromValue = value.startsWith('+')
+    ? [...PHONE_COUNTRIES]
+        .filter(c => c.dial && value.startsWith(`+${c.dial}`))
+        .sort((a, b) => b.dial.length - a.dial.length)[0]
+    : undefined;
+  const active = picked.dial && value.startsWith(`+${picked.dial}`) ? picked : fromValue ?? picked;
+  const prefix = active.dial ? `+${active.dial}` : '';
+  const national = prefix && value.startsWith(prefix) ? value.slice(prefix.length).trimStart() : value;
+
+  const emit = (raw: string, dial: string) => {
+    if (raw.trim() === '') return onChange('');
+    if (raw.trim().startsWith('+') || !dial) return onChange(raw); // they typed the whole international number
+    // Indian numbers are sometimes written with a leading 0 (STD prefix); it is not part of the number.
+    return onChange(`+${dial}${dial === '91' ? raw.replace(/^\s*0+/, '') : raw}`);
+  };
+
   return (
     <div className="input-affix">
-      <span>+91</span>
+      <select
+        aria-label="Country code"
+        value={active.code}
+        onChange={(e) => {
+          const next = PHONE_COUNTRIES.find(c => c.code === e.target.value) ?? PHONE_COUNTRIES[0];
+          setSelected(next.code);
+          emit(national, next.dial);
+        }}
+      >
+        {PHONE_COUNTRIES.map(c => (
+          <option key={c.code} value={c.code}>
+            {c.dial ? `${c.name} +${c.dial}` : c.name}
+          </option>
+        ))}
+      </select>
       <input
         id={id}
         type="tel"
-        inputMode="numeric"
+        inputMode="tel"
         autoComplete="tel-national"
-        placeholder="98765 43210"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        placeholder={active.code === 'IN' ? '98765 43210' : active.dial ? 'Phone number' : '+49 151 2345 6789'}
+        value={national}
+        onChange={(e) => emit(e.target.value, active.dial)}
         autoFocus={autoFocus}
         required
       />

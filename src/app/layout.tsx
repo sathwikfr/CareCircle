@@ -3,6 +3,7 @@ import { Fraunces, Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { THEME_INIT_SCRIPT } from '@/lib/theme';
+import { MotionProvider } from '@/components/motion/MotionProvider';
 
 const fraunces = Fraunces({
   subsets: ['latin'],
@@ -44,7 +45,7 @@ export default function RootLayout({
       <body>
         <a href="#main" className="skip-link">Skip to content</a>
         <AuthProvider>
-          {children}
+          <MotionProvider>{children}</MotionProvider>
         </AuthProvider>
       </body>
     </html>

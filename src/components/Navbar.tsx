@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Heart, User as UserIcon, LogOut, CreditCard, ChevronDown, LayoutDashboard, UserPlus, Menu, X } from 'lucide-react';
+import { Heart, User as UserIcon, LogOut, CreditCard, ChevronDown, LayoutDashboard, UserPlus, Menu, X, ShieldCheck } from 'lucide-react';
 
 const MARKETING_LINKS = [
   { href: '/#how', label: 'How it works' },
@@ -122,6 +122,11 @@ export function Navbar() {
                   <Link href="/account/billing" className="menu-item" role="menuitem">
                     <CreditCard size={16} /> Subscription & billing
                   </Link>
+                  {user.isAdmin && (
+                    <Link href="/admin" className="menu-item" role="menuitem">
+                      <ShieldCheck size={16} /> Admin overview
+                    </Link>
+                  )}
                   <div className="divider" style={{ margin: '6px 0' }} />
                   <button onClick={() => logout()} className="menu-item danger" role="menuitem">
                     <LogOut size={16} /> Log out

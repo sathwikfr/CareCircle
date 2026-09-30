@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { AnimatePresence, motion } from 'motion/react';
 import { Navbar } from '@/components/Navbar';
 import { useAuth } from '@/context/AuthContext';
 import { Medicine, FoodRelation, ExtractedMedicineCandidate, ParentProfile } from '@/lib/types';
@@ -10,9 +11,10 @@ import { SAMPLE_PRESCRIPTIONS } from '@/lib/medicineExtractor';
 import { formatScheduleSummary } from '@/lib/scheduleGenerator';
 import { getEffectivePlan, freeTrialDaysLeft } from '@/lib/plans';
 import {
-  ParentDetails, Toast, computeCallStats, formatCallTime, initial, downloadFile, safeFileName
+  ParentDetails, Toast, computeCallStats, formatCallTime, initial, downloadFile, safeFileName, displayName
 } from '@/components/dashboard/helpers';
 import { OverviewPanel } from '@/components/dashboard/OverviewPanel';
+import { FamilyOverview } from '@/components/dashboard/FamilyOverview';
 import { TrendsPanel } from '@/components/dashboard/TrendsPanel';
 import { CallHistoryPanel } from '@/components/dashboard/CallHistoryPanel';
 import { MedicinesPanel } from '@/components/dashboard/MedicinesPanel';
@@ -31,7 +33,8 @@ function DashboardContent() {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
 
   // Detailed parent data state
-  const [parentData, setParentData] = useState<ParentDetails | null>(null);
+  const [detailsById, setDetailsById] = useState<Record<string, ParentDetails>>({});
+  const parentData: ParentDetails | null = detailsById[selectedParentId] || null;
 
   // Notification toast
   const [toastMessage, setToastMessage] = useState<Toast | null>(null);
@@ -70,6 +73,20 @@ function DashboardContent() {
     return () => window.clearTimeout(id);
   }, [toastMessage]);
 
+  // Fetch specific parent details when selectedParentId changes
+  const fetchParentDetails = async (id: string) => {
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/parents/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDetailsById((prev) => ({ ...prev, [id]: data }));
+      }
+    } catch (err) {
+      console.error('Failed to load parent details:', err);
+    }
+  };
+
   // Fetch list of parents
   const fetchParents = async () => {
     try {
@@ -84,6 +101,8 @@ function DashboardContent() {
         if (data.parents && data.parents.length > 0 && !selectedParentId) {
           setSelectedParentId(data.parents[0].id);
         }
+        // Load every parent's day so the family overview can show real totals.
+        (data.parents || []).forEach((p: ParentProfile) => fetchParentDetails(p.id));
       }
     } catch (err) {
       console.error('Failed to load parents:', err);
@@ -95,20 +114,6 @@ function DashboardContent() {
   useEffect(() => {
     fetchParents();
   }, []);
-
-  // Fetch specific parent details when selectedParentId changes
-  const fetchParentDetails = async (id: string) => {
-    if (!id) return;
-    try {
-      const res = await fetch(`/api/parents/${id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setParentData(data);
-      }
-    } catch (err) {
-      console.error('Failed to load parent details:', err);
-    }
-  };
 
   useEffect(() => {
     if (selectedParentId) {
@@ -376,7 +381,6 @@ function DashboardContent() {
           setSelectedParentId(remaining[0].id);
         } else {
           setSelectedParentId('');
-          setParentData(null);
         }
       } else {
         setToastMessage({ text: data.error || 'Failed to delete parent', type: 'error' });
@@ -432,7 +436,8 @@ function DashboardContent() {
     );
   }
 
-  const currentParent = parentData?.parent || parentsList.find(p => p.id === selectedParentId) || parentsList[0];
+  const rawParent = parentData?.parent || parentsList.find(p => p.id === selectedParentId) || parentsList[0];
+  const currentParent = { ...rawParent, name: displayName(rawParent.name) };
   const pendingSuggestion = parentData?.suggestions?.find(s => s.status === 'pending');
   const stats = computeCallStats(parentData?.callLogs || [], currentParent?.callSchedule || []);
   const { activeSlots, completedCalls } = stats;
@@ -473,19 +478,44 @@ function DashboardContent() {
     <div className="wrap dash-page">
       {/* TOAST */}
       <div className="toast-wrap" aria-live="polite">
-        {toastMessage && (
-          <div className={`toast ${toastMessage.type}`} role={toastMessage.type === 'error' ? 'alert' : 'status'}>
-            <ToastIcon size={18} />
-            <span>{toastMessage.text}</span>
-            <button onClick={() => setToastMessage(null)} aria-label="Dismiss">
-              <X size={16} />
-            </button>
-          </div>
-        )}
+        <AnimatePresence>
+          {toastMessage && (
+            <motion.div
+              key={toastMessage.text}
+              layout
+              className={`toast ${toastMessage.type}`}
+              role={toastMessage.type === 'error' ? 'alert' : 'status'}
+              initial={{ opacity: 0, y: 24, scale: 0.85, borderRadius: 40 }}
+              animate={{ opacity: 1, y: 0, scale: 1, borderRadius: 16 }}
+              exit={{ opacity: 0, y: 16, scale: 0.9 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+              style={{ animation: 'none' }}
+            >
+              <ToastIcon size={18} />
+              <span>{toastMessage.text}</span>
+              <button onClick={() => setToastMessage(null)} aria-label="Dismiss">
+                <X size={16} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* HEADER & PARENT SWITCHER */}
-      <header className="dash-head">
+      {/* FAMILY OVERVIEW */}
+      <FamilyOverview
+        userName={user?.name}
+        parents={parentsList}
+        detailsById={detailsById}
+        selectedId={currentParent.id}
+        onSelect={(id) => {
+          setSelectedParentId(id);
+          setActiveTab('overview');
+        }}
+        canAddMore={parentsList.length < effectivePlan.parentsIncluded}
+      />
+
+      {/* SELECTED PARENT */}
+      <header className="dash-head detail-head">
         <div className="dash-who">
           <span className="parent-avatar" aria-hidden="true">{initial(currentParent.name)}</span>
           <div style={{ minWidth: 0 }}>
@@ -505,27 +535,6 @@ function DashboardContent() {
           </div>
         </div>
 
-        <div className="parent-switch">
-          {parentsList.length > 1 && (
-            <div className="segmented" role="tablist" aria-label="Choose parent">
-              {parentsList.map((p) => (
-                <button
-                  key={p.id}
-                  role="tab"
-                  aria-selected={p.id === selectedParentId}
-                  className={p.id === selectedParentId ? 'active' : ''}
-                  onClick={() => setSelectedParentId(p.id)}
-                >
-                  <span className="parent-avatar sm" aria-hidden="true">{initial(p.name)}</span>
-                  {p.name.split(' ')[0]}
-                </button>
-              ))}
-            </div>
-          )}
-          <Link href="/onboarding" className="btn btn-ghost btn-sm">
-            <Plus size={15} /> Add parent
-          </Link>
-        </div>
       </header>
 
       {/* BANNERS */}
@@ -609,13 +618,20 @@ function DashboardContent() {
             className="tab"
             onClick={() => setActiveTab(tab.id)}
           >
+            {activeTab === tab.id && <motion.span layoutId="dash-tab-line" className="tab-line" />}
             {tab.label}
             {!!tab.count && <span className="count">{tab.count}</span>}
           </button>
         ))}
       </nav>
 
-      <div key={`${currentParent.id}-${activeTab}`} className="animate-fade-in" role="tabpanel">
+      <motion.div
+        key={`${currentParent.id}-${activeTab}`}
+        role="tabpanel"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      >
         {activeTab === 'overview' && (
           <OverviewPanel
             parent={currentParent}
@@ -663,7 +679,7 @@ function DashboardContent() {
             onDelete={() => setShowDeleteModal(true)}
           />
         )}
-      </div>
+      </motion.div>
 
       {/* MODALS */}
       <AddMedicineModal

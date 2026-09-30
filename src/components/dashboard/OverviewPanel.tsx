@@ -5,7 +5,7 @@ import {
   CheckCircle2, AlertTriangle, Clock, PhoneCall, Pause, Play, Users, Plus, Pill, ChevronRight, Smile, PhoneMissed
 } from 'lucide-react';
 import { ParentProfile, Medicine } from '@/lib/types';
-import { CallStats, formatCallTime, formatDuration, moodLabel, foodRelationLabel } from './helpers';
+import { CallStats, formatCallTime, formatDuration, moodLabel, foodRelationLabel, shortSlotLabel } from './helpers';
 
 type Props = {
   parent: ParentProfile;
@@ -89,7 +89,7 @@ export function OverviewPanel({
                   {parent.isPaused
                     ? 'Calls are paused.'
                     : nextSlot
-                      ? `Next call at ${nextSlot.time} · ${nextSlot.label}`
+                      ? `Next call at ${nextSlot.time} · ${shortSlotLabel(nextSlot.label)}`
                       : activeSlots.length > 0
                         ? `Next call tomorrow at ${activeSlots[0].time}`
                         : 'No call times are set up yet.'}
@@ -116,18 +116,24 @@ export function OverviewPanel({
                 const nextIdx = nextSlot ? activeSlots.indexOf(nextSlot) : activeSlots.length;
                 const isNext = !parent.isPaused && idx === nextIdx;
                 const isPast = idx < nextIdx;
-                const meds = (slot.linkedMedicines?.map(m => m.name) || slot.linkedMedicineNames || [])
-                  .filter(name => !slot.label.includes(name));
+                const meds = slot.linkedMedicines?.map(m => m.name) || slot.linkedMedicineNames || [];
                 return (
                   <li key={slot.id} className={isNext ? 'next' : isPast ? 'past' : ''}>
                     <time>{slot.time}</time>
                     <span className="node" aria-hidden="true" />
                     <div>
                       <strong>
-                        {slot.label}
+                        {shortSlotLabel(slot.label)}
                         {isNext && <span className="badge badge-teal">Next</span>}
                       </strong>
-                      {meds.length > 0 && <small>{meds.join(', ')}</small>}
+                      {meds.length > 0 ? (
+                        <span className="med-chips">
+                          {meds.slice(0, 3).map((m) => <span key={m}><Pill size={11} /> {m}</span>)}
+                          {meds.length > 3 && <span className="more">+{meds.length - 3} more</span>}
+                        </span>
+                      ) : (
+                        <small>Wellbeing check-in</small>
+                      )}
                     </div>
                   </li>
                 );
