@@ -43,8 +43,8 @@ Aaptha is an eldercare and medication management platform built to give families
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/sathwikfr/CareCircle.git
-cd CareCircle
+git clone https://github.com/sathwikfr/Saathi-AI.git
+cd Saathi-AI
 ```
 
 ### 2. Install dependencies
