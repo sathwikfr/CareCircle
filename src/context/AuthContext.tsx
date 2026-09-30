@@ -49,6 +49,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refreshUser();
+    // Back button can restore a page from the browser's back/forward cache,
+    // including a protected page from before logout. Reload so the server
+    // (proxy + API) decides what is shown.
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) window.location.reload();
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
   }, []);
 
   const login = async (emailOrPhone: string, password?: string, rememberMe: boolean = true): Promise<AuthResult> => {
@@ -171,6 +179,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await fetch('/api/auth/logout', { method: 'POST' });
     } finally {
       setUser(null);
+      // Full navigation (not router.push) drops all in-memory page state, so a
+      // protected page like the dashboard can't keep showing the old data.
+      if (typeof window !== 'undefined') window.location.replace('/');
     }
   };
 
