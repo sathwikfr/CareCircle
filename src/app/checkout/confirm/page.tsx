@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, Suspense } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PLANS, getPlan } from '@/lib/plans';
 import { PlanId } from '@/lib/types';
@@ -149,6 +150,7 @@ function ConfirmContent() {
           </CheckRow>
           <CheckRow checked={termsChecked} onChange={(v) => { setTermsChecked(v); setErrorNotice(''); }} title="Not a medical service">
             I understand CareCircle is a family check-in companion, not a doctor or an emergency service.
+            {' '}By continuing I agree to the <Link href="/terms" target="_blank">Terms of Service</Link> and <Link href="/privacy" target="_blank">Privacy Policy</Link>.
           </CheckRow>
 
           {errorNotice && (

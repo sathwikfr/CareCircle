@@ -9,7 +9,8 @@
  */
 import 'dotenv/config';
 import { prisma } from '../src/lib/prisma';
-import { newId } from '../src/lib/db';
+import { newId, createUser, updateUserSubscription } from '../src/lib/db';
+import { getEffectivePlan, freeTrialDaysLeft, freeTrialEnd, FREE_TRIAL_DAYS } from '../src/lib/plans';
 import { toSarvamLanguage, buildOutboundRequest, getSarvamConfig, SarvamConfig } from '../src/lib/sarvam';
 import { istDateString, istMinutesOfDay, isSlotDue, parseClockTime, formatIstClock } from '../src/lib/ist';
 import { scanForEmergency } from '../src/lib/safety';
@@ -145,6 +146,25 @@ function partA() {
   const slot = { id: 's', slot: 'morning', time: '08:30 AM', label: 'x', linkedMedicineNames: ['Old Med'], linkedMedicinesJson: null };
   check('falls back to names + generated question', slotMedicines(slot, new Set()).length === 1 && !!slotMedicines(slot, new Set())[0].questionScript);
   check('drops paused medicines', slotMedicines(slot, new Set(['Old Med'])).length === 0);
+
+  console.log('\nA7. Free 7-day trial and effective plan');
+  const DAY = 864e5;
+  const t0 = new Date('2026-10-10T06:00:00Z');
+  const ago = (days: number) => new Date(t0.getTime() - days * DAY);
+  const iso = (d: Date) => d.toISOString();
+  const noSub3 = getEffectivePlan(null, ago(3), t0);
+  check('no subscription, 3 days old → free, 1 call/day', noSub3.id === 'free' && noSub3.callsPerDay === 1 && !noSub3.expired);
+  const noSub8 = getEffectivePlan(null, ago(8), t0);
+  check('no subscription, 8 days old → trial ended, 0 calls', !!noSub8.expired && noSub8.callsPerDay === 0);
+  check('free sub, period ended → trial ended', !!getEffectivePlan({ planId: 'free', status: 'free', currentPeriodEnd: iso(ago(1)) }, ago(9), t0).expired);
+  check('free sub, period future, account 3 days old → free', getEffectivePlan({ planId: 'free', status: 'free', currentPeriodEnd: iso(new Date(t0.getTime() + 4 * DAY)) }, ago(3), t0).callsPerDay === 1);
+  check('free sub with old 365-day period but 10-day-old account → trial ended', !!getEffectivePlan({ planId: 'free', status: 'free', currentPeriodEnd: iso(new Date(t0.getTime() + 300 * DAY)) }, ago(10), t0).expired);
+  check('active family → family, 3 calls', getEffectivePlan({ planId: 'family', status: 'active', currentPeriodEnd: iso(new Date(t0.getTime() + 20 * DAY)) }, ago(60), t0).callsPerDay === 3);
+  check('trialing extended → extended', getEffectivePlan({ planId: 'extended', status: 'trialing', currentPeriodEnd: iso(new Date(t0.getTime() + 5 * DAY)) }, ago(1), t0).id === 'extended');
+  check('cancelled family, period over, old account → trial ended', !!getEffectivePlan({ planId: 'family', status: 'cancelled', currentPeriodEnd: iso(ago(2)) }, ago(90), t0).expired);
+  check('cancelled family, still inside paid period → family', getEffectivePlan({ planId: 'family', status: 'cancelled', currentPeriodEnd: iso(new Date(t0.getTime() + 2 * DAY)) }, ago(90), t0).id === 'family');
+  check('trial end = created + 7 days', freeTrialEnd(ago(0)).getTime() === t0.getTime() + FREE_TRIAL_DAYS * DAY);
+  check('days left: day 0 → 7, day 6 → 1, day 8 → 0', freeTrialDaysLeft(ago(0), t0) === 7 && freeTrialDaysLeft(ago(6), t0) === 1 && freeTrialDaysLeft(ago(8), t0) === 0);
 }
 
 function fakeConfig(): SarvamConfig {
@@ -406,7 +426,34 @@ async function partB() {
     const sarvam13 = makeFakeSarvam();
     const s13 = await runDispatch({ now: new Date(Date.UTC(2026, 9, 13, 3, 45)), fetchImpl: sarvam13.fetchImpl, config: cfg, alertDeps, parentIds: scope });
     check('slot before creation time skipped', s13.placed === 0 && sarvam13.calls.length === 0, s13);
+
+    // ---- B14 free trial over: no scheduled calls, no test calls ---------------------
+    console.log('\nB14. Free trial ended');
+    await prisma.user.update({ where: { id: user.id }, data: { createdAt: new Date(Date.now() - 10 * 864e5) } });
+    await prisma.userSubscription.update({ where: { userId: user.id }, data: { planId: 'free', status: 'free', currentPeriodEnd: new Date(Date.now() - 3 * 864e5) } });
+    const sarvam14 = makeFakeSarvam();
+    const s14 = await runDispatch({ now: new Date(Date.UTC(2026, 9, 15, 3, 30)), fetchImpl: sarvam14.fetchImpl, config: cfg, alertDeps, parentIds: scope });
+    check('expired trial: no calls placed', s14.placed === 0 && sarvam14.calls.length === 0, s14);
+    const m14 = await placeManualCall({ parentId: parent.id, ownerId: user.id, kind: 'test' }, { config: cfg, fetchImpl: sarvam14.fetchImpl });
+    check('expired trial: test call refused (402 TRIAL_ENDED)', !m14.ok && m14.status === 402 && m14.code === 'TRIAL_ENDED', m14);
+    await prisma.userSubscription.update({ where: { userId: user.id }, data: { planId: 'family', status: 'active', currentPeriodEnd: new Date(Date.now() + 30 * 864e5) } });
+    const s14b = await runDispatch({ now: new Date(Date.UTC(2026, 9, 15, 3, 35)), fetchImpl: sarvam14.fetchImpl, config: cfg, alertDeps, parentIds: scope });
+    check('after choosing a paid plan, calls resume', s14b.placed === 1, s14b);
+
+    // ---- B15 account creation gives a 7-day trial; downgrading never restarts it ------
+    console.log('\nB15. New accounts start the 7-day trial');
+    const trialUser = await createUser({ name: 'Trial Tester', email: `pipeline-test-trial-${stamp}@example.com`, phone: null, planId: 'family' });
+    const trialSub = await prisma.userSubscription.findUnique({ where: { userId: trialUser.id } });
+    const daysToEnd = trialSub ? (trialSub.currentPeriodEnd.getTime() - Date.now()) / 864e5 : -1;
+    check('every new account gets a free subscription', trialSub?.planId === 'free' && trialSub.status === 'free');
+    check('trial ends about 7 days from now', daysToEnd > 6.9 && daysToEnd <= 7.01, daysToEnd);
+    await prisma.user.update({ where: { id: trialUser.id }, data: { createdAt: new Date(Date.now() - 20 * 864e5) } });
+    await updateUserSubscription(trialUser.id, { planId: 'free' });
+    const after = await prisma.userSubscription.findUnique({ where: { userId: trialUser.id } });
+    check('switching to Free does not restart the trial', !!after && after.currentPeriodEnd.getTime() < Date.now(), after?.currentPeriodEnd);
+    await prisma.user.delete({ where: { id: trialUser.id } });
   } finally {
+    await prisma.user.deleteMany({ where: { email: { startsWith: 'pipeline-test-trial-' } } });
     await prisma.user.delete({ where: { id: user.id } });
     const left = await prisma.user.count({ where: { email: { startsWith: 'pipeline-test-' } } });
     console.log(`\nCleanup: test user removed (${left === 0 ? 'clean' : 'LEFTOVER ROWS!'})`);

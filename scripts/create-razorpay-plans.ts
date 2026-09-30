@@ -4,14 +4,18 @@
  *   npx tsx scripts/create-razorpay-plans.ts             dry run: shows what would be created
  *   npx tsx scripts/create-razorpay-plans.ts --confirm   creates the plans
  *
- * Needs REAL keys in .env: RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET. Test-mode keys (rzp_test_…)
+ * Needs REAL keys in .env.local (or .env): RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET. Test-mode keys (rzp_test_…)
  * create test-mode plans; live keys (rzp_live_…) create live plans. Do both: test first, then live.
  *
  * Razorpay plans are IMMUTABLE (amount can't be edited), so a price change needs a new plan.
  * This script never overwrites anything: if a plan with the same name and amount already exists
- * it is reused. It prints the ids to put in .env; it does not write any file itself.
+ * it is reused. It prints the ids to put in .env.local; it does not write any file itself.
  */
-import 'dotenv/config';
+import { config } from 'dotenv';
+
+// Same order as Next.js: .env.local wins over .env.
+config({ path: '.env.local', quiet: true });
+config({ path: '.env', quiet: true });
 import { PLANS } from '../src/lib/plans';
 
 const PLACEHOLDER = /demo|CareCircle|xxxx|your_/i;

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { AccountShell } from '@/components/account/AccountUI';
 import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/context/AuthContext';
-import { PLANS, getEffectivePlan } from '@/lib/plans';
+import { PLANS, getEffectivePlan, freeTrialDaysLeft } from '@/lib/plans';
 import { PlanId, Invoice, UserSubscription } from '@/lib/types';
 import { CreditCard, AlertTriangle, CheckCircle, Download, ArrowUpRight, Shield, X, HeartCrack } from 'lucide-react';
 
@@ -45,7 +45,7 @@ export default function AccountBillingPage() {
     fetchBillingData();
   }, [user]);
 
-  const currentPlan = getEffectivePlan(subscription);
+  const currentPlan = getEffectivePlan(subscription, user?.createdAt);
 
   // Handle Plan Upgrade/Downgrade
   const handleSwitchPlan = async () => {
@@ -151,7 +151,9 @@ export default function AccountBillingPage() {
           ? { cls: 'badge-red', text: 'Payment due' }
           : status === 'active'
             ? { cls: 'badge-green', text: 'Active' }
-            : { cls: 'badge-neutral', text: 'Free plan' };
+            : currentPlan.expired
+              ? { cls: 'badge-red', text: 'Trial ended' }
+              : { cls: 'badge-gold', text: `Free trial · ${freeTrialDaysLeft(user?.createdAt)} day${freeTrialDaysLeft(user?.createdAt) === 1 ? '' : 's'} left` };
 
   const hasMethod = !!(subscription?.paymentMethodBrand || subscription?.paymentMethodLast4);
 
@@ -187,7 +189,7 @@ export default function AccountBillingPage() {
                   <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2.2rem', fontWeight: 500, letterSpacing: '-0.03em', lineHeight: 1 }}>
                     ₹{currentPlan.priceMonthly}
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '4px' }}>{isFree ? 'forever' : 'per month'}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '4px' }}>{isFree ? 'no card needed' : 'per month'}</div>
                 </div>
               </div>
 
@@ -253,7 +255,7 @@ export default function AccountBillingPage() {
                 </div>
               ) : (
                 <p style={{ fontSize: '0.92rem', color: 'var(--ink-muted)', marginBottom: '14px' }}>
-                  {isFree ? 'None needed on the Free plan.' : 'Your AutoPay details are held by Razorpay.'}
+                  {isFree ? 'None needed on the free trial.' : 'Your AutoPay details are held by Razorpay.'}
                 </p>
               )}
 
@@ -272,7 +274,7 @@ export default function AccountBillingPage() {
 
             {invoices.length === 0 ? (
               <p style={{ fontSize: '0.92rem', color: 'var(--ink-muted)' }}>
-                {isFree ? 'No payments yet. The Free plan never charges you.' : 'No payments yet. Your first one will appear here.'}
+                {isFree ? 'No payments yet. The free trial never charges you.' : 'No payments yet. Your first one will appear here.'}
               </p>
             ) : (
               <div className="table-wrap">

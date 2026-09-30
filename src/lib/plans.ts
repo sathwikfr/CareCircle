@@ -1,5 +1,8 @@
 import { Plan, PlanId } from './types';
 
+export const FREE_TRIAL_DAYS = 7;
+const DAY_MS = 86400000;
+
 /**
  * Pricing rationale (2026-09-30). Sarvam Voice Agents pricing is not published;
  * estimates: ~₹3/min all-in (worst case ₹5), ~2 min per call, ~2.4% payment fee.
@@ -7,23 +10,25 @@ import { Plan, PlanId } from './types';
  *   Extended ₹2,999: cost ₹1,350 typical / ₹2,700 at the cap               -> ~53% / ~8% margin
  * Going lower leaves no cushion at the cap.
  * Loses money only if Sarvam charges ~₹5/min AND every parent uses every call.
- * Free costs about ₹180 per user per month at 1 call/day. Re-check once Sarvam quotes real prices.
+ * Free is a 7-day trial (about ₹40-60 of calls per user), not an open-ended plan: it would cost about ₹180 a month.
+ * Re-check once Sarvam quotes real prices.
  * Changing a price also needs a new Razorpay plan (RAZORPAY_PLAN_ID_FAMILY / _EXTENDED).
  */
 export const PLANS: Record<PlanId, Plan> = {
   free: {
     id: 'free',
-    name: 'Free Starter',
-    tagline: 'A daily check-in call for one parent',
+    name: 'Free Trial',
+    tagline: `${FREE_TRIAL_DAYS} days of daily check-in calls, no card needed`,
     priceMonthly: 0,
     currency: '₹',
     hasTrial: false,
     trialDays: 0,
     parentsIncluded: 1,
     callsPerDay: 1,
+    expiresAfterDays: FREE_TRIAL_DAYS,
     features: [
       '1 parent',
-      '1 check-in call a day',
+      `1 check-in call a day for ${FREE_TRIAL_DAYS} days`,
       'Medicine confirmation on every call',
       'Call history on your dashboard',
       'Works on any phone, no app needed'
@@ -77,13 +82,48 @@ export function getPlan(planId: string | null | undefined): Plan {
   return PLANS.family; // Default to popular plan
 }
 
+/** When an account's free trial ends: FREE_TRIAL_DAYS after the account was created (it can't be restarted). */
+export function freeTrialEnd(accountCreatedAt: string | Date): Date {
+  return new Date(new Date(accountCreatedAt).getTime() + FREE_TRIAL_DAYS * DAY_MS);
+}
+
+/** Whole days left in the free trial (0 when over or when the date is unknown). */
+export function freeTrialDaysLeft(accountCreatedAt: string | Date | undefined, now: Date = new Date()): number {
+  if (!accountCreatedAt) return 0;
+  return Math.max(0, Math.ceil((freeTrialEnd(accountCreatedAt).getTime() - now.getTime()) / DAY_MS));
+}
+
+function expiredFreePlan(): Plan {
+  return {
+    ...PLANS.free,
+    name: 'Free trial ended',
+    tagline: 'Choose a plan to restart the daily check-in calls',
+    callsPerDay: 0,
+    expired: true
+  };
+}
+
+function freeTierPlan(accountCreatedAt: string | Date | undefined, now: Date): Plan {
+  if (accountCreatedAt && now.getTime() > freeTrialEnd(accountCreatedAt).getTime()) return expiredFreePlan();
+  return PLANS.free;
+}
+
 /**
- * The plan whose limits apply right now. Users without a subscription, and
- * cancelled subscriptions whose paid period has ended, fall back to Free.
+ * The plan whose limits apply right now.
+ *  - Free is a 7-day trial from account creation; afterwards no calls are placed (`expired`).
+ *  - Cancelled subscriptions whose paid period has ended fall back to the free tier (usually expired).
+ * Pass the account's createdAt so the trial window is known.
  */
-export function getEffectivePlan(subscription?: { planId: PlanId; status: string; currentPeriodEnd: string } | null): Plan {
-  if (!subscription) return PLANS.free;
-  const periodOver = new Date(subscription.currentPeriodEnd).getTime() < Date.now();
-  if (subscription.status === 'cancelled' && periodOver) return PLANS.free;
-  return PLANS[subscription.planId] || PLANS.free;
+export function getEffectivePlan(
+  subscription?: { planId: PlanId; status: string; currentPeriodEnd: string } | null,
+  accountCreatedAt?: string | Date,
+  now: Date = new Date()
+): Plan {
+  if (!subscription) return freeTierPlan(accountCreatedAt, now);
+  const periodOver = new Date(subscription.currentPeriodEnd).getTime() < now.getTime();
+  if (subscription.planId === 'free') {
+    return periodOver ? expiredFreePlan() : freeTierPlan(accountCreatedAt, now);
+  }
+  if (subscription.status === 'cancelled' && periodOver) return freeTierPlan(accountCreatedAt, now);
+  return PLANS[subscription.planId] || freeTierPlan(accountCreatedAt, now);
 }

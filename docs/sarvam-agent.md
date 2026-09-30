@@ -24,7 +24,7 @@ external cron ──every 5 min──► POST /api/cron/dispatch  (x-cron-secret
    Note the **connection id** and the number → `SARVAM_CONNECTION_ID`, `SARVAM_AGENT_PHONE_NUMBER`.
 2. **Settings → API Key** → create a key → `SARVAM_API_KEY`. Copy `org_id` and `workspace_id` from the dashboard URL.
 3. Create the agent (below), publish it, note the **app id** and **version** → `SARVAM_APP_ID`, `SARVAM_APP_VERSION`.
-4. Fill the `SARVAM_*` values in `.env` (see `.env.example`). Calling stays OFF until all are set, and
+4. Fill the `SARVAM_*` values in `.env.local` (see `.env.example`; `.env.local` wins over `.env`). Calling stays OFF until all are set, and
    `NEXT_PUBLIC_APP_URL` must be the public https URL Sarvam can reach (use ngrok locally).
 5. **Ask Sarvam** (not in their docs): per-minute price, whether DND/NDNC-registered numbers can receive
    service calls, whether webhooks are retried, and how unanswered calls are billed.

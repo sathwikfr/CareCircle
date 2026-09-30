@@ -1,0 +1,38 @@
+name: Dispatch Saathi calls
+
+# Calls /api/cron/dispatch every 5 minutes. GitHub schedules are best effort (a run can be a few minutes
+# late) and are paused after 60 days of no repository activity; the dispatcher tolerates gaps because
+# each call slot stays due for 90 minutes. Any other scheduler (cron-job.org, etc.) works the same way.
+#
+# Repository → Settings → Secrets and variables → Actions:
+#   APP_URL      https://your-domain (no trailing slash)
+#   CRON_SECRET  same value as CRON_SECRET in your hosting environment
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: dispatch-calls
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call the dispatcher
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "APP_URL and CRON_SECRET secrets are not set yet; skipping."
+            exit 0
+          fi
+          status=$(curl -sS -o response.json -w "%{http_code}" --max-time 60 \
+            -X POST -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/dispatch")
+          echo "HTTP $status"
+          cat response.json
+          echo
+          [ "$status" -ge 200 ] && [ "$status" -lt 300 ]

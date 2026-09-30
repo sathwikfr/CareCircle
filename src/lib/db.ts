@@ -29,7 +29,7 @@ import {
   LinkedMedicineDetail,
   SubscriptionStatus
 } from './types';
-import { PLANS } from './plans';
+import { PLANS, FREE_TRIAL_DAYS, freeTrialEnd } from './plans';
 import { prisma } from './prisma';
 import { normalizePhone } from './phone';
 import {
@@ -208,7 +208,6 @@ export async function createUser(userData: {
 }): Promise<User> {
   const now = new Date();
   const email = userData.email.toLowerCase().trim();
-  const isFree = userData.planId === 'free';
 
   const created = await prisma.user.create({
     data: {
@@ -220,18 +219,17 @@ export async function createUser(userData: {
       passwordHash: userData.passwordHash,
       emailVerified: userData.emailVerified ?? false,
       phoneVerified: userData.phoneVerified ?? false,
-      subscription: isFree
-        ? {
-            create: {
-              id: newId('sub'),
-              planId: 'free',
-              status: 'free',
-              startDate: now,
-              currentPeriodEnd: new Date(now.getTime() + 365 * 86400000),
-              amount: 0
-            }
-          }
-        : undefined,
+      // Every account starts on the 7-day free trial; a paid checkout replaces this row.
+      subscription: {
+        create: {
+          id: newId('sub'),
+          planId: 'free',
+          status: 'free',
+          startDate: now,
+          currentPeriodEnd: new Date(now.getTime() + FREE_TRIAL_DAYS * 86400000),
+          amount: 0
+        }
+      },
       notificationPreferences: { create: { ...DEFAULT_NOTIFICATION_PREFERENCES } }
     },
     include: userInclude
@@ -330,7 +328,14 @@ export async function updateUserSubscription(
   const plan = PLANS[details.planId];
   const now = new Date();
   const trialEnd = plan.hasTrial ? new Date(now.getTime() + plan.trialDays * 86400000) : null;
-  const periodEnd = trialEnd || new Date(now.getTime() + (plan.priceMonthly === 0 ? 365 : 30) * 86400000);
+  let periodEnd: Date;
+  if (plan.priceMonthly === 0) {
+    // Downgrading to Free never restarts the trial: it always ends 7 days after the account was created.
+    const account = await prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } });
+    periodEnd = freeTrialEnd(account?.createdAt ?? now);
+  } else {
+    periodEnd = trialEnd || new Date(now.getTime() + 30 * 86400000);
+  }
   const status: SubscriptionStatus = plan.priceMonthly === 0 ? 'free' : plan.hasTrial ? 'trialing' : 'active';
 
   const fields = {

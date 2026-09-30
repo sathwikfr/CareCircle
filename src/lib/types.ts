@@ -13,6 +13,10 @@ export interface Plan {
   parentsIncluded: number;
   /** Max scheduled Saathi calls per parent per day (controls call cost). */
   callsPerDay: number;
+  /** Free plan only: it lasts this many days from account creation, then calls stop. */
+  expiresAfterDays?: number;
+  /** True for the synthetic "trial ended" plan returned once a free trial is over. */
+  expired?: boolean;
   razorpayPlanId?: string;
 }
 

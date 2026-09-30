@@ -277,8 +277,11 @@ export async function runDispatch(deps: DispatchDeps = {}): Promise<DispatchSumm
 
       const sub = parent.user.subscription;
       const plan = getEffectivePlan(
-        sub ? { planId: sub.planId as PlanId, status: sub.status, currentPeriodEnd: sub.currentPeriodEnd.toISOString() } : null
+        sub ? { planId: sub.planId as PlanId, status: sub.status, currentPeriodEnd: sub.currentPeriodEnd.toISOString() } : null,
+        parent.user.createdAt,
+        now
       );
+      if (plan.expired) continue; // free trial over: no calls until a plan is chosen
 
       const slots = [...parent.callSchedule]
         .filter(s => parseClockTime(s.time) !== null)
@@ -403,10 +406,19 @@ export async function placeManualCall(
 
   const parent = await prisma.parentProfile.findUnique({
     where: { id: input.parentId },
-    include: { callSchedule: { where: { isActive: true } }, medicines: true, user: true }
+    include: { callSchedule: { where: { isActive: true } }, medicines: true, user: { include: { subscription: true } } }
   });
   if (!parent || parent.isDeleted || parent.userId !== input.ownerId) {
     return { ok: false, status: 404, code: 'NOT_FOUND', error: 'Parent profile not found.' };
+  }
+  const sub = parent.user.subscription;
+  const plan = getEffectivePlan(
+    sub ? { planId: sub.planId as PlanId, status: sub.status, currentPeriodEnd: sub.currentPeriodEnd.toISOString() } : null,
+    parent.user.createdAt,
+    now
+  );
+  if (plan.expired) {
+    return { ok: false, status: 402, code: 'TRIAL_ENDED', error: 'Your free trial has ended. Choose a plan to place calls again.' };
   }
   if (!parent.consentGiven) {
     return { ok: false, status: 409, code: 'NO_CONSENT', error: 'Parent consent is required before calls can be placed.' };

@@ -21,7 +21,7 @@ export async function GET() {
   return NextResponse.json({
     user,
     subscription: user.subscription || null,
-    currentPlan: getEffectivePlan(user.subscription),
+    currentPlan: getEffectivePlan(user.subscription, user.createdAt),
     invoices
   });
 }

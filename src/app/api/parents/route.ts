@@ -23,7 +23,7 @@ export async function GET() {
   const { user } = auth;
 
   const list = await getParentsForUser(user.id);
-  const plan = getEffectivePlan(user.subscription);
+  const plan = getEffectivePlan(user.subscription, user.createdAt);
 
   return NextResponse.json({
     parents: list,
@@ -113,7 +113,13 @@ export async function POST(req: Request) {
 
     // Check plan limits
     const existing = await getParentsForUser(user.id);
-    const plan = getEffectivePlan(user.subscription);
+    const plan = getEffectivePlan(user.subscription, user.createdAt);
+    if (plan.expired) {
+      return NextResponse.json(
+        { error: 'Your free trial has ended. Please choose a plan to add a parent and restart the calls.', code: 'TRIAL_ENDED' },
+        { status: 403 }
+      );
+    }
     if (existing.length >= plan.parentsIncluded) {
       return NextResponse.json(
         {

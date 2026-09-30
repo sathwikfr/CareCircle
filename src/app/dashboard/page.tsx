@@ -8,7 +8,7 @@ import { Medicine, FoodRelation, ExtractedMedicineCandidate, ParentProfile } fro
 import { Heart, Pause, Plus, ArrowRight, Sparkles, CheckCircle2, AlertTriangle, Info, X, Phone, Languages, CalendarClock } from 'lucide-react';
 import { SAMPLE_PRESCRIPTIONS } from '@/lib/medicineExtractor';
 import { formatScheduleSummary } from '@/lib/scheduleGenerator';
-import { getEffectivePlan } from '@/lib/plans';
+import { getEffectivePlan, freeTrialDaysLeft } from '@/lib/plans';
 import {
   ParentDetails, Toast, computeCallStats, formatCallTime, initial, downloadFile, safeFileName
 } from '@/components/dashboard/helpers';
@@ -436,8 +436,10 @@ function DashboardContent() {
   const pendingSuggestion = parentData?.suggestions?.find(s => s.status === 'pending');
   const stats = computeCallStats(parentData?.callLogs || [], currentParent?.callSchedule || []);
   const { activeSlots, completedCalls } = stats;
-  const dailyCallCap = getEffectivePlan(user?.subscription).callsPerDay;
-  const dailyCallCapExceeded = activeSlots.length > dailyCallCap;
+  const effectivePlan = getEffectivePlan(user?.subscription, user?.createdAt);
+  const dailyCallCap = effectivePlan.callsPerDay;
+  const dailyCallCapExceeded = !effectivePlan.expired && activeSlots.length > dailyCallCap;
+  const trialDaysLeft = effectivePlan.id === 'free' && !effectivePlan.expired ? freeTrialDaysLeft(user?.createdAt) : null;
   const openAlerts = (parentData?.alerts || []).filter(a => a.status !== 'resolved' && a.level >= 2).length;
 
   const handleExportCallHistory = () => {
@@ -539,6 +541,28 @@ function DashboardContent() {
             </span>
           </div>
           <button onClick={() => handleTogglePause(false)} className="btn btn-primary btn-sm">Resume now</button>
+        </div>
+      )}
+
+      {effectivePlan.expired && (
+        <div className="banner amber" role="status">
+          <AlertTriangle size={20} />
+          <div>
+            <strong>Your free trial has ended</strong>
+            <span>Daily check-in calls are paused. Choose a plan to restart them. Your parents&apos; details and history are safe.</span>
+          </div>
+          <Link href="/account/billing" className="btn btn-primary btn-sm">Choose a plan</Link>
+        </div>
+      )}
+
+      {trialDaysLeft !== null && trialDaysLeft <= 3 && (
+        <div className="banner gold" role="status">
+          <Sparkles size={20} />
+          <div>
+            <strong>{trialDaysLeft <= 1 ? 'Your free trial ends today' : `Your free trial ends in ${trialDaysLeft} days`}</strong>
+            <span>Choose a plan to keep the daily check-in calls going without a break.</span>
+          </div>
+          <Link href="/account/billing" className="btn btn-primary btn-sm">Choose a plan</Link>
         </div>
       )}
 

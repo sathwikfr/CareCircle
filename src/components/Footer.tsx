@@ -57,7 +57,11 @@ export function Footer() {
           }}
         >
           <span>© {new Date().getFullYear()} CareCircle</span>
-          <span>Made in India, for families who live apart.</span>
+          <span style={{ display: 'inline-flex', gap: '18px', flexWrap: 'wrap' }}>
+            <Link href="/terms">Terms</Link>
+            <Link href="/privacy">Privacy</Link>
+            <span>Made in India, for families who live apart.</span>
+          </span>
         </div>
       </div>
     </footer>

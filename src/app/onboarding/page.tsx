@@ -47,7 +47,7 @@ function OnboardingContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
 
-  const currentPlan = getEffectivePlan(user?.subscription);
+  const currentPlan = getEffectivePlan(user?.subscription, user?.createdAt);
 
   // Step state (1 to 6)
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);

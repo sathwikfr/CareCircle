@@ -24,7 +24,7 @@
 - **CareCircle**: platform for adult children in India to look after elderly parents living apart. Paying customer = the child.
 - **Saathi AI**: voice companion that phones the parent on schedule: medicine confirmation, one wellbeing question, reminders; results update the child's dashboard and raise alerts.
 - Core loop: call → ask 2–3 questions → record answers → update dashboard → alert if needed. Alert levels 0 (fine) … 4 (emergency).
-- Plans (`src/lib/plans.ts`): Free ₹0 (1 parent, 1 call/day), Family ₹1,299 (2 parents, 14-day trial, 3 calls/day), Extended ₹2,999 (5 parents, 14-day trial, 3 calls/day). Cost model + margins are in the comment at the top of `plans.ts`. `getEffectivePlan()` decides which limits apply.
+- Plans (`src/lib/plans.ts`): **Free Trial** ₹0 (7 days from account creation, 1 parent, 1 call/day, then calls stop; can't be restarted), Family ₹1,299 (2 parents, 14-day trial, 3 calls/day), Extended ₹2,999 (5 parents, 14-day trial, 3 calls/day). Cost model + margins are in the comment at the top of `plans.ts`. `getEffectivePlan(subscription, user.createdAt)` decides which limits apply (returns a synthetic `expired` plan with 0 calls once the trial is over; the dispatcher, test calls and adding parents all respect it). Every new account gets a free-trial `UserSubscription` row; a paid checkout replaces it.
 - Parked, do not build: wearable integration.
 
 ## 3. AI safety rules (non-negotiable)
@@ -49,13 +49,15 @@
 | Page guards | `src/proxy.ts` redirects signed-out users away from /dashboard, /onboarding, /account, /checkout. |
 | Deploy | Target Vercel, not deployed. Cron = any external scheduler hitting `/api/cron/dispatch` every ~5 min (Vercel Cron needs a paid plan for that interval; no `vercel.json`). |
 
-Env keys (names only): `DATABASE_URL`, `DIRECT_URL`, `GROQ_API_KEY`, `GROQ_VISION_MODEL`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_PLAN_ID_FAMILY`, `RAZORPAY_PLAN_ID_EXTENDED`, `GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `CRON_SECRET`, `SARVAM_API_KEY`, `SARVAM_ORG_ID`, `SARVAM_WORKSPACE_ID`, `SARVAM_APP_ID`, `SARVAM_APP_VERSION`, `SARVAM_CONNECTION_ID`, `SARVAM_AGENT_PHONE_NUMBER`, `SARVAM_WEBHOOK_SECRET` (generated locally), optional `SARVAM_API_BASE`. Removed: `GROQ_CALL_MODEL`, `TWILIO_*`, `JWT_SECRET`. As of 2026-09-30 the local Razorpay keys are placeholders and Google is not configured.
+Env keys (names only): `DATABASE_URL`, `DIRECT_URL`, `GROQ_API_KEY`, `GROQ_VISION_MODEL`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_PLAN_ID_FAMILY`, `RAZORPAY_PLAN_ID_EXTENDED`, `GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `CRON_SECRET`, `SARVAM_API_KEY`, `SARVAM_ORG_ID`, `SARVAM_WORKSPACE_ID`, `SARVAM_APP_ID`, `SARVAM_APP_VERSION`, `SARVAM_CONNECTION_ID`, `SARVAM_AGENT_PHONE_NUMBER`, `SARVAM_WEBHOOK_SECRET` (generated locally), optional `SARVAM_API_BASE`. Removed: `GROQ_CALL_MODEL`, `TWILIO_*`, `JWT_SECRET`. **Keys go in `.env.local`** (Next.js reads it before `.env`; several keys existed in both and `.env.local` silently won). Also `NEXT_PUBLIC_SUPPORT_EMAIL` (Privacy/Terms contact). As of 2026-09-30 the Razorpay keys are placeholders, Sarvam/Google/Resend-domain/support email are unset. Run `npm run check:setup` to see exactly what is missing (never prints values).
 
 ## 5. Folder map
 
 ```
 prisma/schema.prisma        16 models (see §6); prisma/seed.ts (demo data, NOT applied to live DB)
-scripts/                    tsx scripts. `test-call-pipeline.ts` = 121-check suite (see §9); clear-database.ts = DANGEROUS
+scripts/                    tsx scripts. `test-call-pipeline.ts` = 138-check suite (see §9); `check-setup.ts` (`npm run check:setup`); `create-razorpay-plans.ts`; clear-database.ts = DANGEROUS
+.github/workflows/dispatch-calls.yml   free 5-minute cron calling /api/cron/dispatch (needs APP_URL + CRON_SECRET repo secrets)
+docs/launch-checklist.md    every account/key still needed, in order
 docs/sarvam-agent.md        how to build the Saathi agent in Sarvam: prompt, input/output variables, tool, cron, live test
 src/proxy.ts                optimistic page guard (cookie presence) → /login?redirect=…
 src/lib/
@@ -82,6 +84,7 @@ src/lib/
   alerts.ts                 raiseAlert() (dedupe per call+title, email via Resend), raiseUnreachableAlert()
   secrets.ts                timing-safe secret compare, Bearer/header reader
 src/components/GoogleSignInButton.tsx   GIS button (hidden when not configured)
+src/components/LegalPage.tsx + app/privacy + app/terms   plain-language Privacy Policy and Terms (draft; lawyer review advised); linked from Footer and checkout
 src/components/               Navbar (+Brand), Footer, Reveal, ThemeToggle, ui/Modal (portal),
                               auth/AuthUI (AuthShell, PasswordField, PhoneField, StrengthMeter),
                               onboarding/WizardUI (WizardShell, StepHeader, SlotPicker, FoodPicker),
@@ -148,13 +151,15 @@ All private routes: **S** = `requireUser`, **O** = `requireOwnedParent` (404 for
 | Email verification | NOT BUILT: email signups are marked verified; the "verify" link just opens the dashboard |
 | Razorpay subscriptions | DONE in code; needs real keys, plan ids and webhook secret; untested against live Razorpay |
 | Groq vision draft → confirm | DONE; reports persisted; no sample fallback; PDFs rejected |
+| Free trial | DONE: 7 days from signup, then calls stop (`plans.ts` `freeTrialEnd`, dashboard/billing banners, tested in A7/B14/B15) |
+| Privacy + Terms pages | DONE (draft written from how the product works; needs a lawyer's read) |
 | Onboarding wizard | DONE (meds keep timing/food relation; Malayalam added; honest test-call) |
 | Dashboard | Today card, Trends, call history from real data; CSV export. Split into `components/dashboard/*` (DONE 2026-09-30) |
 | Pause/resume | DONE (real dates) |
 | Caregiver invites | PARTIAL: row only; no email, no invitee access |
 | Smart call-time suggestions | PARTIAL: accept/dismiss works; **no generator** |
 | Alert engine + family email | DONE (levels 1–4, dedupe, prefs, co-managers). WhatsApp/SMS NOT built |
-| Saathi voice calling (Sarvam) | BUILT + tested with a fake Sarvam (121 checks). NOT live: needs Sarvam account, KYC, agent, `SARVAM_*` env, public URL, cron |
+| Saathi voice calling (Sarvam) | BUILT + tested with a fake Sarvam (138 checks). NOT live: needs Sarvam account, KYC, agent, `SARVAM_*` env, public URL, cron |
 | Cron dispatcher | DONE (`/api/cron/dispatch`); an external scheduler still has to be set up |
 | `preferredLanguage` | NOT STARTED |
 | Calls per day vs plan | ENFORCED at dispatch: `callsPerDay` Free 1 / Family 3 / Extended 3 (earliest slots win); dashboard warns when a schedule exceeds it |
@@ -180,7 +185,7 @@ emergency scan reads **parent turns only** (Sarvam supplies English `en_text`); 
 a 401/403 from Sarvam (our config) never alerts families; failed test calls never alert families.
 The agent contract (variable names, prompt, tool) is in **`docs/sarvam-agent.md`** and must stay in sync with `lib/sarvam.ts` / `lib/callInterpretation.ts`.
 
-**Tests:** `npx tsx scripts/test-call-pipeline.ts` (121 checks; pure logic + full pipeline on throwaway DB rows with a fake Sarvam,
+**Tests:** `npx tsx scripts/test-call-pipeline.ts` (138 checks; pure logic + full pipeline on throwaway DB rows with a fake Sarvam,
 fake clock and fake email; every dispatch is scoped with `parentIds` so real parents are never touched; cleans up after itself).
 
 Unverified against real Sarvam: per-minute price, DND/NDNC handling, webhook retry behaviour, exact webhook `interaction_transcript` shape in practice, API tool bearer-auth setup. Do the live test in `docs/sarvam-agent.md` §8 first.
@@ -190,17 +195,16 @@ Unverified against real Sarvam: per-minute price, DND/NDNC handling, webhook ret
 - Calling is not live: needs Sarvam account/KYC, agent, `SARVAM_*`, public HTTPS URL (ngrok locally), and an external cron.
 - No SMS provider (phone OTP dev-only), no email verification flow, no caregiver invite emails/access, no WhatsApp/SMS alerts.
 - Rate limits are per-process memory (weak on serverless). All parent times are treated as IST (single timezone).
-- Pricing (set 2026-09-30 at ₹1,299 / ₹2,999): ~55% margin at typical use, ~8–14% at the 3-calls/day cap, loses money only if Sarvam charges ~₹5/min AND every call is used. Free costs ~₹180/user/month (plan: make it a 7-day trial). Re-check when Sarvam quotes real prices. GST not included in prices.
+- Pricing (set 2026-09-30 at ₹1,299 / ₹2,999): ~55% margin at typical use, ~8–14% at the 3-calls/day cap, loses money only if Sarvam charges ~₹5/min AND every call is used. Free is now a 7-day trial (~₹40-60 of calls per user). Re-check when Sarvam quotes real prices. GST not included in prices.
 - Razorpay plans for the new prices must be created: `npx tsx scripts/create-razorpay-plans.ts` (dry run) then `--confirm`, with real keys; put the printed ids in `RAZORPAY_PLAN_ID_FAMILY` / `_EXTENDED`. Plans are immutable in Razorpay, so a price change needs new plans.
 - Razorpay live path and Google sign-in are implemented but untested with real credentials.
 - 3 old CallLogs in the DB are from earlier tests (left untouched). `db push` is used, not migrations (the call-pipeline columns were applied as reviewed additive SQL; never `--accept-data-loss`).
 - A dev server started before a schema change keeps a stale Prisma client: restart `next dev` after schema changes. On Windows `prisma generate` can fail with EPERM while a dev server holds the engine DLL.
 - Lint: 8 pre-existing errors (react-hooks set-state-in-effect in data-loading effects, one `any` in onboarding, `prefer-const` in medicineExtractor).
-- UI shows sample prescriptions only under `next dev`. Privacy policy / Terms pages do not exist yet (signup text mentions them).
+- UI shows sample prescriptions only under `next dev`. Privacy/Terms pages exist but are unreviewed drafts (refund, liability and governing-law clauses are business decisions).
 - `scripts/cleanup-e2e-account.ts <claude-e2e-…@example.com> [--confirm]` removes one throwaway test account (dry run by default).
 
 ## 11. Open questions for the user
-- Free plan → 7-day trial (agreed for next session).
 - `preferredLanguage`: not added; `toSarvamLanguage()` derives it from the free-text `language`. Add a column later if needed.
 - Hosting/cron provider (Vercel vs other).
 - Adopt `prisma migrate` (baseline the current DB)?
