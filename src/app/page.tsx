@@ -21,7 +21,7 @@ import { MagneticLink } from '@/components/motion/MagneticLink';
 import { TiltCard } from '@/components/motion/TiltCard';
 import styles from '@/components/landing/landing.module.css';
 import s from '@/components/landing/home.module.css';
-import { PLANS } from '@/lib/plans';
+import { PLANS, FREE_TRIAL_DAYS } from '@/lib/plans';
 import { PlanId } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -137,7 +137,7 @@ export default function LandingPage() {
             </div>
 
             <div className={`${s.heroTrust} anim-load-fade d6`}>
-              <span><span className="dot live" /> Free plan, no card needed</span>
+              <span><span className="dot live" /> {FREE_TRIAL_DAYS}-day free trial, no card needed</span>
               <span><Languages size={15} /> 9 Indian languages</span>
               <span><ShieldCheck size={15} /> Never gives medical advice</span>
             </div>
@@ -384,11 +384,11 @@ export default function LandingPage() {
             <Reveal className={s.head}>
               <span className={s.pill}><Check size={14} /> Pricing</span>
               <WordReveal>Simple plans. <span className={s.grad}>Cancel anytime.</span></WordReveal>
-              <p>Start free with one parent. Paid plans come with a 14-day free trial.</p>
+              <p>Try it free for {FREE_TRIAL_DAYS} days, no card needed. Then pick the plan that fits your family.</p>
             </Reveal>
 
             <div className={styles.plans}>
-              {(['free', 'family', 'extended'] as PlanId[]).map((id, i) => {
+              {(['solo', 'family', 'extended'] as PlanId[]).map((id, i) => {
                 const plan = PLANS[id];
                 const featured = !!plan.popular;
                 return (
@@ -444,7 +444,7 @@ export default function LandingPage() {
               <div className={s.ctaWave}><WaveBand /></div>
               <span className={s.pill}><Sparkles size={14} /> Start in a few minutes</span>
               <WordReveal>Tomorrow morning, someone will ask how she’s doing.</WordReveal>
-              <p>Start with the free plan. Upgrade when you’re ready, or never.</p>
+              <p>Start with a {FREE_TRIAL_DAYS}-day free trial. Choose a plan when you’re ready.</p>
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
                 <MagneticLink href={primaryHref} className={`btn btn-lg ${s.ctaBtn}`}>
                   {primaryLabel} <ArrowRight size={18} className="arrow" />

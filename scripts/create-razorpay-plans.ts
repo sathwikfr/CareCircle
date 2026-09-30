@@ -56,7 +56,7 @@ async function main() {
   }
 
   const results: Record<string, string> = {};
-  for (const plan of [PLANS.family, PLANS.extended]) {
+  for (const plan of [PLANS.solo, PLANS.family, PLANS.extended]) {
     const amountPaise = plan.priceMonthly * 100;
     const name = `Aaptha ${plan.name} (monthly)`;
     const found = existing.find(
@@ -79,7 +79,7 @@ async function main() {
         name,
         amount: amountPaise,
         currency: 'INR',
-        description: `${plan.tagline}. Up to ${plan.parentsIncluded} parents, up to ${plan.callsPerDay} calls a day each.`
+        description: `${plan.tagline}. Up to ${plan.parentsIncluded} ${plan.parentsIncluded === 1 ? 'parent' : 'parents'}, up to ${plan.callsPerDay} calls a day each.`
       },
       notes: { carecircle_plan_id: plan.id }
     });
@@ -87,8 +87,9 @@ async function main() {
     results[plan.id] = created.id;
   }
 
-  if (results.family || results.extended) {
+  if (results.solo || results.family || results.extended) {
     console.log('\nAdd these to .env (and to your hosting environment):');
+    if (results.solo) console.log(`RAZORPAY_PLAN_ID_SOLO=${results.solo}`);
     if (results.family) console.log(`RAZORPAY_PLAN_ID_FAMILY=${results.family}`);
     if (results.extended) console.log(`RAZORPAY_PLAN_ID_EXTENDED=${results.extended}`);
   }
@@ -96,8 +97,17 @@ async function main() {
 }
 
 main().catch(err => {
-  // Razorpay errors carry the reason in err.error.description; never print the keys.
-  const reason = err?.error?.description || err?.message || String(err);
-  console.error('Failed:', reason);
+  // Razorpay errors carry the reason in err.error.description (or a bare string in err.error); never print the keys.
+  if (err?.statusCode === 401) {
+    console.error(
+      'Failed: Razorpay answered 401 Unauthorized on the plans API.\n' +
+        'If `npm run check:setup` says the keys are accepted, Subscriptions is not enabled on this Razorpay account:\n' +
+        'ask Razorpay support to enable it (dashboard and API). Otherwise regenerate the API keys.'
+    );
+    process.exit(1);
+  }
+  const reason =
+    err?.error?.description || (typeof err?.error === 'string' ? err.error : '') || err?.message || JSON.stringify(err);
+  console.error(`Failed${err?.statusCode ? ` (${err.statusCode})` : ''}:`, reason);
   process.exit(1);
 });

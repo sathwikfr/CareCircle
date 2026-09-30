@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 const BUCKET_LABEL: Record<PlanBucket, string> = {
   free_active: 'Free trial (running)',
   free_ended: 'Free trial (ended)',
+  solo: 'Solo Care',
   family: 'Family Care',
   extended: 'Extended Family'
 };

@@ -12,7 +12,7 @@ const CUSTOMER_LIMIT = 200;
 // Read-only: nothing in this file writes to the database.
 const realUser = { NOT: { email: { startsWith: TEST_EMAIL_PREFIX } } };
 
-export type PlanBucket = 'free_active' | 'free_ended' | 'family' | 'extended';
+export type PlanBucket = 'free_active' | 'free_ended' | 'solo' | 'family' | 'extended';
 
 export interface AdminCustomer {
   id: string;
@@ -77,6 +77,7 @@ function dayLabel(date: string): string {
 }
 
 function bucketFor(planId: PlanId, expired: boolean): PlanBucket {
+  if (planId === 'solo') return 'solo';
   if (planId === 'family') return 'family';
   if (planId === 'extended') return 'extended';
   return expired ? 'free_ended' : 'free_active';
@@ -154,7 +155,7 @@ export async function getAdminStats(now: Date = new Date()): Promise<AdminStats>
   }
 
   // ---- customers, plans, parents ----------------------------------------
-  const buckets: Record<PlanBucket, number> = { free_active: 0, free_ended: 0, family: 0, extended: 0 };
+  const buckets: Record<PlanBucket, number> = { free_active: 0, free_ended: 0, solo: 0, family: 0, extended: 0 };
   let payingActive = 0;
   let onPaidTrial = 0;
   let pastDue = 0;

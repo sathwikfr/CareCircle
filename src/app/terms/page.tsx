@@ -56,6 +56,10 @@ export default function TermsPage() {
           When it ends the calls stop until you choose a plan. Your parent&apos;s details and history stay in your account.
         </li>
         <li>
+          <b>{PLANS.solo.name}:</b> {inr(PLANS.solo.priceMonthly)} a month for {PLANS.solo.parentsIncluded} parent
+          and up to {PLANS.solo.callsPerDay} calls a day, with a {PLANS.solo.trialDays}-day free trial.
+        </li>
+        <li>
           <b>{PLANS.family.name}:</b> {inr(PLANS.family.priceMonthly)} a month for up to {PLANS.family.parentsIncluded} parents
           and up to {PLANS.family.callsPerDay} calls a day each, with a {PLANS.family.trialDays}-day free trial.
         </li>

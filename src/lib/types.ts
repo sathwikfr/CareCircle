@@ -1,4 +1,4 @@
-export type PlanId = 'free' | 'family' | 'extended';
+export type PlanId = 'free' | 'solo' | 'family' | 'extended';
 
 export interface Plan {
   id: PlanId;

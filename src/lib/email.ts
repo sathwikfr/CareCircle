@@ -822,8 +822,11 @@ export type TrialEmailInput =
 export async function sendTrialEmail(input: TrialEmailInput) {
   const recipientName = firstName(input.name);
   const plainName = input.name ? input.name.trim().split(/\s+/)[0] : 'there';
-  const family = PLANS.family;
-  const planLine = `${esc(family.name)} is ${formatMoney(family.priceMonthly)} a month and starts with a ${family.trialDays}-day free trial.`;
+  const { solo, family } = PLANS;
+  const planLinePlain =
+    `${solo.name} is ${formatMoney(solo.priceMonthly)} a month for one parent and ${family.name} is ${formatMoney(family.priceMonthly)} a month for two;` +
+    ` both start with a ${family.trialDays}-day free trial.`;
+  const planLine = esc(planLinePlain);
 
   let title: string;
   let badge: string;
@@ -841,7 +844,7 @@ export async function sendTrialEmail(input: TrialEmailInput) {
     bodyHtml = `
       <p>Your free trial of Aaptha ends on <strong>${date}</strong>. After that, the daily check-in calls to your parent will stop.</p>
       <p>To keep the calls going without a break, choose a plan before then. ${planLine}</p>`;
-    bodyText = `Your free trial of Aaptha ends on ${date}. After that the daily check-in calls to your parent will stop. ${family.name} is ${formatMoney(family.priceMonthly)} a month and starts with a ${family.trialDays}-day free trial.`;
+    bodyText = `Your free trial of Aaptha ends on ${date}. After that the daily check-in calls to your parent will stop. ${planLinePlain}`;
   } else if (input.variant === 'free_ended') {
     title = 'Your free trial has ended';
     badge = 'Free Trial Ended';

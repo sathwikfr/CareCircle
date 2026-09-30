@@ -18,8 +18,11 @@ same names under Project → Settings → Environment Variables.
 5. Re-check the prices in `src/lib/plans.ts` against Sarvam's quote (the margin table is at the top of that file).
 
 ## 2. Razorpay
+0. **Subscriptions must be enabled on the account.** If the dashboard's Subscriptions/Plans pages say "Something went wrong"
+   and `npm run check:setup` says "Subscriptions is not enabled", ask Razorpay support to enable it (dashboard and API,
+   test and live). Until then the plans API answers 401 even with correct keys, and checkout cannot work.
 1. **Test mode first.** Dashboard → API Keys → generate. Set `RAZORPAY_KEY_ID`, `NEXT_PUBLIC_RAZORPAY_KEY_ID` (same Key ID) and `RAZORPAY_KEY_SECRET`.
-2. Create the plans: `npx tsx scripts/create-razorpay-plans.ts` (preview), then add `--confirm`. Put the two printed ids in `RAZORPAY_PLAN_ID_FAMILY` / `RAZORPAY_PLAN_ID_EXTENDED`.
+2. Create the plans: `npx tsx scripts/create-razorpay-plans.ts` (preview), then add `--confirm`. Put the three printed ids in `RAZORPAY_PLAN_ID_SOLO` / `RAZORPAY_PLAN_ID_FAMILY` / `RAZORPAY_PLAN_ID_EXTENDED`.
 3. Dashboard → Webhooks → add `https://<your-domain>/api/razorpay/webhook`, paste the value of `RAZORPAY_WEBHOOK_SECRET` (already generated), and tick the `subscription.*` and `payment.failed` events.
 4. Test a subscription with the test card `4718 6091 0820 4366` (any CVV, any future expiry, OTP of 4-10 digits to succeed).
 5. Repeat 1-3 with **Live** keys when you go live. Live and test plan ids are different. GST: prices do not include it; decide whether to add it.

@@ -3,7 +3,8 @@
  *
  * Reads .env.local then .env (the same order Next.js uses: .env.local wins) and reports, per feature, which
  * settings are still missing or still placeholders, and where to get each one. It never prints a secret value.
- * It also checks that the database is reachable and has the call-pipeline columns.
+ * It also checks that the database is reachable and has the call-pipeline columns, and that Razorpay accepts the
+ * keys and has Subscriptions enabled (read-only API calls).
  */
 import { config } from 'dotenv';
 import fs from 'fs';
@@ -60,13 +61,14 @@ const GROUPS: Group[] = [
   },
   {
     title: 'Payments (Razorpay)',
-    why: 'Takes subscriptions for Family Care and Extended Family.',
+    why: 'Takes subscriptions for Solo Care, Family Care and Extended Family.',
     checks: [
       { name: 'RAZORPAY_KEY_ID', hint: 'Razorpay → Account & Settings → API Keys (starts rzp_test_ or rzp_live_)' },
       { name: 'NEXT_PUBLIC_RAZORPAY_KEY_ID', hint: 'The same Key ID again (the browser needs it)' },
       { name: 'RAZORPAY_KEY_SECRET', hint: 'Shown once when you generate the key' },
       { name: 'RAZORPAY_WEBHOOK_SECRET', hint: 'Any random string; paste the same value in Razorpay → Webhooks (generated locally already)' },
-      { name: 'RAZORPAY_PLAN_ID_FAMILY', hint: 'Run: npx tsx scripts/create-razorpay-plans.ts --confirm' },
+      { name: 'RAZORPAY_PLAN_ID_SOLO', hint: 'Run: npx tsx scripts/create-razorpay-plans.ts --confirm' },
+      { name: 'RAZORPAY_PLAN_ID_FAMILY', hint: 'Printed by the same script' },
       { name: 'RAZORPAY_PLAN_ID_EXTENDED', hint: 'Printed by the same script' }
     ],
     extra: env => {
@@ -134,6 +136,48 @@ async function checkDatabase(): Promise<string[]> {
   return lines;
 }
 
+/**
+ * Asks Razorpay whether the keys work and whether Subscriptions is switched on for the account.
+ * Razorpay answers 401 on /plans and /subscriptions (while /orders works) when the Subscriptions
+ * product isn't enabled, which looks like a key problem but isn't one.
+ */
+async function checkRazorpay(): Promise<string[]> {
+  const id = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+  const secret = process.env.RAZORPAY_KEY_SECRET;
+  if (!isSet(id) || !isSet(secret)) return ['· skipped: keys not set'];
+  const auth = 'Basic ' + Buffer.from(`${id}:${secret}`).toString('base64');
+  const status = async (path: string) => {
+    try {
+      return (await fetch(`https://api.razorpay.com/v1${path}`, { headers: { Authorization: auth } })).status;
+    } catch {
+      return 0;
+    }
+  };
+
+  const orders = await status('/orders?count=1');
+  if (orders === 0) return ['✗ could not reach api.razorpay.com'];
+  if (orders === 401) return ['✗ keys rejected: Key ID and Key Secret do not match (regenerate them in Razorpay → API Keys)'];
+  const lines = ['✓ keys accepted'];
+
+  const plans = await status('/plans?count=1');
+  if (plans !== 200) {
+    lines.push(
+      `✗ Subscriptions is not enabled on this Razorpay account (plans API answered ${plans}). Checkout cannot work until it is:` +
+        ' ask Razorpay support to enable Subscriptions (dashboard and API). Account activation (KYC) may be needed first.'
+    );
+    return lines;
+  }
+  lines.push('✓ Subscriptions enabled');
+
+  for (const name of ['RAZORPAY_PLAN_ID_SOLO', 'RAZORPAY_PLAN_ID_FAMILY', 'RAZORPAY_PLAN_ID_EXTENDED']) {
+    const planId = process.env[name];
+    if (!isSet(planId)) continue;
+    const s = await status(`/plans/${encodeURIComponent(planId!)}`);
+    lines.push(s === 200 ? `✓ ${name} exists in Razorpay` : `✗ ${name} not found in this Razorpay account/mode (${s})`);
+  }
+  return lines;
+}
+
 async function main() {
   const strict = process.argv.includes('--strict');
   const env = process.env;
@@ -171,6 +215,8 @@ async function main() {
 
   console.log('Database');
   for (const l of await checkDatabase()) console.log(`  ${l}`);
+  console.log('\nRazorpay account');
+  for (const l of await checkRazorpay()) console.log(`  ${l}`);
   if (conflicts.length) {
     console.log(`\n⚠ These keys exist in both .env and .env.local with DIFFERENT values; .env.local wins in Next.js:\n  ${conflicts.join(', ')}`);
   }

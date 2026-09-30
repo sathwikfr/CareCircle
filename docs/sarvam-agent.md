@@ -68,7 +68,9 @@ Create an **API tool** (run: *During conversation*):
 
 - Method / URL: `POST https://<your-public-domain>/api/calls/escalate`
 - Auth: **bearer token** = the value of `SARVAM_WEBHOOK_SECRET` (stored in Sarvam Secrets)
-- Body (JSON): `{ "call_log_id": "@call_log_id", "reason": "<one short sentence of what the parent said>" }`
+- Body (Body tab, one row per field): `call_log_id` → gear ⚙ → **Agent variable** → `call_log_id`; `reason` → **Let the agent decide**, description "One short English sentence describing what the parent said."
+- Test with **Send**: `{"error":"Unknown call"}` (404) means auth works. `Unauthorized` with no Authorization header reaching the app means the Sarvam Secret is empty: create a new secret with the value.
+- After saving the tool, reference it in the prompt with `@` so it becomes a tool chip, delete any "with <parameters>" text the editor adds, then **Commit version** and update `SARVAM_APP_VERSION`.
 - Description: "Notify the family immediately when the parent describes a possible emergency."
 - If it fails: the agent still stays on the line and repeats that the family will be told.
 

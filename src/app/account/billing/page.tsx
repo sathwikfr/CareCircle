@@ -324,7 +324,7 @@ export default function AccountBillingPage() {
         </p>
 
         <div role="radiogroup" aria-label="Plans" style={{ display: 'grid', gap: '8px', marginBottom: '22px' }}>
-          {(['free', 'family', 'extended'] as PlanId[]).map((pid) => {
+          {(['free', 'solo', 'family', 'extended'] as PlanId[]).map((pid) => {
             const p = PLANS[pid];
             const isCurrent = currentPlan.id === pid;
             return (

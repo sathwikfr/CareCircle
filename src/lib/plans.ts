@@ -4,15 +4,15 @@ export const FREE_TRIAL_DAYS = 7;
 const DAY_MS = 86400000;
 
 /**
- * Pricing rationale (2026-09-30). Sarvam Voice Agents pricing is not published;
- * estimates: ~₹3/min all-in (worst case ₹5), ~2 min per call, ~2.4% payment fee.
- *   Family   ₹1,299: cost ₹540 typical / ₹1,080 at the 3-calls-a-day cap  -> ~56% / ~14% margin
- *   Extended ₹2,999: cost ₹1,350 typical / ₹2,700 at the cap               -> ~53% / ~8% margin
- * Going lower leaves no cushion at the cap.
- * Loses money only if Sarvam charges ~₹5/min AND every parent uses every call.
- * Free is a 7-day trial (about ₹40-60 of calls per user), not an open-ended plan: it would cost about ₹180 a month.
- * Re-check once Sarvam quotes real prices.
- * Changing a price also needs a new Razorpay plan (RAZORPAY_PLAN_ID_FAMILY / _EXTENDED).
+ * Pricing rationale (2026-10-01, from real Sarvam bills): ₹4.50/min agent + ₹0.40/min telephony = ₹4.90/min,
+ * billed per started minute. Calls last ~25 s, so ~₹4.90 per call (voicemail pickups cost the same).
+ * Costs below add 10% for retries/voicemail/long calls and take off the ~2.4% payment fee (GST not included).
+ *   Solo     ₹799:   ₹323 at 2 calls/day / ₹485 at the 3-calls-a-day cap -> ~57% / ~37% margin
+ *   Family   ₹1,299: ₹647 at 2 calls/day / ₹970 at the cap                -> ~48% / ~23% margin
+ *   Extended ₹3,499: ₹1,617 at 2 calls/day / ₹2,426 at the cap            -> ~51% / ~28% margin
+ * (Extended was ₹2,999: only ~17% at the cap.) Target: ~50% at typical use, 20%+ at the cap.
+ * Free is a 7-day trial (about ₹35-50 of calls per user), not an open-ended plan.
+ * Changing a price also needs a new Razorpay plan (RAZORPAY_PLAN_ID_SOLO / _FAMILY / _EXTENDED).
  */
 export const PLANS: Record<PlanId, Plan> = {
   free: {
@@ -34,6 +34,26 @@ export const PLANS: Record<PlanId, Plan> = {
       'Works on any phone, no app needed'
     ]
   },
+  solo: {
+    id: 'solo',
+    name: 'Solo Care',
+    tagline: 'Daily check-ins for one parent, timed to their medicines',
+    priceMonthly: 799,
+    currency: '₹',
+    hasTrial: true,
+    trialDays: 7,
+    parentsIncluded: 1,
+    callsPerDay: 3,
+    razorpayPlanId: 'plan_carecircle_solo_799',
+    features: [
+      '1 parent or elder relative',
+      'Up to 3 check-in calls a day, timed to their medicines',
+      '9 Indian languages, including Hindi, Tamil, Telugu and Bengali',
+      'Medicine and mood trends on your dashboard',
+      'Alerts when something needs your attention',
+      'Pause calls anytime (travel, hospital stay)'
+    ]
+  },
   family: {
     id: 'family',
     name: 'Family Care',
@@ -41,7 +61,7 @@ export const PLANS: Record<PlanId, Plan> = {
     priceMonthly: 1299,
     currency: '₹',
     hasTrial: true,
-    trialDays: 14,
+    trialDays: 7,
     popular: true,
     parentsIncluded: 2,
     callsPerDay: 3,
@@ -59,13 +79,13 @@ export const PLANS: Record<PlanId, Plan> = {
     id: 'extended',
     name: 'Extended Family',
     tagline: 'For larger families caring for several elders',
-    priceMonthly: 2999,
+    priceMonthly: 3499,
     currency: '₹',
     hasTrial: true,
-    trialDays: 14,
+    trialDays: 7,
     parentsIncluded: 5,
     callsPerDay: 3,
-    razorpayPlanId: 'plan_carecircle_extended_2999',
+    razorpayPlanId: 'plan_carecircle_extended_3499',
     features: [
       'Up to 5 parents or elder relatives',
       'Everything in Family Care (up to 3 calls a day per parent)',
@@ -76,7 +96,7 @@ export const PLANS: Record<PlanId, Plan> = {
 };
 
 export function getPlan(planId: string | null | undefined): Plan {
-  if (planId === 'family' || planId === 'extended' || planId === 'free') {
+  if (planId === 'solo' || planId === 'family' || planId === 'extended' || planId === 'free') {
     return PLANS[planId];
   }
   return PLANS.family; // Default to popular plan

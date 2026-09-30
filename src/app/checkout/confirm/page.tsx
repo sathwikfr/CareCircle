@@ -74,7 +74,7 @@ function ConfirmContent() {
         {/* PLAN */}
         <section className="panel" aria-labelledby="plan-title">
           <div className="plan-options" role="radiogroup" aria-label="Plan" style={{ marginBottom: '24px' }}>
-            {(['free', 'family', 'extended'] as PlanId[]).map((pid) => {
+            {(['solo', 'family', 'extended'] as PlanId[]).map((pid) => {
               const p = PLANS[pid];
               return (
                 <button

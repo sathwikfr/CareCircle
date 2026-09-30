@@ -5,8 +5,8 @@ import { PLANS } from './plans';
 /**
  * Razorpay configuration.
  *  - Live/test-mode Razorpay: RAZORPAY_KEY_ID (or NEXT_PUBLIC_RAZORPAY_KEY_ID),
- *    RAZORPAY_KEY_SECRET, and real plan ids in RAZORPAY_PLAN_ID_FAMILY /
- *    RAZORPAY_PLAN_ID_EXTENDED (created in the Razorpay dashboard).
+ *    RAZORPAY_KEY_SECRET, and real plan ids in RAZORPAY_PLAN_ID_SOLO /
+ *    RAZORPAY_PLAN_ID_FAMILY / RAZORPAY_PLAN_ID_EXTENDED (scripts/create-razorpay-plans.ts).
  *  - Without real keys, a local sandbox is available ONLY under `next dev`.
  *    Production never falls back to sandbox.
  */
@@ -61,6 +61,7 @@ export function describeRazorpayPaymentMethod(payment: {
 }
 
 function getRazorpayPlanId(planId: PlanId): string | undefined {
+  if (planId === 'solo') return process.env.RAZORPAY_PLAN_ID_SOLO || PLANS.solo.razorpayPlanId;
   if (planId === 'family') return process.env.RAZORPAY_PLAN_ID_FAMILY || PLANS.family.razorpayPlanId;
   if (planId === 'extended') return process.env.RAZORPAY_PLAN_ID_EXTENDED || PLANS.extended.razorpayPlanId;
   return undefined;
