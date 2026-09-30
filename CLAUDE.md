@@ -53,7 +53,7 @@
 | Page guards | `src/proxy.ts` redirects signed-out users away from /dashboard, /onboarding, /account, /checkout. |
 | Deploy | Target Vercel, not deployed. Cron = any external scheduler hitting `/api/cron/dispatch` every ~5 min (Vercel Cron needs a paid plan for that interval; no `vercel.json`). |
 
-Env keys (names only): `DATABASE_URL`, `DIRECT_URL`, `GROQ_API_KEY`, `GROQ_VISION_MODEL`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_PLAN_ID_FAMILY`, `RAZORPAY_PLAN_ID_EXTENDED`, `GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `CRON_SECRET`, `SARVAM_API_KEY`, `SARVAM_ORG_ID`, `SARVAM_WORKSPACE_ID`, `SARVAM_APP_ID`, `SARVAM_APP_VERSION`, `SARVAM_CONNECTION_ID`, `SARVAM_AGENT_PHONE_NUMBER`, `SARVAM_WEBHOOK_SECRET` (generated locally), optional `SARVAM_API_BASE`. Removed: `GROQ_CALL_MODEL`, `TWILIO_*`, `JWT_SECRET`. **Keys go in `.env.local`** (Next.js reads it before `.env`; several keys existed in both and `.env.local` silently won). Also `NEXT_PUBLIC_SUPPORT_EMAIL` (Privacy/Terms contact). As of 2026-09-30 the Razorpay keys are placeholders, Sarvam/Google/Resend-domain/support email are unset. Run `npm run check:setup` to see exactly what is missing (never prints values).
+Env keys (names only): `DATABASE_URL`, `DIRECT_URL`, `GROQ_API_KEY`, `GROQ_VISION_MODEL`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_PLAN_ID_FAMILY`, `RAZORPAY_PLAN_ID_EXTENDED`, `GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `CRON_SECRET`, `SARVAM_API_KEY`, `SARVAM_ORG_ID`, `SARVAM_WORKSPACE_ID`, `SARVAM_APP_ID`, `SARVAM_APP_VERSION`, `SARVAM_CONNECTION_ID`, `SARVAM_AGENT_PHONE_NUMBER`, `SARVAM_WEBHOOK_SECRET` (generated locally), optional `SARVAM_API_BASE`, `ADMIN_EMAILS` (comma-separated; who can open `/admin`). Removed: `GROQ_CALL_MODEL`, `TWILIO_*`, `JWT_SECRET`. **Keys go in `.env.local`** (Next.js reads it before `.env`; several keys existed in both and `.env.local` silently won). Also `NEXT_PUBLIC_SUPPORT_EMAIL` (Privacy/Terms contact). As of 2026-09-30 the Razorpay keys are placeholders, Sarvam/Google/Resend-domain/support email are unset. Run `npm run check:setup` to see exactly what is missing (never prints values).
 
 ## 5. Folder map
 
@@ -89,6 +89,9 @@ src/lib/
   safety.ts                 multilingual emergency-phrase scan (parent turns only)
   alerts.ts                 raiseAlert() (dedupe per call+title, email via Resend), raiseUnreachableAlert()
   secrets.ts                timing-safe secret compare, Bearer/header reader
+  adminEmail.ts, admin.ts   ADMIN_EMAILS check (isAdminEmail, no imports) + requireAdminPage() (404 for non-admins)
+  adminStats.ts             read-only queries for /admin (customers, plans, parents, calls/day, alerts); hides `claude-e2e-*` accounts
+src/app/admin/page.tsx      read-only admin overview (server component). NOT in proxy.ts matcher on purpose: signed-out visitors get a 404, not a login redirect
 src/components/GoogleSignInButton.tsx   GIS button (hidden when not configured)
 src/components/LegalPage.tsx + app/privacy + app/terms   plain-language Privacy Policy and Terms (draft; lawyer review advised); linked from Footer and checkout
 src/components/               Navbar (+Brand), Footer, Reveal, ThemeToggle, ui/Modal (portal),
@@ -175,6 +178,7 @@ Cron reminders are fail-closed (no EmailLog row = no email, so they never repeat
 | Free trial | DONE: 7 days from signup, then calls stop (`plans.ts` `freeTrialEnd`, dashboard/billing banners, tested in A7/B14/B15) |
 | Privacy + Terms pages | DONE (draft written from how the product works; needs a lawyer's read) |
 | Onboarding wizard | DONE (meds keep timing/food relation; Malayalam added; honest test-call) |
+| Admin overview (`/admin`) | DONE 2026-09-30: read-only; only emails in `ADMIN_EMAILS`; shows customers, plans, est. revenue, parents, calls/day, answer rate, recent alerts. Admin link in the user menu via `user.isAdmin`. Email verification isn't built, so only list an email whose account already exists (otherwise someone could sign up with it) |
 | Dashboard | Today card, Trends, call history from real data; CSV export. Split into `components/dashboard/*` (DONE 2026-09-30) |
 | Pause/resume | DONE (real dates) |
 | Caregiver invites | PARTIAL: row only; no email, no invitee access |

@@ -3994,7 +3994,7 @@ svg .steam + .steam {
   margin-bottom: 20px;
 }
 
-.admin-two > .panel { margin-bottom: 0; }
+.admin-two > .panel { margin: 0; }
 
 .admin-bars {
   display: grid;
