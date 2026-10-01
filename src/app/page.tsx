@@ -6,7 +6,7 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Reveal } from '@/components/Reveal';
 import { CallDemo } from '@/components/landing/CallDemo';
-import { CallWave } from '@/components/landing/CallWave';
+import { VoiceHero } from '@/components/landing/VoiceHero';
 import { LiveCallPhone } from '@/components/landing/LiveCallPhone';
 import { FlowTabs } from '@/components/landing/FlowTabs';
 import { FamiliesCarousel } from '@/components/landing/FamiliesCarousel';
@@ -102,41 +102,7 @@ export default function LandingPage() {
 
       <main id="main">
         {/* HERO */}
-        <section className={s.hero}>
-          <div className={`wrap ${s.heroGrid}`}>
-            <div className={s.heroCopy}>
-              <span className={`${s.pill} anim-load d1`}>
-                <Sparkles size={14} /> Saathi · a voice companion for parents
-              </span>
-
-              <h1 className={s.heroTitle}>
-                <span className="anim-load d2" style={{ display: 'block' }}>A daily call for your parents.</span>
-                <span className="anim-load d3" style={{ display: 'block' }}><span className={`${s.grad} draw-line`}>Peace of mind</span> for you.</span>
-              </h1>
-
-              <p className={`${s.heroLead} anim-load d4`}>
-                Saathi phones your parents <b>at the times you choose</b>, in their own language, to check on their medicines and how they’re feeling. <b>Every call lands on your dashboard.</b>
-              </p>
-
-              <div className={`${s.heroCtas} anim-load d5`}>
-                <MagneticLink href={primaryHref} className="btn btn-primary btn-lg">
-                  {primaryLabel} <ArrowRight size={18} className="arrow" />
-                </MagneticLink>
-                <Link href="#how" className="btn btn-ghost btn-lg">See how it works</Link>
-              </div>
-
-              <div className={`${s.heroTrust} anim-load-fade d6`}>
-                <span><span className="dot live" /> {FREE_TRIAL_DAYS}-day free trial, no card needed</span>
-                <span><Languages size={15} /> 9 Indian languages</span>
-                <span><ShieldCheck size={15} /> Never gives medical advice</span>
-              </div>
-            </div>
-
-            <div className={`${s.stage} anim-load-scale d4`}>
-              <CallWave />
-            </div>
-          </div>
-        </section>
+        <VoiceHero primaryHref={primaryHref} primaryLabel={primaryLabel} trialDays={FREE_TRIAL_DAYS} />
 
         <Ticker items={TICKER} />
 

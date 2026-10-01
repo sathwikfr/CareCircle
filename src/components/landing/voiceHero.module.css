@@ -1,0 +1,523 @@
+/* ==========================================================================
+   Landing hero: dark peacock panel, a circular window onto the voice field,
+   copy on the left, live captions on the right, a faded AAPTHA wordmark.
+   Always dark (both themes) so the additive glow reads.
+   Sizes are pixel steps per breakpoint, not fluid.
+   ========================================================================== */
+
+.hero {
+  padding: 8px 16px 0;
+}
+
+.panel {
+  /* The frame */
+  --edge: 44px;
+  --hole: 210px;            /* radius of the window */
+  --hy: 50%;                /* window centre, from the top of the panel */
+  --h1: 50px;
+  --ui: 15px;
+  --colw: 440px;
+  --cardw: 380px;
+  --btnh: 52px;
+  --giant: 220px;
+
+  /* Dark palette (fixed, like the call card) */
+  --ink: #f4efe6;
+  --dim: rgba(244, 239, 230, 0.6);
+  --film: rgba(244, 239, 230, 0.07);
+  --filmedge: rgba(244, 239, 230, 0.12);
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  height: calc(100svh - 68px - 16px);
+  min-height: 660px;
+  max-height: 980px;
+  border-radius: 32px;
+  background: radial-gradient(90% 80% at 50% 55%, #10302c 0%, #08201d 60%, #061714 100%);
+  color: var(--ink);
+}
+
+.field {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+/* Everything outside the circle reads washed and blurred; inside, the field is sharp. */
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  --mask: radial-gradient(circle var(--hole) at 50% var(--hy), transparent 99.4%, #000 100%);
+  background: rgba(8, 27, 25, 0.8);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  -webkit-mask-image: var(--mask);
+  mask-image: var(--mask);
+  pointer-events: none;
+}
+
+.ring {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: var(--hy);
+  width: calc(var(--hole) * 3.2);
+  height: calc(var(--hole) * 3.2);
+  max-width: none;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* ---------- The window button ---------- */
+
+.circle {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: var(--hy);
+  width: calc(var(--hole) * 2);
+  height: calc(var(--hole) * 2);
+  transform: translate(-50%, -50%);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 28px;
+  box-shadow: inset 0 0 0 1px rgba(244, 239, 230, 0.1);
+  transition: box-shadow var(--dur) var(--ease-out);
+}
+
+.circle:hover {
+  box-shadow: inset 0 0 0 1px rgba(92, 194, 181, 0.45), 0 0 60px -10px rgba(92, 194, 181, 0.35);
+}
+
+.circle:focus-visible {
+  outline: 2px solid #5cc2b5;
+  outline-offset: 6px;
+  border-radius: 50%;
+}
+
+.live {
+  box-shadow: inset 0 0 0 1px rgba(92, 194, 181, 0.5), 0 0 80px -6px rgba(92, 194, 181, 0.4);
+}
+
+.circleHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--r-full);
+  background: rgba(6, 23, 20, 0.62);
+  border: 1px solid rgba(244, 239, 230, 0.16);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background var(--dur) var(--ease-out);
+}
+
+.circle:hover .circleHint {
+  background: rgba(13, 107, 99, 0.7);
+}
+
+/* ---------- Copy (left) ---------- */
+
+.copy {
+  position: absolute;
+  z-index: 4;
+  left: var(--edge);
+  top: calc(var(--hy) - var(--hole));
+  width: var(--colw);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.tagline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--ui);
+  color: var(--ink);
+}
+
+.mark {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border: 1.5px solid var(--marigold);
+  border-radius: 50%;
+}
+
+.h1 {
+  font-size: var(--h1);
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+}
+
+.h1 em {
+  font-style: normal;
+  color: #5cc2b5;
+}
+
+.proof {
+  font-size: var(--ui);
+  color: var(--dim);
+}
+
+.ctas {
+  position: absolute;
+  z-index: 4;
+  left: var(--edge);
+  top: calc(var(--hy) + var(--hole) - var(--btnh));
+  display: flex;
+  gap: 12px;
+}
+
+.btnSolid,
+.btnGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: var(--btnh);
+  padding: 0 28px;
+  border-radius: var(--r-full);
+  font-size: calc(var(--ui) + 1px);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+
+.btnSolid {
+  background: var(--marigold);
+  color: var(--on-marigold);
+}
+
+.btnSolid:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.btnGhost {
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgba(244, 239, 230, 0.4);
+}
+
+.btnGhost:hover {
+  background: rgba(244, 239, 230, 0.08);
+}
+
+/* ---------- Captions card (right) ---------- */
+
+.card {
+  position: absolute;
+  z-index: 4;
+  right: var(--edge);
+  top: calc(var(--hy) - var(--hole));
+  width: var(--cardw);
+  height: calc(var(--hole) * 2 - var(--btnh) - 14px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+  border-radius: 28px;
+  border: 1px solid var(--filmedge);
+  background: linear-gradient(180deg, rgba(244, 239, 230, 0.1) 0%, rgba(244, 239, 230, 0.02) 100%);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cardLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.langs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: var(--r-full);
+  background: rgba(6, 23, 20, 0.5);
+}
+
+.langs button {
+  border: 0;
+  padding: 5px 11px;
+  border-radius: var(--r-full);
+  background: transparent;
+  color: var(--dim);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.langs button[aria-pressed='true'] {
+  background: rgba(244, 239, 230, 0.14);
+  color: var(--ink);
+}
+
+.caption {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.idleTitle {
+  font-family: var(--font-serif);
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.caption > small {
+  margin-top: 10px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--dim);
+}
+
+.line {
+  animation: lineIn 380ms var(--ease-out) both;
+}
+
+.line p {
+  margin-top: 8px;
+  font-size: 1.12rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--dim);
+}
+
+/* Words already spoken light up. */
+.line mark {
+  background: none;
+  color: var(--ink);
+}
+
+.line small {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--dim);
+}
+
+.who {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8fd6cc;
+}
+
+.whoWarm {
+  color: #f6c98a;
+}
+
+.note {
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: rgba(244, 239, 230, 0.5);
+}
+
+@keyframes lineIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.plate {
+  position: absolute;
+  z-index: 4;
+  right: var(--edge);
+  top: calc(var(--hy) + var(--hole) - var(--btnh));
+  width: var(--cardw);
+  height: var(--btnh);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: var(--r-full);
+  background: var(--film);
+  box-shadow: inset 0 0 0 1px var(--filmedge);
+  font-size: var(--ui);
+  transition: background var(--dur) var(--ease-out);
+}
+
+.plate:hover {
+  background: rgba(244, 239, 230, 0.12);
+}
+
+.plate span {
+  display: flex;
+  gap: 14px;
+}
+
+.plate b {
+  font-weight: 600;
+}
+
+.plate i {
+  font-style: normal;
+  color: var(--dim);
+}
+
+/* ---------- Wordmark ---------- */
+
+.giant {
+  position: absolute;
+  z-index: 2;
+  left: var(--edge);
+  right: var(--edge);
+  bottom: calc(var(--giant) * -0.26);
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-serif);
+  font-size: var(--giant);
+  font-weight: 200;
+  line-height: 0.8;
+  letter-spacing: -0.02em;
+  pointer-events: none;
+  user-select: none;
+}
+
+.giant span {
+  background-image: linear-gradient(180deg, rgba(244, 239, 230, 0.55) 0%, rgba(244, 239, 230, 0) 70%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ---------- Pixel steps ---------- */
+
+@media (min-width: 1600px) {
+  .panel {
+    --edge: 56px;
+    --hole: 250px;
+    --h1: 64px;
+    --ui: 16px;
+    --colw: 560px;
+    --cardw: 440px;
+    --btnh: 58px;
+    --giant: 280px;
+  }
+}
+
+@media (max-width: 1279px) {
+  .panel {
+    --edge: 32px;
+    --hole: 175px;
+    --h1: 40px;
+    --ui: 14px;
+    --colw: 330px;
+    --cardw: 300px;
+    --btnh: 46px;
+    --giant: 180px;
+  }
+
+  .card { padding: 18px; }
+  .idleTitle { font-size: 1.1rem; }
+  .line p { font-size: 1rem; }
+  .btnSolid, .btnGhost { padding: 0 20px; }
+}
+
+/* Short desktop windows: the circle comes down first. */
+@media (min-width: 1024px) and (max-height: 760px) {
+  .panel { --hole: 180px; --h1: 42px; --giant: 170px; }
+}
+
+/* ---------- Stacked: tablets and phones ---------- */
+
+@media (max-width: 1023px) {
+  .hero {
+    padding: 6px 10px 0;
+  }
+
+  .panel {
+    --edge: 24px;
+    --hole: 150px;
+    --hy: calc(var(--hole) + 36px);
+    --h1: 42px;
+    --ui: 15px;
+    --btnh: 50px;
+    --giant: 110px;
+
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    padding: calc(var(--hole) * 2 + 72px) var(--edge) 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    border-radius: 26px;
+  }
+
+  /* The field only lives behind the window at the top. */
+  .field,
+  .scrim {
+    bottom: auto;
+    height: calc(var(--hole) * 2 + 72px);
+  }
+
+  .copy,
+  .ctas,
+  .card,
+  .plate {
+    position: static;
+    width: auto;
+    height: auto;
+  }
+
+  .copy { gap: 16px; }
+  .ctas { flex-wrap: wrap; }
+  .card { min-height: 240px; }
+  .plate { height: var(--btnh); }
+}
+
+@media (max-width: 560px) {
+  .panel {
+    --edge: 18px;
+    --hole: 128px;
+    --h1: 36px;
+    --ui: 14px;
+    --btnh: 48px;
+    --giant: 72px;
+  }
+
+  .ctas a { flex: 1 1 0; padding: 0 12px; }
+  .circleHint { font-size: 0.82rem; padding: 8px 14px; }
+  .circle { padding-bottom: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .line { animation: none; }
+}
