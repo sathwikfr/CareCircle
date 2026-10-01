@@ -5,7 +5,8 @@ import { AccountShell } from '@/components/account/AccountUI';
 import { PasswordField, StrengthMeter } from '@/components/auth/AuthUI';
 import { useAuth } from '@/context/AuthContext';
 import { NotificationPreferences } from '@/lib/types';
-import { User as UserIcon, Mail, Lock, Bell, CheckCircle2, AlertCircle, ShieldCheck, KeyRound, Save, MessageSquare, Smartphone, X } from 'lucide-react';
+import { User as UserIcon, Mail, Lock, Bell, CheckCircle2, AlertCircle, ShieldCheck, KeyRound, Save, Smartphone, X } from 'lucide-react';
+import { WhatsAppSettings } from '@/components/account/WhatsAppSettings';
 
 export default function EditProfilePage() {
   const { user, refreshUser, setUserDirectly } = useAuth();
@@ -43,6 +44,13 @@ export default function EditProfilePage() {
     type: 'success' | 'error' | 'info';
     message: string;
   } | null>(null);
+
+  // /account/profile?tab=notifications (linked from the dashboard's WhatsApp prompt)
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- read the URL after mount
+    if (tab === 'notifications' || tab === 'security') setActiveTab(tab);
+  }, []);
 
   // Load initial data from user object
   useEffect(() => {
@@ -379,32 +387,48 @@ export default function EditProfilePage() {
             <form onSubmit={handleSaveNotifications} className="panel animate-fade-in">
               <div className="panel-head">
                 <div>
-                  <h2 style={{ fontSize: '1.3rem' }}>Alerts</h2>
-                  <p>How we tell you when a call with your parent raises a concern.</p>
+                  <h2 style={{ fontSize: '1.3rem' }}>Call updates</h2>
+                  <p>How we tell you what happened on calls with your parents. Receipts and account emails always come by email.</p>
                 </div>
+              </div>
+
+              <div>
+                <WhatsAppSettings />
+              </div>
+
+              <div className="form-group" style={{ marginTop: '12px' }}>
+                <label className="form-label" htmlFor="min-level">Send me</label>
+                <select
+                  id="min-level"
+                  value={notifPrefs.minimumAlertLevel}
+                  onChange={(e) => setNotifPrefs({ ...notifPrefs, minimumAlertLevel: Number(e.target.value) })}
+                  className="form-input"
+                >
+                  <option value={1}>Every call result (recommended)</option>
+                  <option value={2}>Only when something needs attention: missed medicines, unanswered calls and more</option>
+                  <option value={3}>Only health concerns: feeling unwell, pain, dizziness</option>
+                  <option value={4}>Only emergencies</option>
+                </select>
+                <span className="form-hint">Emergencies are always sent. Every call and alert also appears on your dashboard.</span>
               </div>
 
               <div>
                 <div className="toggle-row">
                   <div>
-                    <strong><Mail size={16} color="var(--teal)" /> Email</strong>
-                    <p>Sent to {email || 'your email'} as soon as an alert is raised.</p>
+                    <strong><Mail size={16} color="var(--teal)" /> Email backup</strong>
+                    <p>
+                      Until WhatsApp updates are live, alerts that need attention are emailed to {email || 'your email'}.
+                      After that, we email only if a health concern or emergency can&apos;t reach you on WhatsApp.
+                    </p>
                   </div>
                   <button
                     type="button"
                     role="switch"
                     aria-checked={notifPrefs.email}
-                    aria-label="Email alerts"
+                    aria-label="Email backup"
                     className="switch"
                     onClick={() => setNotifPrefs({ ...notifPrefs, email: !notifPrefs.email })}
                   />
-                </div>
-                <div className="toggle-row">
-                  <div>
-                    <strong><MessageSquare size={16} color="var(--ink-subtle)" /> WhatsApp <span className="badge badge-neutral">Coming soon</span></strong>
-                    <p>A short message after calls that need your attention.</p>
-                  </div>
-                  <button type="button" role="switch" aria-checked={false} aria-label="WhatsApp alerts (coming soon)" className="switch" disabled />
                 </div>
                 <div className="toggle-row">
                   <div>
@@ -413,21 +437,6 @@ export default function EditProfilePage() {
                   </div>
                   <button type="button" role="switch" aria-checked={false} aria-label="SMS alerts (coming soon)" className="switch" disabled />
                 </div>
-              </div>
-
-              <div className="form-group" style={{ marginTop: '12px' }}>
-                <label className="form-label" htmlFor="min-level">Email me about</label>
-                <select
-                  id="min-level"
-                  value={Math.max(2, notifPrefs.minimumAlertLevel)}
-                  onChange={(e) => setNotifPrefs({ ...notifPrefs, minimumAlertLevel: Number(e.target.value) })}
-                  className="form-input"
-                >
-                  <option value={2}>Anything that needs attention: missed medicines, unanswered calls and more</option>
-                  <option value={3}>Only health concerns: feeling unwell, pain, dizziness</option>
-                  <option value={4}>Only emergencies</option>
-                </select>
-                <span className="form-hint">Every alert, whatever its level, always appears on your dashboard.</span>
               </div>
 
               <div className="wizard-nav" style={{ justifyContent: 'flex-end' }}>

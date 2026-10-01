@@ -182,10 +182,13 @@ export interface AlertRecord {
   level: 0 | 1 | 2 | 3 | 4;
   title: string;
   message: string;
-  channel: 'whatsapp' | 'sms' | 'email';
+  /** How the family was told: 'dashboard' = not sent anywhere else (yet). */
+  channel: 'whatsapp' | 'sms' | 'email' | 'dashboard';
   timestamp: string;
   status: 'sent' | 'read' | 'resolved';
   createdAt?: string;
+  /** Set when the family tapped "I'll handle it" on WhatsApp. */
+  acknowledgedAt?: string;
 }
 
 export interface ScheduleSuggestion {

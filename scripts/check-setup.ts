@@ -94,6 +94,16 @@ const GROUPS: Group[] = [
     ]
   },
   {
+    title: 'WhatsApp call updates (Meta Cloud API)',
+    why: 'Sends families one WhatsApp message per call. Until these are set, call alerts are emailed as before.',
+    checks: [
+      { name: 'WHATSAPP_ACCESS_TOKEN', hint: 'Meta Business Settings → System users → generate a permanent token (see docs/whatsapp-setup.md)' },
+      { name: 'WHATSAPP_PHONE_NUMBER_ID', hint: 'Meta app → WhatsApp → API Setup → Phone number ID (not the phone number itself)' },
+      { name: 'WHATSAPP_APP_SECRET', hint: 'Meta app → App settings → Basic → App secret (verifies the webhook)' },
+      { name: 'WHATSAPP_VERIFY_TOKEN', hint: 'Any random string you also type into the Meta webhook settings', valid: v => (v.length >= 16 ? null : 'too short (use 16+ characters)') }
+    ]
+  },
+  {
     title: 'Google sign-in',
     why: 'Adds a "Continue with Google" button. Optional: email and password work without it.',
     optional: true,
@@ -128,6 +138,14 @@ async function checkDatabase(): Promise<string[]> {
       lines.push('✓ call-pipeline columns exist');
     } catch {
       lines.push('✗ call-pipeline columns are missing: the schema needs the additive update (see CLAUDE.md, never --accept-data-loss)');
+    }
+    try {
+      await prisma.whatsAppMessage.findFirst({ select: { id: true } });
+      await prisma.notificationPreferences.findFirst({ select: { whatsappOptInAt: true } });
+      await prisma.alertRecord.findFirst({ select: { acknowledgedAt: true } });
+      lines.push('✓ WhatsApp tables/columns exist');
+    } catch {
+      lines.push('✗ WhatsApp tables/columns are missing: apply the additive WhatsApp schema update (see CLAUDE.md, never --accept-data-loss)');
     }
     await prisma.$disconnect();
   } catch (err) {

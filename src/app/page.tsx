@@ -6,7 +6,7 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Reveal } from '@/components/Reveal';
 import { CallDemo } from '@/components/landing/CallDemo';
-import { HeroIllustration } from '@/components/landing/HeroIllustration';
+import { CallWave } from '@/components/landing/CallWave';
 import { LiveCallPhone } from '@/components/landing/LiveCallPhone';
 import { FlowTabs } from '@/components/landing/FlowTabs';
 import { FamiliesCarousel } from '@/components/landing/FamiliesCarousel';
@@ -15,7 +15,6 @@ import { ScrollProgress } from '@/components/motion/ScrollProgress';
 import { FloatingCta } from '@/components/motion/FloatingCta';
 import { Ticker } from '@/components/motion/Ticker';
 import { WaveBand } from '@/components/motion/WaveBand';
-import { Parallax } from '@/components/motion/Parallax';
 import { WordReveal } from '@/components/motion/WordReveal';
 import { MagneticLink } from '@/components/motion/MagneticLink';
 import { TiltCard } from '@/components/motion/TiltCard';
@@ -26,7 +25,7 @@ import { PlanId } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 import {
   ArrowRight, Check, Phone, PhoneCall, Languages, ShieldCheck, Stethoscope, Siren, HeartHandshake,
-  ClipboardCheck, Plus, Sparkles, Smile, LayoutDashboard, Mail, PhoneMissed, AlertTriangle, Minus
+  ClipboardCheck, Plus, Sparkles, LayoutDashboard, Mail, PhoneMissed, AlertTriangle, Minus
 } from 'lucide-react';
 
 const TICKER = [
@@ -104,79 +103,37 @@ export default function LandingPage() {
       <main id="main">
         {/* HERO */}
         <section className={s.hero}>
-          <div className="wrap">
-            <span className={`${s.pill} anim-load d1`}>
-              <Sparkles size={14} /> Saathi · a voice companion for parents
-            </span>
+          <div className={`wrap ${s.heroGrid}`}>
+            <div className={s.heroCopy}>
+              <span className={`${s.pill} anim-load d1`}>
+                <Sparkles size={14} /> Saathi · a voice companion for parents
+              </span>
 
-            <h1 className={s.heroTitle}>
-              <span className="anim-load d2" style={{ display: 'block' }}>A daily call for your parents.</span>
-              <span className="anim-load d3" style={{ display: 'block' }}><span className={`${s.grad} draw-line`}>Peace of mind</span> for you.</span>
-            </h1>
+              <h1 className={s.heroTitle}>
+                <span className="anim-load d2" style={{ display: 'block' }}>A daily call for your parents.</span>
+                <span className="anim-load d3" style={{ display: 'block' }}><span className={`${s.grad} draw-line`}>Peace of mind</span> for you.</span>
+              </h1>
 
-            <div className={`${s.promise} anim-load-scale d4`}>
-              <div className={s.promisePrice}>
-                <small>Start with</small>
-                <b>₹0</b>
+              <p className={`${s.heroLead} anim-load d4`}>
+                Saathi phones your parents <b>at the times you choose</b>, in their own language, to check on their medicines and how they’re feeling. <b>Every call lands on your dashboard.</b>
+              </p>
+
+              <div className={`${s.heroCtas} anim-load d5`}>
+                <MagneticLink href={primaryHref} className="btn btn-primary btn-lg">
+                  {primaryLabel} <ArrowRight size={18} className="arrow" />
+                </MagneticLink>
+                <Link href="#how" className="btn btn-ghost btn-lg">See how it works</Link>
               </div>
-              <div className={s.promiseList}>
-                <span><Check size={16} /> No app for your parents</span>
-                <span><Check size={16} /> Set up in a few minutes</span>
+
+              <div className={`${s.heroTrust} anim-load-fade d6`}>
+                <span><span className="dot live" /> {FREE_TRIAL_DAYS}-day free trial, no card needed</span>
+                <span><Languages size={15} /> 9 Indian languages</span>
+                <span><ShieldCheck size={15} /> Never gives medical advice</span>
               </div>
             </div>
 
-            <p className={`${s.heroLead} anim-load d4`}>
-              Saathi phones your parents <b>at the times you choose</b>, in their own language, to check on their medicines and how they’re feeling. <b>Every call lands on your dashboard.</b>
-            </p>
-
-            <div className={`${s.heroCtas} anim-load d5`}>
-              <MagneticLink href={primaryHref} className="btn btn-primary btn-lg">
-                {primaryLabel} <ArrowRight size={18} className="arrow" />
-              </MagneticLink>
-              <Link href="#how" className="btn btn-ghost btn-lg">See how it works</Link>
-            </div>
-
-            <div className={`${s.heroTrust} anim-load-fade d6`}>
-              <span><span className="dot live" /> {FREE_TRIAL_DAYS}-day free trial, no card needed</span>
-              <span><Languages size={15} /> 9 Indian languages</span>
-              <span><ShieldCheck size={15} /> Never gives medical advice</span>
-            </div>
-
-            <div className={`${s.stage} anim-load-scale d5`}>
-              <Parallax speed={-0.12}>
-                <div className={s.stageArt}>
-                  <HeroIllustration />
-                </div>
-              </Parallax>
-
-              <Parallax speed={0.35} className={`${s.floatWrap} ${s.fcA}`}>
-                <div className={s.floatCard} aria-hidden="true">
-                  <span className={s.floatIcon}><PhoneCall size={17} /></span>
-                  <div><b>Saathi is calling Amma</b><small>8:30 AM · Telugu</small></div>
-                </div>
-              </Parallax>
-              <Parallax speed={0.55} className={`${s.floatWrap} ${s.fcB}`}>
-                <div className={s.floatCard} aria-hidden="true">
-                  <span className={`${s.floatIcon} ${s.green}`}><Check size={17} strokeWidth={3} /></span>
-                  <div><b>BP tablet taken</b><small>After breakfast</small></div>
-                </div>
-              </Parallax>
-              <Parallax speed={0.25} className={`${s.floatWrap} ${s.fcC}`}>
-                <div className={s.floatCard} aria-hidden="true">
-                  <span className={`${s.floatIcon} ${s.amber}`}><Smile size={17} /></span>
-                  <div><b>Mood: cheerful</b><small>“Went for a short walk”</small></div>
-                </div>
-              </Parallax>
-              <Parallax speed={0.45} className={`${s.floatWrap} ${s.fcD}`}>
-                <div className={s.floatCard} aria-hidden="true">
-                  <span className={s.floatIcon}><LayoutDashboard size={17} /></span>
-                  <div><b>Your dashboard updated</b><small>Just now</small></div>
-                </div>
-              </Parallax>
-              <svg className={s.scribble} viewBox="0 0 110 80" fill="none" aria-hidden="true">
-                <path d="M6 10 C 40 0, 90 10, 88 44 C 87 58, 78 66, 64 70" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                <path d="M64 70 L76 62 M64 70 L74 78" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-              </svg>
+            <div className={`${s.stage} anim-load-scale d4`}>
+              <CallWave />
             </div>
           </div>
         </section>
@@ -216,7 +173,7 @@ export default function LandingPage() {
           <div className="wrap">
             <Reveal className={s.head}>
               <span className={s.pill}><Sparkles size={14} /> Made for Indian families</span>
-              <WordReveal>Who is <span style={{ color: '#7dd3fc', fontStyle: 'italic' }}>Aaptha</span> for?</WordReveal>
+              <WordReveal>Who is <span style={{ color: 'var(--marigold)' }}>Aaptha</span> for?</WordReveal>
               <p>Whether your parents live across town or across the world, a short daily call closes the distance.</p>
             </Reveal>
           </div>

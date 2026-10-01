@@ -207,6 +207,7 @@ async function partB() {
   console.log('\nB. Pipeline against throwaway database rows');
   const emails: Array<{ to: string; alertType: string; alertLevel: string }> = [];
   const alertDeps = {
+    whatsapp: null, // WhatsApp off: the original alert emails (WhatsApp has its own suite, test-whatsapp.ts)
     sendEmail: (async (p: { to: string; alertType: string; alertLevel: string }) => {
       emails.push({ to: p.to, alertType: p.alertType, alertLevel: p.alertLevel });
       return { success: true, simulated: true };

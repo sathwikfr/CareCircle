@@ -14,8 +14,10 @@ import {
   decideAlerts,
   parseTranscript
 } from './callInterpretation';
-import { raiseAlert, raiseUnreachableAlert, RaiseAlertResult, AlertDeps } from './alerts';
+import { raiseAlert, raiseUnreachableAlert, recordAlert, RaiseAlertResult, RecordAlertResult, AlertDeps } from './alerts';
 import { ALERT_TITLES } from './callInterpretation';
+import { notifyFamily } from './familyNotify';
+import { describeAnsweredCall } from './familyMessages';
 
 export const MAX_CALL_ATTEMPTS = 3;
 export const RETRY_DELAY_MINUTES = 15;
@@ -125,14 +127,31 @@ export async function processSarvamWebhook(
       }
     });
 
+    const recorded: RecordAlertResult[] = [];
     for (const decision of decideAlerts(interp, parent.name, slotLabel)) {
-      alertResults.push(await raiseAlert({ parentId: parent.id, callLogId: log.id, ...decision }, deps));
+      recorded.push(await recordAlert({ parentId: parent.id, callLogId: log.id, ...decision }));
     }
+    // One message to the family about the whole call.
+    await notifyFamily(
+      {
+        parentId: parent.id,
+        callLogId: log.id,
+        alerts: recorded.flatMap(r => (r.alert ? [r.alert] : [])),
+        update: describeAnsweredCall({
+          slotLabel,
+          answeredAt: formatIstClock(now),
+          medicineResults: interp.medicineResults,
+          mood: interp.mood,
+          feedback: interp.feedback
+        })
+      },
+      deps
+    );
 
     return {
       status: 'processed',
       callLogId: log.id,
-      alertsRaised: alertResults.filter(r => r.created).length,
+      alertsRaised: recorded.filter(r => r.created).length,
       retryAt: null
     };
   }

@@ -21,6 +21,7 @@ import { MedicinesPanel } from '@/components/dashboard/MedicinesPanel';
 import { AlertsPanel } from '@/components/dashboard/AlertsPanel';
 import { SettingsPanel } from '@/components/dashboard/SettingsPanel';
 import { AddMedicineModal, PauseModal, InviteModal, DeleteParentModal, UploadReportModal } from '@/components/dashboard/DashboardModals';
+import { WhatsAppOptInBanner } from '@/components/account/WhatsAppSettings';
 
 type TabId = 'overview' | 'trends' | 'calls' | 'medicines' | 'alerts' | 'settings';
 
@@ -552,6 +553,8 @@ function DashboardContent() {
           <button onClick={() => handleTogglePause(false)} className="btn btn-primary btn-sm">Resume now</button>
         </div>
       )}
+
+      <WhatsAppOptInBanner />
 
       {effectivePlan.expired && (
         <div className="banner amber" role="status">

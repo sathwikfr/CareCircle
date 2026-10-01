@@ -47,22 +47,24 @@
 | Data layer | `src/lib/db.ts` is **Prisma-only** (no caches); write helpers throw on failure. |
 | Auth | Custom. bcrypt passwords; opaque DB sessions (`sess_…` in cookie `carecircle_session`), checked against `DBSession` on every request; no JWT. Google = Google Identity Services ID token verified server-side (needs `GOOGLE_CLIENT_ID`). OTP = DB-stored hashed codes; **no SMS provider**, so phone OTP only works under `next dev` (503 elsewhere). Master OTP `123456` works only under `next dev`. |
 | Payments | Razorpay Checkout + server signature verification + subscription ownership check (notes.carecircle_user_id). Without real keys: local sandbox **only under `next dev`**; production returns 503. Webhook requires valid signature. |
+| WhatsApp | **Call updates go to WhatsApp, email is only account/billing** (rule set by the user 2026-10-01). Meta WhatsApp Cloud API via `fetch` (`lib/whatsapp.ts`), one message per call (`lib/familyMessages.ts` + `lib/familyNotify.ts`), webhook for statuses/button taps/STOP (`lib/whatsappInbound.ts`). Inactive until `WHATSAPP_ACCESS_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID` are set; until then alerts are emailed as before. Setup + exact template texts: `docs/whatsapp-setup.md`. |
 | Email | Resend (`lib/email.ts`). Default sender `onboarding@resend.dev` only delivers to the Resend account owner (warning logged); needs a verified domain in `RESEND_FROM_EMAIL`. Replies go to `NEXT_PUBLIC_SUPPORT_EMAIL`. Billing emails are sent once each via `lib/emailLog.ts` (see §7a). |
 | AI | Groq vision via `fetch` (images only; PDFs rejected with a clear message). |
 | Calling | **Built** on Sarvam Voice Agents: `lib/sarvam.ts` (client), `lib/callDispatch.ts` (scheduler/retries), `lib/callResults.ts` (webhook), `lib/alerts.ts` + `lib/safety.ts` (alerts + emergency scan). Inactive until `SARVAM_*` are set; then `/api/cron/dispatch` (external cron) places calls. Twilio/Groq-calling removed. |
 | Page guards | `src/proxy.ts` redirects signed-out users away from /dashboard, /onboarding, /account, /checkout. |
 | Deploy | Vercel, live since 2026-10-01 at https://saathi-ai-delta.vercel.app. Cron = any external scheduler hitting `/api/cron/dispatch` every ~5 min (Vercel Cron needs a paid plan for that interval; no `vercel.json`). |
 
-Env keys (names only): `DATABASE_URL`, `DIRECT_URL`, `GROQ_API_KEY`, `GROQ_VISION_MODEL`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_PLAN_ID_SOLO`, `RAZORPAY_PLAN_ID_FAMILY`, `RAZORPAY_PLAN_ID_EXTENDED`, `GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `CRON_SECRET`, `SARVAM_API_KEY`, `SARVAM_ORG_ID`, `SARVAM_WORKSPACE_ID`, `SARVAM_APP_ID`, `SARVAM_APP_VERSION`, `SARVAM_CONNECTION_ID`, `SARVAM_AGENT_PHONE_NUMBER`, `SARVAM_WEBHOOK_SECRET` (generated locally), optional `SARVAM_API_BASE`, `ADMIN_EMAILS` (comma-separated; who can open `/admin`). Removed: `GROQ_CALL_MODEL`, `TWILIO_*`, `JWT_SECRET`. **Keys go in `.env.local`** (Next.js reads it before `.env`; several keys existed in both and `.env.local` silently won). Also `NEXT_PUBLIC_SUPPORT_EMAIL` (Privacy/Terms contact). As of 2026-10-01 (`check:setup`): Sarvam and Groq READY; Razorpay in test mode but plan ids missing; `NEXT_PUBLIC_APP_URL` not https; Resend sender is still resend.dev; Google unset. Run `npm run check:setup` to see exactly what is missing (never prints values).
+Env keys (names only): `DATABASE_URL`, `DIRECT_URL`, `GROQ_API_KEY`, `GROQ_VISION_MODEL`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_PLAN_ID_SOLO`, `RAZORPAY_PLAN_ID_FAMILY`, `RAZORPAY_PLAN_ID_EXTENDED`, `GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `CRON_SECRET`, `SARVAM_API_KEY`, `SARVAM_ORG_ID`, `SARVAM_WORKSPACE_ID`, `SARVAM_APP_ID`, `SARVAM_APP_VERSION`, `SARVAM_CONNECTION_ID`, `SARVAM_AGENT_PHONE_NUMBER`, `SARVAM_WEBHOOK_SECRET` (generated locally), optional `SARVAM_API_BASE`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, optional `WHATSAPP_API_VERSION` / `WHATSAPP_TEMPLATE_LANGUAGE`, `ADMIN_EMAILS` (comma-separated; who can open `/admin`). Removed: `GROQ_CALL_MODEL`, `TWILIO_*`, `JWT_SECRET`. **Keys go in `.env.local`** (Next.js reads it before `.env`; several keys existed in both and `.env.local` silently won). Also `NEXT_PUBLIC_SUPPORT_EMAIL` (Privacy/Terms contact). As of 2026-10-01 (`check:setup`): Sarvam and Groq READY; Razorpay in test mode but plan ids missing; `NEXT_PUBLIC_APP_URL` not https; Resend sender is still resend.dev; Google unset. Run `npm run check:setup` to see exactly what is missing (never prints values).
 
 ## 5. Folder map
 
 ```
 prisma/schema.prisma        17 models (see §6); prisma/seed.ts (demo data, NOT applied to live DB)
-scripts/                    tsx scripts. `test-call-pipeline.ts` = 144-check suite (see §9); `test-billing-emails.ts` = 68-check suite for billing/lifecycle emails (see §7a); `check-setup.ts` (`npm run check:setup`); `create-razorpay-plans.ts`; clear-database.ts = DANGEROUS
+scripts/                    tsx scripts. `test-call-pipeline.ts` = 144-check suite (see §9; runs with WhatsApp off); `test-whatsapp.ts` = 68-check WhatsApp suite (pure logic + DB flow with fake Meta/Sarvam/email, webhook route; cleans up); `test-billing-emails.ts` = 68-check suite for billing/lifecycle emails (see §7a); `check-setup.ts` (`npm run check:setup`); `create-razorpay-plans.ts`; clear-database.ts = DANGEROUS
 .github/workflows/dispatch-calls.yml   free 5-minute cron calling /api/cron/dispatch (needs APP_URL + CRON_SECRET repo secrets)
 docs/launch-checklist.md    every account/key still needed, in order
 docs/sarvam-agent.md        how to build the Saathi agent in Sarvam: prompt, input/output variables, tool, cron, live test
+docs/whatsapp-setup.md      Meta WhatsApp setup, the 3 template texts (must match lib/whatsapp.ts), webhook, env keys, live test
 src/proxy.ts                optimistic page guard (cookie presence) → /login?redirect=…
 src/lib/
   prisma.ts                 PrismaClient singleton
@@ -87,7 +89,11 @@ src/lib/
   callResults.ts            processSarvamWebhook() (idempotent), raiseToolEscalation(), retry rules
   callInterpretation.ts     pure: Sarvam output variables -> per-medicine results, mood, alert decisions
   safety.ts                 multilingual emergency-phrase scan (parent turns only)
-  alerts.ts                 raiseAlert() (dedupe per call+title, email via Resend), raiseUnreachableAlert()
+  alerts.ts                 recordAlert() (dedupe per call+title), raiseAlert() = record + notify, raiseUnreachableAlert()
+  whatsapp.ts               Meta Cloud API client, WHATSAPP_TEMPLATES (names/bodies/quick-reply order), webhook signature check
+  familyMessages.ts         pure: which ONE message per call (call_update / attention / emergency) + its words, reply texts
+  familyNotify.ts           notifyFamily(): WhatsApp to opted-in owner; level 3-4 email backup; legacy alert emails while WhatsApp is unconfigured
+  whatsappInbound.ts        processWhatsAppWebhook(): statuses (forward-only, failed L3+ -> email once), "I'll handle it", "Call again", STOP/START, auto-reply
   secrets.ts                timing-safe secret compare, Bearer/header reader
   adminEmail.ts, admin.ts   ADMIN_EMAILS check (isAdminEmail, no imports) + requireAdminPage() (404 for non-admins)
   adminStats.ts             read-only queries for /admin (customers, plans, parents, calls/day, alerts); hides `claude-e2e-*` accounts
@@ -106,13 +112,14 @@ src/app/                    pages: landing, login, signup, reset-password, onboa
 
 ## 6. Data model (prisma/schema.prisma)
 
-User · **EmailLog** (once-only email guard, added 2026-09-30) · DBSession · OTPRecord · PasswordResetRecord · OAuthAccount (Google links) · UserSubscription · Invoice · **ParentProfile** · **ScheduledCallSlot** · **Medicine** · EmergencyContact · **CallLog** · **AlertRecord** · ScheduleSuggestion · CaregiverInvite · NotificationPreferences · MedicineReport (now persisted).
+User · **EmailLog** (once-only email guard, added 2026-09-30) · **WhatsAppMessage** (every message sent/received; unique (kind, refKey) = one message per call per number; status pending→sent→delivered→read|failed; `fallbackEmailedAt`; added 2026-10-01) · DBSession · OTPRecord · PasswordResetRecord · OAuthAccount (Google links) · UserSubscription · Invoice · **ParentProfile** · **ScheduledCallSlot** · **Medicine** · EmergencyContact · **CallLog** · **AlertRecord** · ScheduleSuggestion · CaregiverInvite · NotificationPreferences · MedicineReport (now persisted).
 
 Call-relevant fields:
 - `ParentProfile`: phone (E.164), `language` (free text; **no `preferredLanguage` yet**), timezone, `callTime` (legacy display), isPaused, pauseReason, pauseUntil (real Date), consentGiven, isDeleted.
 - `ScheduledCallSlot`: time ("08:30 AM", IST), slot (morning/afternoon/evening/bedtime/wellness/custom), label, linkedMedicineNames[], `linkedMedicinesJson` (name, dosage, foodRelation, questionScript), isActive. **Slot ids are always generated server-side.**
 - `CallLog`: scheduledTime, actualAnswerTime, status (`scheduled` -> `placed` -> `answered` | `unanswered` | `busy` | `failed`), durationSeconds, medicationConfirmed, mood, summary, notes, createdAt, plus (added 2026-09-30, all optional) slotId, slot, callDate (IST YYYY-MM-DD), attemptNumber (default 1), providerAttemptId (unique), interactionId, failureReason, transcriptJson (English), resultJson (`{medicines, medicineResults, ...}`), startedAt, endedAt, nextRetryAt, processedAt. **Unique (parentId, slotId, callDate, attemptNumber)** = double-dial guard. `slot` is `test`/`manual` for owner-requested calls (slotId null, never retried).
-- `AlertRecord`: level 0–4, title, message, channel (only `email` is real), timestamp (ISO string), status, callLogId (dedupe per call+title).
+- `AlertRecord`: level 0–4, title, message, channel (`dashboard` at creation, then `whatsapp` / `email` once delivered; old rows `email`), timestamp (ISO string), status (`resolved` once acknowledged), callLogId (dedupe per call+title), `acknowledgedAt` ("I'll handle it" on WhatsApp).
+- `NotificationPreferences`: `whatsappNumber` (null = account phone), `whatsappOptInAt` (explicit consent; null = no WhatsApp), `minimumAlertLevel` (1 = every call result, 2 needs attention, 3 health, 4 emergencies), `email` (= email backup). The `whatsapp` boolean is only written by opt-in/STOP, never by the profile PATCH.
 
 Live DB baseline (2026-09-30): 2 users, 5 parents (2 soft-deleted), 9 slots, 19 medicines, 3 emergency contacts, 3 call logs (old Twilio/simulated tests), 6 alerts, 2 subscriptions, 0 NotificationPreferences rows (defaults are returned when missing).
 
@@ -130,6 +137,8 @@ All private routes: **S** = `requireUser`, **O** = `requireOwnedParent` (404 for
 | /api/auth/me | GET | current user | S |
 | /api/auth/forgot-password, /reset-password | POST | single-use 20-min token; reset revokes all sessions | — |
 | /api/account/profile | GET/PATCH | profile + notification prefs (phone must be unique) | S |
+| /api/account/whatsapp | GET/POST | WhatsApp status / opt in (`{optIn:true, number?}`, stores consent time) / opt out | S |
+| /api/whatsapp/webhook | GET/POST | Meta verification (`WHATSAPP_VERIFY_TOKEN`) / signed statuses + replies (`X-Hub-Signature-256`, `WHATSAPP_APP_SECRET`); idempotent | signature |
 | /api/account/password | POST | change password (min 8) | S |
 | /api/account/billing | GET/POST | invoices; cancel (also cancels Razorpay at cycle end), reactivate (only before period end), switch-plan (**Free only**; paid → 402 + checkoutUrl; blocked if over parent limit) | S |
 | /api/razorpay/create-subscription | POST | Razorpay subscription for the logged-in user (sandbox only under dev) | S |
@@ -183,7 +192,7 @@ Cron reminders are fail-closed (no EmailLog row = no email, so they never repeat
 | Pause/resume | DONE (real dates) |
 | Caregiver invites | PARTIAL: row only; no email, no invitee access |
 | Smart call-time suggestions | PARTIAL: accept/dismiss works; **no generator** |
-| Alert engine + family email | DONE (levels 1–4, dedupe, prefs, co-managers). WhatsApp/SMS NOT built |
+| Alert engine + family notifications | DONE (levels 1–4, dedupe, prefs). WhatsApp BUILT 2026-10-01 (one message per call, buttons, STOP/START, email backup for L3-4); schema applied to the live DB 2026-10-01 (reviewed additive SQL); opt-in UI verified in the browser. **Meta setup progress (2026-10-01):** business portfolio + developer app both named "Test-Saathi" (user chose to keep the name; app id 975090058479487), WhatsApp use case added, Meta test number +1 555 169 7486 claimed (Phone Number ID 1420353401150573, test WABA 1118057450666325), "Hello World" received on the user's phone. `.env.local` has `WHATSAPP_PHONE_NUMBER_ID` + a generated `WHATSAPP_VERIFY_TOKEN`; `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_APP_SECRET` are empty lines for the user to fill. **Next:** system-user permanent token + app secret (user fills them in), then the 3 templates (templates belong to a WABA: ones made on the test WABA must be re-created on the real one), webhook via ngrok, live test. Later: new SIM for the real number, business verification. Still needs approved templates and `WHATSAPP_*` keys (`docs/whatsapp-setup.md`). Co-managers get email only (no WhatsApp yet). SMS NOT built |
 | Saathi voice calling (Sarvam) | BUILT + tested with a fake Sarvam (144 checks). Live-tested 2026-10-01 through ngrok (answered call with 1 taken / 1 missed -> L2 alert; voicemail -> `no_response`; busy). Live emergency test passed ("chest pain" -> escalate tool mid-call -> L4, then L3 health + L1 mood from the webhook). Still needs: own domain (not vercel.app), cron |
 | Cron dispatcher | DONE (`/api/cron/dispatch`); an external scheduler still has to be set up |
 | `preferredLanguage` | NOT STARTED |
@@ -221,7 +230,8 @@ Still unverified: per-minute price, DND/NDNC handling, webhook retry behaviour.
 ## 10. Known remaining issues
 
 - Calling is not live: needs Sarvam account/KYC, agent, `SARVAM_*`, public HTTPS URL (ngrok locally), and an external cron.
-- No SMS provider (phone OTP dev-only), no email verification flow, no caregiver invite emails/access, no WhatsApp/SMS alerts.
+- No SMS provider (phone OTP dev-only), no email verification flow, no caregiver invite emails/access, no SMS alerts. WhatsApp is built but not live (Meta setup pending); templates are English only.
+- The WhatsApp code reads the columns added 2026-10-01 (applied to the live DB that day). Any other database (a new Supabase project, a restore from an older backup) needs them before this code runs.
 - Rate limits are per-process memory (weak on serverless). All parent times are treated as IST (single timezone).
 - Pricing (reset 2026-10-01 from real Sarvam bills: ₹4.90/min incl. telephony, billed per started minute, ~₹4.90 per call): at 2 calls/day Solo ~57%, Family ~48%, Extended ~51% margin; at the 3-calls/day cap ~37% / ~23% / ~28%. Details in the `plans.ts` comment. Free trial ≈ ₹35-50 of calls per user. GST not included in prices.
 - Razorpay plans for the new prices must be created: `npx tsx scripts/create-razorpay-plans.ts` (dry run) then `--confirm`, with real keys; put the printed ids in `RAZORPAY_PLAN_ID_SOLO` / `_FAMILY` / `_EXTENDED`. Plans are immutable in Razorpay, so a price change needs new plans.

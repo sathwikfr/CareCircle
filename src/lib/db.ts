@@ -293,9 +293,11 @@ export async function updateUserProfile(
   }
 
   if (updates.notificationPreferences) {
-    const prefs = updates.notificationPreferences;
+    // WhatsApp on/off is opt-in with a timestamp (/api/account/whatsapp), never set from here.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { whatsapp, ...prefs } = updates.notificationPreferences;
     data.notificationPreferences = {
-      upsert: { create: { ...prefs }, update: { ...prefs } }
+      upsert: { create: { ...prefs, whatsapp: false }, update: { ...prefs } }
     };
   }
 
@@ -906,7 +908,8 @@ export async function getAlertsForParent(parentId: string): Promise<AlertRecord[
     channel: al.channel as AlertRecord['channel'],
     timestamp: al.timestamp,
     status: al.status as AlertRecord['status'],
-    createdAt: al.createdAt.toISOString()
+    createdAt: al.createdAt.toISOString(),
+    acknowledgedAt: al.acknowledgedAt ? al.acknowledgedAt.toISOString() : undefined
   }));
 }
 

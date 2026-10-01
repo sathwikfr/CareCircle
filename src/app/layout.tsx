@@ -1,21 +1,20 @@
 import type { Metadata, Viewport } from 'next';
-import { Fraunces, Inter } from 'next/font/google';
+import { Bricolage_Grotesque, Figtree } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { THEME_INIT_SCRIPT } from '@/lib/theme';
 import { MotionProvider } from '@/components/motion/MotionProvider';
 
-const fraunces = Fraunces({
+const display = Bricolage_Grotesque({
   subsets: ['latin'],
-  variable: '--font-fraunces',
+  variable: '--font-display',
   display: 'swap',
-  axes: ['opsz', 'SOFT'],
-  style: ['normal', 'italic'],
+  axes: ['opsz'],
 });
 
-const inter = Inter({
+const body = Figtree({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-body',
   display: 'swap',
 });
 
@@ -27,8 +26,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f6f9ff' },
-    { media: '(prefers-color-scheme: dark)', color: '#0a1122' },
+    { media: '(prefers-color-scheme: light)', color: '#f8f5ef' },
+    { media: '(prefers-color-scheme: dark)', color: '#12110f' },
   ],
 };
 
@@ -38,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" data-theme="light" className={`${fraunces.variable} ${inter.variable}`} suppressHydrationWarning>
+    <html lang="en" data-theme="light" className={`${display.variable} ${body.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>

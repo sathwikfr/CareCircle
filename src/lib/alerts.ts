@@ -1,19 +1,18 @@
 /**
- * Alert engine: records an AlertRecord and notifies the family.
- * Email is the only channel that exists today. WhatsApp / SMS are NOT built,
- * so alerts are never labelled as sent through them.
+ * Alert engine: records AlertRecords. Telling the family is familyNotify.ts
+ * (WhatsApp, one message per call; email only as described there).
+ *
+ * `recordAlert` only writes the alert (callers that raise several alerts for
+ * one call notify once afterwards); `raiseAlert` records and notifies.
  */
 import { prisma } from './prisma';
 import { newId } from './db';
-import { sendUrgentAlertEmail } from './email';
 import { ALERT_TITLES } from './callInterpretation';
+import { NotifyAlert } from './familyMessages';
+import { notifyFamily, NotifyDeps, NotifyResult } from './familyNotify';
 
-type SendUrgentEmail = typeof sendUrgentAlertEmail;
-
-/** Injectable dependencies (tests replace the email sender). */
-export interface AlertDeps {
-  sendEmail?: SendUrgentEmail;
-}
+/** Injectable dependencies (tests replace the email sender and WhatsApp). */
+export type AlertDeps = NotifyDeps;
 
 export interface RaiseAlertInput {
   parentId: string;
@@ -23,44 +22,26 @@ export interface RaiseAlertInput {
   message: string;
 }
 
-export interface RaiseAlertResult {
+export interface RecordAlertResult {
   created: boolean;
   alertId?: string;
-  emailed: number;
+  /** Set only when the alert was newly created. */
+  alert?: NotifyAlert;
 }
 
-function appUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+export interface RaiseAlertResult extends RecordAlertResult {
+  notified?: NotifyResult;
 }
 
-/**
- * Creates the alert once per (call, title) and emails the family when the
- * alert is level 2+ and the account's notification preferences allow it.
- */
-export async function raiseAlert(
-  input: RaiseAlertInput,
-  deps: AlertDeps = {}
-): Promise<RaiseAlertResult> {
-  const sendEmail = deps.sendEmail || sendUrgentAlertEmail;
-
+/** Creates the alert once per (call, title). */
+export async function recordAlert(input: RaiseAlertInput): Promise<RecordAlertResult> {
   if (input.callLogId) {
     const existing = await prisma.alertRecord.findFirst({ where: { callLogId: input.callLogId, title: input.title } });
-    if (existing) return { created: false, alertId: existing.id, emailed: 0 };
+    if (existing) return { created: false, alertId: existing.id };
   }
 
-  const parent = await prisma.parentProfile.findUnique({
-    where: { id: input.parentId },
-    include: {
-      user: { include: { notificationPreferences: true } },
-      caregivers: true
-    }
-  });
-  if (!parent) return { created: false, emailed: 0 };
-
-  const prefs = parent.user.notificationPreferences;
-  const emailAllowed = prefs ? prefs.email : true;
-  const minLevel = prefs ? prefs.minimumAlertLevel : 1;
-  const shouldEmail = input.level >= 2 && emailAllowed && input.level >= minLevel;
+  const parent = await prisma.parentProfile.findUnique({ where: { id: input.parentId }, select: { id: true } });
+  if (!parent) return { created: false };
 
   const alert = await prisma.alertRecord.create({
     data: {
@@ -70,39 +51,27 @@ export async function raiseAlert(
       level: input.level,
       title: input.title,
       message: input.message,
-      channel: 'email',
+      channel: 'dashboard', // updated to whatsapp / email once delivered
       timestamp: new Date().toISOString(),
       status: 'sent'
     }
   });
+  return {
+    created: true,
+    alertId: alert.id,
+    alert: { id: alert.id, level: alert.level, title: alert.title, message: alert.message }
+  };
+}
 
-  let emailed = 0;
-  if (shouldEmail) {
-    const recipients = new Map<string, string>([[parent.user.email, parent.user.name]]);
-    for (const cg of parent.caregivers) {
-      if (cg.status === 'accepted' && cg.role === 'co_manager') recipients.set(cg.email, cg.name);
-    }
-
-    for (const [to, name] of recipients) {
-      try {
-        const res = await sendEmail({
-          to,
-          name,
-          parentName: parent.name,
-          alertLevel: input.level >= 3 ? 'level_3' : 'level_2',
-          alertType: input.title,
-          summary: input.message,
-          actionUrl: `${appUrl()}/dashboard`
-        });
-        if (res.success) emailed += 1;
-        else console.error(`[alerts] Email to ${to} failed: ${res.error}`);
-      } catch (err) {
-        console.error(`[alerts] Email to ${to} threw:`, err);
-      }
-    }
-  }
-
-  return { created: true, alertId: alert.id, emailed };
+/** Records one alert and notifies the family about it straight away. */
+export async function raiseAlert(input: RaiseAlertInput, deps: AlertDeps = {}): Promise<RaiseAlertResult> {
+  const rec = await recordAlert(input);
+  if (!rec.alert) return rec;
+  const notified = await notifyFamily(
+    { parentId: input.parentId, callLogId: input.callLogId || null, alerts: [rec.alert] },
+    deps
+  );
+  return { ...rec, notified };
 }
 
 /** Level-2 alert once every attempt to reach the parent has failed. */

@@ -30,6 +30,15 @@ same names under Project → Settings → Environment Variables.
 ## 3. Email
 Resend → Domains → verify a domain you own → set `RESEND_FROM_EMAIL=Aaptha <no-reply@yourdomain>`. Also set `NEXT_PUBLIC_SUPPORT_EMAIL` (shown on the Privacy and Terms pages).
 
+## 3a. WhatsApp call updates (start early: business verification takes days)
+Call results and alerts go to families on WhatsApp; email is only for account and billing. Full steps and the exact
+template texts are in `docs/whatsapp-setup.md`.
+1. (Done 2026-10-01) The WhatsApp tables/columns are in the database.
+2. Meta Business portfolio + WhatsApp app; a number not already on WhatsApp; display name "Aaptha"; start business verification.
+3. Submit the 3 utility templates (`aaptha_call_update`, `aaptha_needs_attention`, `aaptha_emergency`) exactly as written.
+4. Permanent system-user token → `WHATSAPP_ACCESS_TOKEN`; `WHATSAPP_PHONE_NUMBER_ID`; `WHATSAPP_APP_SECRET`; a random `WHATSAPP_VERIFY_TOKEN`.
+5. Webhook `https://<your-domain>/api/whatsapp/webhook`, subscribe to **messages**.
+
 ## 4. Deploy (Vercel)
 1. Import the GitHub repo. Framework: Next.js. Build command stays `npm run build`.
 2. Add every variable from `.env.local` to the Vercel environment. Set `NEXT_PUBLIC_APP_URL` to the real `https://` address.

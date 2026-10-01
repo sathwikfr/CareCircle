@@ -27,6 +27,7 @@ model User {
   invoices                Invoice[]
   medicineReports         MedicineReport[]
   emailLogs               EmailLog[]
+  whatsappMessages        WhatsAppMessage[]
 }
 
 model DBSession {
@@ -232,6 +233,7 @@ model AlertRecord {
   status    String        @default("sent")
   createdAt DateTime      @default(now())
   callLogId String? // call that raised this alert (dedupe + traceability)
+  acknowledgedAt DateTime? // family tapped "I'll handle it" on WhatsApp
 
   @@index([parentId])
 }
@@ -273,6 +275,8 @@ model NotificationPreferences {
   email             Boolean  @default(true)
   push              Boolean  @default(false)
   minimumAlertLevel Int      @default(1)
+  whatsappNumber    String? // E.164; null = use the account phone
+  whatsappOptInAt   DateTime? // explicit opt-in (Meta requires it); null = not opted in
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
@@ -310,4 +314,32 @@ model EmailLog {
 
   @@unique([userId, kind, refKey])
   @@index([userId])
+}
+
+/// Every WhatsApp message sent or received. The (kind, refKey) pair makes each
+/// family notification once-only (e.g. one call update per call per number).
+model WhatsAppMessage {
+  id                String    @id @default(uuid())
+  userId            String?
+  user              User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  parentId          String?
+  callLogId         String?
+  alertId           String? // the alert the buttons act on ("I'll handle it")
+  direction         String    @default("out") // out | in
+  kind              String // call_update | attention | emergency | reply | auto_reply | inbound
+  refKey            String
+  phone             String // the family's number, E.164
+  templateName      String?
+  body              String
+  level             Int       @default(0) // highest alert level in the message
+  providerMessageId String?   @unique
+  status            String    @default("pending") // pending | sent | delivered | read | failed | received
+  error             String?
+  fallbackEmailedAt DateTime? // level 3-4 message that failed and was emailed instead
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([kind, refKey])
+  @@index([userId])
+  @@index([phone])
 }

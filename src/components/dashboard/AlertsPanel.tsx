@@ -29,7 +29,7 @@ export function AlertsPanel({ parentName, alerts }: { parentName: string; alerts
       <div className="panel-head">
         <div>
           <h3 id="alerts-title">Alerts</h3>
-          <p>Raised from {parentName}&apos;s calls. Anything that needs attention is also emailed to you.</p>
+          <p>Raised from {parentName}&apos;s calls. Each alert shows how we told you.</p>
         </div>
       </div>
 
@@ -50,9 +50,13 @@ export function AlertsPanel({ parentName, alerts }: { parentName: string; alerts
                   <span className={`badge ${alt.level >= 3 ? 'badge-red' : alt.level >= 2 ? 'badge-amber' : 'badge-neutral'}`}>
                     Level {alt.level} · {LEVEL_LABEL[alt.level] || 'Alert'}
                   </span>
-                  <span className="badge badge-neutral" style={{ textTransform: 'capitalize' }}>
-                    {alt.level >= 2 && alt.channel === 'email' ? 'Emailed · ' : ''}{alt.status}
-                  </span>
+                  {alt.channel === 'whatsapp' && <span className="badge badge-neutral">Sent on WhatsApp</span>}
+                  {alt.channel === 'email' && alt.level >= 2 && <span className="badge badge-neutral">Emailed</span>}
+                  {alt.acknowledgedAt ? (
+                    <span className="badge badge-green">Handled by you · {formatCallTime(alt.acknowledgedAt)}</span>
+                  ) : alt.status === 'resolved' ? (
+                    <span className="badge badge-green">Resolved</span>
+                  ) : null}
                 </div>
               </div>
             </article>
