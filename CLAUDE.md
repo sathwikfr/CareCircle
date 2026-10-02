@@ -103,7 +103,7 @@ src/components/LegalPage.tsx + app/privacy + app/terms   plain-language Privacy 
 src/components/               Navbar (+Brand), Footer, Reveal, ThemeToggle, ui/Modal (portal),
                               auth/AuthUI (AuthShell, PasswordField, PhoneField, StrengthMeter),
                               onboarding/WizardUI (WizardShell, StepHeader, SlotPicker, FoodPicker),
-                              checkout/CheckoutUI, account/AccountUI, landing/* (CallDemo, DashboardPreview),
+                              checkout/CheckoutUI, account/AccountUI, landing/* (LiveCallPhone, DashboardPreview),
                               dashboard/* (helpers.computeCallStats, 6 panels, DashboardModals)
 src/components/landing/VoiceHero.tsx   landing hero: pitch on the left, Saathi's voice orb on the right with live
                               captions INSIDE the ring (one sentence at a time) and an English/Telugu/Hindi switch.
