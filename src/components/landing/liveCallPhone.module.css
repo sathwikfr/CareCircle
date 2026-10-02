@@ -53,12 +53,218 @@
   padding-top: 4px;
 }
 
+/* ---------- Timeline under the phone ---------- */
+
+.timeline {
+  width: min(440px, 100%);
+  margin-top: 26px;
+}
+
+.tlTrack {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tlPart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink-subtle);
+  cursor: pointer;
+}
+
+.tlPart:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+.tlBar {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.tlBar i {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--teal);
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 450ms var(--ease-out);
+}
+
+/* The ring part fills on a timer; the chat part follows the call clock (inline style) */
+.tlBar i[data-timed] {
+  transition: none;
+  animation: tlFill var(--dur) linear forwards;
+}
+
+.tlPart[data-state='now'] .tlBar i:not([data-timed]) {
+  transition: transform 120ms linear;
+}
+
+@keyframes tlFill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.tlLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: color var(--dur) ease;
+}
+
+.tlPart[data-state='done'] .tlLabel { color: var(--ink-muted); }
+.tlPart[data-state='now'] .tlLabel { color: var(--teal-text); }
+.tlPart:hover .tlLabel { color: var(--ink); }
+
 .hint {
-  margin-top: 20px;
+  margin-top: 12px;
   min-height: 1.5em;
   font-size: 0.88rem;
   color: var(--ink-subtle);
   text-align: center;
+  text-wrap: balance;
+}
+
+/* ---------- Setup strip under the heading (SetupSteps.tsx) ---------- */
+
+.setup {
+  list-style: none;
+  margin: -22px auto 60px;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  gap: 30px;                   /* room for the dashed link between steps */
+}
+
+.setupStep {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 18px 11px 11px;
+  border-radius: 18px;
+  background: var(--panel-elevated);
+  border: 1px solid var(--line-subtle);
+  box-shadow: var(--shadow-xs);
+  text-align: left;
+}
+
+/* Dashed link to the next step */
+.setupStep:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: calc(100% + 5px);
+  top: 50%;
+  width: 20px;
+  height: 2px;
+  margin-top: -1px;
+  background: repeating-linear-gradient(90deg, var(--line-strong) 0 4px, transparent 4px 8px);
+}
+
+.setupIcon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--teal-soft);
+  color: var(--teal);
+}
+
+.setupText b {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.setupText small {
+  display: block;
+  margin-top: 1px;
+  font-size: 0.78rem;
+  color: var(--ink-subtle);
+  white-space: nowrap;
+}
+
+.setupNum {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  background: var(--gold-soft);
+  color: var(--gold);
+}
+
+/* The last step is Saathi's: filled teal */
+.setupDone {
+  background: var(--teal);
+  border-color: var(--teal);
+  box-shadow: var(--shadow-sm);
+}
+
+.setupDone .setupIcon {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--on-teal);
+}
+
+.setupDone .setupText b,
+.setupDone .setupText small {
+  color: var(--on-teal);
+}
+
+.setupDone .setupText small {
+  opacity: 0.8;
+}
+
+@media (max-width: 1060px) {
+  .setup {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    max-width: 560px;
+  }
+
+  .setupStep::after {
+    display: none;
+  }
+
+  .setupText b,
+  .setupText small {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 400px) {
+  .setup {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---------- Cards beside the phone ---------- */
@@ -66,7 +272,7 @@
 .card {
   width: min(300px, 100%);
   padding: 18px;
-  border-radius: 20px;
+  border-radius: 22px;
   background: var(--panel-elevated);
   border: 1px solid var(--line-subtle);
   box-shadow: var(--shadow-md);
@@ -88,8 +294,10 @@
   color: var(--teal);
 }
 
+/* Left card: Amma's language */
+
 .seg {
-  margin: 12px 0;
+  margin: 14px 0 12px;
 }
 
 .seg > button {
@@ -97,14 +305,78 @@
   font-size: 0.9rem;
 }
 
-.cardNote {
-  font-size: 0.85rem;
-  line-height: 1.5;
-  color: var(--ink-muted);
+/* "Saathi says": her greeting in the chosen language, in Saathi's green as on the phone */
+.greet {
+  padding: 12px 14px 13px;
+  border-radius: 16px 16px 16px 5px;
+  background: var(--green-soft);
+  border: 1px solid var(--green-border);
+  animation: greetIn 360ms var(--ease-out) both;
+}
+
+@keyframes greetIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.greetWho {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--green);
+}
+
+.greetBars {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 12px;
+}
+
+.greetBars i {
+  width: 2px;
+  height: 100%;
+  border-radius: 2px;
+  background: currentColor;
+  scale: 1 0.35;
+  animation: greetWave 1s ease-in-out infinite;
+}
+
+.greetBars i:nth-child(2) { animation-delay: -0.75s; }
+.greetBars i:nth-child(3) { animation-delay: -0.5s; }
+.greetBars i:nth-child(4) { animation-delay: -0.25s; }
+
+@keyframes greetWave {
+  0%, 100% { scale: 1 0.3; }
+  50% { scale: 1 1; }
+}
+
+.greet p {
+  margin-top: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.greet small {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.8rem;
+  color: var(--ink-subtle);
+}
+
+.langFoot {
+  margin-top: 12px;
+  font-size: 0.8rem;
+  color: var(--ink-subtle);
 }
 
 .replay {
-  margin-top: 12px;
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -129,6 +401,8 @@
   font-size: inherit;
 }
 
+/* Right card: what lands on your dashboard */
+
 .result {
   transition: border-color var(--dur) ease, box-shadow var(--dur) ease;
 }
@@ -145,26 +419,67 @@
   gap: 10px;
 }
 
-.resultStatus {
+.statusChip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.74rem;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: var(--r-full);
+  font-size: 0.72rem;
   font-weight: 700;
-  color: var(--ink-subtle);
   white-space: nowrap;
+  background: var(--panel-sunken);
+  color: var(--ink-subtle);
+  transition: background var(--dur) ease, color var(--dur) ease;
 }
 
-.result[data-state='sent'] .resultStatus {
+.statusChip[data-status='listening'] { background: var(--red-soft); color: var(--red); }
+
+.statusChip[data-status='sent'] {
+  background: var(--green-soft);
   color: var(--green);
   animation: pop 420ms var(--ease-out) both;
 }
 
-.resultTitle {
-  margin: 10px 0 6px;
-  font-size: 1rem;
+.statusChip .liveDot {
+  width: 6px;
+  height: 6px;
+}
+
+/* Whose update it is, as on the dashboard */
+.who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 8px;
+}
+
+.whoAvatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  background: var(--teal);
+  color: var(--on-teal);
+}
+
+.who b {
+  display: block;
+  font-size: 0.98rem;
   font-weight: 700;
+  line-height: 1.2;
   color: var(--ink);
+}
+
+.who small {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--ink-subtle);
 }
 
 .rows {
@@ -177,29 +492,31 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 0;
+  padding: 10px 0;
   border-top: 1px solid var(--line-subtle);
+}
+
+.noteText {
+  flex: 1;
+  min-width: 0;
   font-size: 0.88rem;
-  color: var(--ink-muted);
-}
-
-.rows li b {
-  margin-left: auto;
-  font-weight: 700;
-  color: var(--ink-subtle);
-  white-space: nowrap;
-}
-
-.rows li[data-on] b {
+  font-weight: 600;
+  line-height: 1.25;
   color: var(--ink);
-  animation: pop 420ms var(--ease-out) both;
+}
+
+.noteText small {
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 400;
+  color: var(--ink-subtle);
 }
 
 .noteIcon {
   flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -212,9 +529,41 @@
 .rows li[data-on] .noteIcon[data-tone='calm'] { background: var(--gold-soft); color: var(--gold); }
 .rows li[data-on] .noteIcon[data-tone='warn'] { background: var(--amber-soft); color: var(--amber); }
 
+/* The answer, once Amma has given it */
+.pill {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: var(--r-full);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  animation: pop 420ms var(--ease-out) both;
+}
+
+.pill[data-tone='good'] { background: var(--green-soft); color: var(--green); }
+.pill[data-tone='calm'] { background: var(--gold-soft); color: var(--gold); }
+.pill[data-tone='warn'] { background: var(--amber-soft); color: var(--amber); }
+
+/* ...and a soft shimmer until then */
+.skeleton {
+  flex-shrink: 0;
+  width: 56px;
+  height: 20px;
+  border-radius: var(--r-full);
+  background: linear-gradient(90deg, var(--panel-sunken) 30%, var(--line-subtle) 50%, var(--panel-sunken) 70%);
+  background-size: 220% 100%;
+  animation: skeleton 1.6s linear infinite;
+}
+
+@keyframes skeleton {
+  from { background-position: 100% 0; }
+  to { background-position: -120% 0; }
+}
+
 .resultFoot {
-  margin-top: 10px;
-  font-size: 0.8rem;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-subtle);
+  font-size: 0.78rem;
   color: var(--ink-subtle);
 }
 
@@ -940,8 +1289,8 @@
     max-width: 440px;
   }
 
-  .hint {
-    margin-top: 16px;
+  .timeline {
+    margin-top: 20px;
   }
 }
 
@@ -953,15 +1302,19 @@
   .bSaathi,
   .bParent,
   .liveDot[data-on],
-  .rows li[data-on] b,
-  .result[data-state='sent'] .resultStatus {
+  .greet,
+  .greetBars i,
+  .pill,
+  .skeleton,
+  .statusChip[data-status='sent'] {
     animation: none;
   }
 
   .island,
   .incoming,
   .incall,
-  .wallpaper {
+  .wallpaper,
+  .tlBar i {
     transition: none;
   }
 }

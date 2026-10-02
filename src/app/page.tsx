@@ -7,6 +7,7 @@ import { Footer } from '@/components/Footer';
 import { Reveal } from '@/components/Reveal';
 import { VoiceHero } from '@/components/landing/VoiceHero';
 import { LiveCallPhone } from '@/components/landing/LiveCallPhone';
+import { SetupSteps } from '@/components/landing/SetupSteps';
 import { CALL_MS, formatCallTime } from '@/components/landing/callScript';
 import { FlowTabs } from '@/components/landing/FlowTabs';
 import { FamiliesCarousel } from '@/components/landing/FamiliesCarousel';
@@ -112,7 +113,10 @@ export default function LandingPage() {
             <Reveal className={s.head}>
               <span className={s.pill}><PhoneCall size={14} /> How it works</span>
               <WordReveal>Set it up once. <span className={s.grad}>Saathi does the rest.</span></WordReveal>
-              <p>Add your parent and their medicines in a few minutes. From then on, Saathi calls on time and you see how each call went.</p>
+              <p>A few minutes to set up. After that, Saathi calls on time and you see how every call went.</p>
+            </Reveal>
+            <Reveal delay={120}>
+              <SetupSteps />
             </Reveal>
             <Reveal variant="scale">
               <LiveCallPhone />

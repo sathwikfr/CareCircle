@@ -16,6 +16,7 @@
   letter-spacing: -0.035em;
   line-height: 1.08;
   margin-bottom: 16px;
+  text-wrap: balance;
 }
 
 .head p {
@@ -24,6 +25,7 @@
   line-height: 1.65;
   max-width: 58ch;
   margin: 0 auto;
+  text-wrap: balance;          /* no lonely half-line under a centred heading */
 }
 
 .grad {
@@ -202,108 +204,6 @@
 
   .heroTitle {
     max-width: 14ch;
-  }
-}
-
-/* Steps carousel under the phone */
-.stepsRow {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 40px;
-}
-
-.stepCard {
-  position: relative;
-  text-align: left;
-  padding: 20px;
-  border-radius: 20px;
-  border: 1px solid var(--line-subtle);
-  background: var(--panel-elevated);
-  box-shadow: var(--shadow-sm);
-  cursor: pointer;
-  font: inherit;
-  color: inherit;
-  opacity: 0.55;
-  transition: opacity var(--dur) ease, transform var(--dur) var(--ease-out), box-shadow var(--dur) ease, border-color var(--dur) ease;
-}
-
-.stepCard:hover {
-  opacity: 0.85;
-}
-
-.stepCard[aria-current='step'] {
-  opacity: 1;
-  border-color: var(--teal);
-  box-shadow: var(--shadow-md), 0 0 0 3px var(--teal-soft);
-  transform: translateY(-3px);
-}
-
-.stepCard h3 {
-  font-family: var(--font-sans);
-  font-size: 1.02rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  margin: 12px 0 4px;
-}
-
-.stepCard p {
-  font-size: 0.88rem;
-  color: var(--ink-muted);
-  line-height: 1.5;
-}
-
-.stepBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.stepBadge > span:first-child {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--teal);
-  color: var(--on-teal);
-}
-
-.stepBadge b {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  font-size: 0.72rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--gold-soft);
-  color: var(--gold);
-}
-
-.stepProgress {
-  position: absolute;
-  left: 20px;
-  right: 20px;
-  bottom: 10px;
-  height: 3px;
-  border-radius: 3px;
-  background: var(--line-subtle);
-  overflow: hidden;
-}
-
-.stepProgress i {
-  display: block;
-  height: 100%;
-  background: var(--teal);
-  transform-origin: left;
-  animation: reveal-grow-x var(--dur-step, 5s) linear forwards;
-}
-
-@media (max-width: 760px) {
-  .stepsRow {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -1066,8 +966,7 @@
 @media (prefers-reduced-motion: reduce) {
   .syncPill,
   .flowList::before,
-  .flowRow,
-  .stepProgress i {
+  .flowRow {
     animation: none;
   }
 
