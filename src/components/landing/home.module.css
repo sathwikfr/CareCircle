@@ -50,8 +50,9 @@
   color: var(--gold);
 }
 
+/* Kept as a hook, but every light section now shares the page background. */
 .alt {
-  background: var(--panel);
+  background: var(--paper);
 }
 
 .dark {

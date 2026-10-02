@@ -3474,7 +3474,7 @@ table.data tr:hover td {
 .ticker {
   overflow: hidden;
   border-block: 1px solid var(--line-subtle);
-  background: color-mix(in srgb, var(--panel-elevated) 60%, transparent);
+  background: transparent; /* same as the page */
   mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
 }
