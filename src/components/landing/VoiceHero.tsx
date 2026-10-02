@@ -309,7 +309,7 @@ export function VoiceHero({ primaryHref, primaryLabel, trialDays }: { primaryHre
           <div className={s.stage}>
             {/* The ring is the call, the waves are the voice: dead centre, captions above, pill below */}
             <div className={s.orb} aria-hidden="true">
-              <SaathiBlob ref={orb} mode={orbMode} variant={dark ? 'night' : 'day'} />
+              <SaathiBlob ref={orb} mode={orbMode} variant={dark ? 'night' : 'day'} scale={0.52} />
             </div>
 
             {/* Live captions, inside the ring above the waves */}
