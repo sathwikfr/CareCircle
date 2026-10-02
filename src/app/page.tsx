@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Reveal } from '@/components/Reveal';
-import { CallDemo } from '@/components/landing/CallDemo';
 import { VoiceHero } from '@/components/landing/VoiceHero';
 import { LiveCallPhone } from '@/components/landing/LiveCallPhone';
+import { CALL_MS, formatCallTime } from '@/components/landing/callScript';
 import { FlowTabs } from '@/components/landing/FlowTabs';
 import { FamiliesCarousel } from '@/components/landing/FamiliesCarousel';
 import { DashboardShowcase } from '@/components/landing/DashboardShowcase';
@@ -152,24 +152,21 @@ export default function LandingPage() {
 
         {/* LANGUAGES */}
         <section className={`section ${s.alt}`}>
-          <div className="wrap grid-2">
-            <Reveal variant="left">
+          <div className="wrap">
+            <Reveal className={s.head}>
               <span className={s.pill}><Languages size={14} /> Their language</span>
-              <h2 className="h-section" style={{ fontWeight: 600 }}>Speaks the way <span className={s.grad}>Amma speaks.</span></h2>
-              <p className="lead">
-                Saathi talks in the language your parent thinks in, and understands when they mix in a little English. Switch the example call to hear the difference.
+              <WordReveal>Speaks the way <span className={s.grad}>Amma speaks.</span></WordReveal>
+              <p>
+                Saathi talks in the language your parent thinks in, and understands when they mix in a little English. Switch the example call above to Telugu or Hindi to see it.
               </p>
-              <div className={s.langGrid}>
-                {LANGS.map((l) => (
-                  <div key={l.en} className={s.langChip}>
-                    <b>{l.native}</b>
-                    <span>{l.en}</span>
-                  </div>
-                ))}
-              </div>
             </Reveal>
-            <Reveal variant="right" delay={120}>
-              <CallDemo />
+            <Reveal className={s.langGrid}>
+              {LANGS.map((l) => (
+                <div key={l.en} className={s.langChip}>
+                  <b>{l.native}</b>
+                  <span>{l.en}</span>
+                </div>
+              ))}
             </Reveal>
           </div>
         </section>
@@ -190,7 +187,7 @@ export default function LandingPage() {
                   <div className={s.summaryCard}>
                     <span className={s.exampleTag}>Example</span>
                     <div style={{ fontSize: '0.74rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-subtle)' }}>
-                      Morning check-in · 8:31 AM
+                      Morning check-in · 8:30 AM
                     </div>
                     <p style={{ fontSize: '1rem', lineHeight: 1.55, marginTop: '10px' }}>
                       Amma took her BP tablet after breakfast. She said she’s feeling okay but her knee has been hurting since yesterday.
@@ -199,7 +196,7 @@ export default function LandingPage() {
                       <div><span>Amlodipine 5mg</span><b style={{ color: 'var(--green)' }}>✓ Taken</b></div>
                       <div><span>Mood</span><b>Okay</b></div>
                       <div><span>Mentioned</span><b>Knee pain</b></div>
-                      <div><span>Call length</span><b>1m 12s</b></div>
+                      <div><span>Call length</span><b>{formatCallTime(CALL_MS)}</b></div>
                     </div>
                   </div>
                 </div>

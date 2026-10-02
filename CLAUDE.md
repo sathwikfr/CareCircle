@@ -110,6 +110,12 @@ src/components/landing/VoiceHero.tsx   landing hero: pitch on the left, Saathi's
                               Tapping plays a sample greeting through the browser's speechSynthesis (English
                               voice + note when the browser has no Telugu/Hindi voice; pre-recorded Sarvam clips
                               were offered and deferred). No real call, no data.
+src/components/landing/LiveCallPhone.tsx   "How it works": scripted example call on a CSS iPhone 16 (true proportions,
+                              sized in iOS points via --pt/cqw). Rings (phone icon shakes in the island; the phone itself stays still), slide-to-answer
+                              (SlideToAnswer.tsx; auto-slides if nobody drags), then a live transcript; island bars
+                              (IslandWave.tsx, canvas) flow left->right green for Saathi, right->left red for Amma.
+                              Script in callScript.ts: hand-written English/Telugu/Hindi, shared timings, no API.
+                              Plays twice by itself, then waits with "Ring again". The summary card's call length reads CALL_MS.
 src/components/voice/SaathiOrb.tsx     raw-WebGL voice orb (no three.js): red/blue particle ring, phone waves, echo
                               rings; modes idle/ringing/saathi/family/ended; 'day' variant for light pages.
                               src/app/dev/orb = dev-only playground for it (404 outside `next dev`)

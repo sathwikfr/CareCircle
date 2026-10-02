@@ -1,134 +1,392 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { PhoneCall, PhoneOff, MessageCircle, LayoutDashboard, Check, Smile, AlertTriangle, PenLine } from 'lucide-react';
+import {
+  PhoneCall, MessageCircle, LayoutDashboard, Check, Smile, AlertTriangle, Heart, Phone, PhoneOff,
+  Volume2, Video, MicOff, UserPlus, Grid3x3, AlarmClock, RotateCcw, Languages,
+} from 'lucide-react';
+import { IslandWave, type WaveMode } from './IslandWave';
+import { SlideToAnswer, AUTO_SLIDE_MS } from './SlideToAnswer';
+import { CALL_LANGS, CALL_SCRIPT, TIMELINE, CALL_MS, formatCallTime, type CallLang } from './callScript';
 import s from './home.module.css';
+import c from './liveCallPhone.module.css';
 
-type Stage = 0 | 1 | 2;
+/**
+ * "How it works": an example Saathi call on Amma's phone (an iPhone 16).
+ * It rings (the phone icon shakes in the Dynamic Island), then either you slide
+ * to answer or the knob slides across by itself. On the call the island shows
+ * who is talking: green bars flowing left to right for Saathi, red bars flowing
+ * right to left for Amma, while the words appear on the screen. What Saathi
+ * notes fills the card beside the phone, and three step cards follow along.
+ * Everything here is a scripted example; nothing is fetched.
+ */
 
-const LINES = [
-  { who: 'saathi', text: 'Namaste Amma! Nashte ke baad BP ki goli li?' },
-  { who: 'parent', text: 'Haan beta, abhi le li.' },
-  { who: 'saathi', text: 'Bahut accha. Aaj tabiyat kaisi hai?' },
-  { who: 'parent', text: 'Theek hoon. Bas ghutne mein thoda dard hai.' },
-] as const;
+type Phase = 'idle' | 'ring' | 'answer' | 'talk' | 'ended';
+
+const RING_BEFORE_AUTO_MS = 4200;
+const ANSWER_MS = 520;
+const AFTER_MS = 11000;          // how long the ended call stays before it rings again
+const AUTO_PLAYS = 2;            // plays by itself this many times, then waits on the finished call
 
 const STEPS = [
-  { icon: PhoneCall, title: 'Saathi calls on time', body: 'At each medicine time, Amma’s phone rings. Any phone, even a landline.', ms: 3200 },
-  { icon: MessageCircle, title: 'A short, kind chat', body: 'Did she take her tablet? How is she feeling? In her language, at her pace.', ms: 7200 },
-  { icon: LayoutDashboard, title: 'You see how she is', body: 'Medicines, mood and anything worrying land on your dashboard right away.', ms: 5200 },
+  { icon: PhoneCall, title: 'Saathi calls on time', body: 'At each medicine time, Amma’s phone rings. Any phone, even a landline.', ms: RING_BEFORE_AUTO_MS + AUTO_SLIDE_MS + ANSWER_MS },
+  { icon: MessageCircle, title: 'A short, kind chat', body: 'Did she take her tablet? How is she feeling? In her language, at her pace.', ms: CALL_MS },
+  { icon: LayoutDashboard, title: 'You see how she is', body: 'Medicines, mood and anything worrying land on your dashboard right away.', ms: AFTER_MS },
 ];
 
-/** Auto-playing example call inside a phone, synced to three step cards. Starts when scrolled into view. */
-export function LiveCallPhone() {
-  const [stage, setStage] = useState<Stage>(0);
-  const [shown, setShown] = useState(0);
-  const [running, setRunning] = useState(false);
-  const [runId, setRunId] = useState(0);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const timers = useRef<number[]>([]);
-  const loopRef = useRef<(from: Stage) => void>(() => {});
+/** What Saathi notes, and the line (index in CALL_SCRIPT) whose answer fills it in. */
+const NOTES = [
+  { after: 1, icon: Check, tone: 'good', label: 'BP tablet · Amlodipine 5mg', value: 'Taken' },
+  { after: 3, icon: Smile, tone: 'calm', label: 'Mood', value: 'Okay' },
+  { after: 3, icon: AlertTriangle, tone: 'warn', label: 'Mentioned', value: 'Knee pain' },
+] as const;
 
-  const clear = () => {
-    timers.current.forEach((t) => window.clearTimeout(t));
-    timers.current = [];
+const CONTROLS = [
+  { icon: Volume2, label: 'speaker' },
+  { icon: Video, label: 'video' },
+  { icon: MicOff, label: 'mute' },
+  { icon: UserPlus, label: 'add' },
+  { icon: PhoneOff, label: 'end', end: true },
+  { icon: Grid3x3, label: 'keypad' },
+];
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+
+/* ---------- Small pieces ---------- */
+
+function StatusBar() {
+  return (
+    <div className={c.status} aria-hidden="true">
+      <span className={c.statusSide}><time>8:30</time></span>
+      <span className={c.statusSide}>
+        <svg viewBox="0 0 18 12" className={c.sbSignal}>
+          <rect x="0" y="8" width="3" height="4" rx="1" />
+          <rect x="5" y="5.5" width="3" height="6.5" rx="1" />
+          <rect x="10" y="3" width="3" height="9" rx="1" />
+          <rect x="15" y="0" width="3" height="12" rx="1" />
+        </svg>
+        <svg viewBox="0 0 16 12" className={c.sbWifi}>
+          <path d="M8 2.6c2.3 0 4.4.9 6 2.4l1.2-1.3A10.5 10.5 0 0 0 8 .8C5.2.8 2.7 1.9.8 3.7L2 5c1.6-1.5 3.7-2.4 6-2.4Z" />
+          <path d="M8 6.2c1.3 0 2.5.5 3.4 1.3l1.2-1.3A6.8 6.8 0 0 0 8 4.4c-1.8 0-3.4.7-4.6 1.8l1.2 1.3c.9-.8 2.1-1.3 3.4-1.3Z" />
+          <path d="M8 9.8 10 7.9A2.9 2.9 0 0 0 8 7.1c-.8 0-1.5.3-2 .8L8 9.8Z" />
+        </svg>
+        <svg viewBox="0 0 27 13" className={c.sbBattery}>
+          <rect x="0.5" y="0.5" width="23" height="12" rx="3.6" fill="none" stroke="currentColor" strokeOpacity="0.4" />
+          <rect x="2.2" y="2.2" width="16" height="8.6" rx="2" />
+          <path d="M25 4.3v4.4c.9-.3 1.5-1.2 1.5-2.2s-.6-1.9-1.5-2.2Z" fillOpacity="0.45" />
+        </svg>
+      </span>
+    </div>
+  );
+}
+
+/* ---------- The section ---------- */
+
+export function LiveCallPhone() {
+  const [phase, setPhase] = useState<Phase>('idle');
+  const [lang, setLang] = useState<CallLang>('en');
+  const [talkMs, setTalkMs] = useState(0);
+  const [run, setRun] = useState(0);
+  const [visible, setVisible] = useState(false);
+  const [reduce, setReduce] = useState(false);
+  const [autoLeft, setAutoLeft] = useState(AUTO_PLAYS);
+  const talkRef = useRef(0);
+  const startedRef = useRef(false);
+  const deviceRef = useRef<HTMLDivElement>(null);
+
+  const setTalk = (ms: number) => {
+    talkRef.current = ms;
+    setTalkMs(ms);
   };
 
-  const play = useCallback((from: Stage) => {
-    clear();
-    setRunning(true);
-    setRunId((n) => n + 1);
-    setStage(from);
-    setShown(from === 0 ? 0 : from === 1 ? 0 : LINES.length);
-    const at = (ms: number, fn: () => void) => timers.current.push(window.setTimeout(fn, ms));
-    let t = 0;
-    if (from === 0) {
-      t += STEPS[0].ms;
-      at(t, () => setStage(1));
-    }
-    if (from <= 1) {
-      LINES.forEach((_, i) => at(t + 500 + i * 1600, () => setShown(i + 1)));
-      t += STEPS[1].ms;
-      at(t, () => setStage(2));
-    }
-    t += STEPS[2].ms;
-    at(t, () => loopRef.current(0));
+  const ring = useCallback(() => {
+    startedRef.current = true;
+    talkRef.current = 0;
+    setTalkMs(0);
+    setRun((n) => n + 1);
+    setPhase('ring');
   }, []);
 
-  useEffect(() => {
-    loopRef.current = play;
-  }, [play]);
+  const answer = useCallback(() => setPhase('answer'), []);
 
+  /** Asked for by the visitor: play once more, and stop playing on its own. */
+  const replay = () => {
+    setAutoLeft(0);
+    ring();
+  };
+
+  /** Step cards: jump straight to a part of the call. */
+  const jump = (i: number) => {
+    startedRef.current = true;
+    setAutoLeft(0);
+    if (i === 0) return ring();
+    setRun((n) => n + 1);
+    if (i === 1 && !reduce) {
+      setTalk(0);
+      setPhase('talk');
+      return;
+    }
+    setTalk(CALL_MS);
+    setPhase('ended');
+  };
+
+  // Start ringing the first time the phone is properly on screen; pause the call while it's off screen.
   useEffect(() => {
-    const node = rootRef.current;
+    const node = deviceRef.current;
     if (!node) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       const id = window.setTimeout(() => {
-        setStage(2);
-        setShown(LINES.length);
+        setReduce(true);
+        setTalk(CALL_MS);
+        setPhase('ended');
       }, 0);
       return () => window.clearTimeout(id);
     }
-    const io = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) {
-        io.disconnect();
-        play(0);
+    const io = new IntersectionObserver(([e]) => {
+      if (e.intersectionRatio >= 0.35) {
+        setVisible(true);
+        if (!startedRef.current) {
+          setAutoLeft(AUTO_PLAYS - 1);
+          ring();
+        }
+      } else if (!e.isIntersecting) {
+        setVisible(false);
       }
-    }, { threshold: 0.35 });
+    }, { threshold: [0, 0.35] });
     io.observe(node);
-    return () => {
-      io.disconnect();
-      clear();
-    };
-  }, [play]);
+    return () => io.disconnect();
+  }, [ring]);
+
+  // Picked up: a moment for the screen to change, then the conversation.
+  useEffect(() => {
+    if (phase !== 'answer') return;
+    const id = window.setTimeout(() => {
+      if (reduce) {
+        setTalk(CALL_MS);
+        setPhase('ended');
+      } else {
+        setTalk(0);
+        setPhase('talk');
+      }
+    }, ANSWER_MS);
+    return () => window.clearTimeout(id);
+  }, [phase, reduce]);
+
+  // The call clock. Pauses (and later resumes) while the phone is off screen.
+  useEffect(() => {
+    if (phase !== 'talk' || !visible) return;
+    const start = performance.now() - talkRef.current;
+    const id = window.setInterval(() => {
+      const t = performance.now() - start;
+      if (t >= CALL_MS) {
+        setTalk(CALL_MS);
+        setPhase('ended');
+      } else {
+        setTalk(t);
+      }
+    }, 50);
+    return () => window.clearInterval(id);
+  }, [phase, visible]);
+
+  // After a pause on the result, ring again (until the automatic plays run out).
+  useEffect(() => {
+    if (phase !== 'ended' || !visible || reduce || autoLeft <= 0) return;
+    const id = window.setTimeout(() => {
+      setAutoLeft((n) => n - 1);
+      ring();
+    }, AFTER_MS);
+    return () => window.clearTimeout(id);
+  }, [phase, visible, reduce, autoLeft, ring, run]);
+
+  /* ---------- What to show ---------- */
+
+  const onCall = phase === 'answer' || phase === 'talk' || phase === 'ended';
+  const ms = phase === 'talk' ? talkMs : phase === 'ended' ? CALL_MS : 0;
+  const speaking = phase === 'talk' ? TIMELINE.find((t) => ms >= t.start && ms < t.end) : undefined;
+  const speaker = speaking?.who ?? null;
+  const waveMode: WaveMode = phase === 'talk' || phase === 'answer' ? speaker ?? 'quiet' : 'off';
+  const islandMode = phase === 'ring' ? 'ring' : phase === 'answer' || phase === 'talk' ? 'call' : 'idle';
+  const shown = TIMELINE.filter((t) => ms >= t.start);
+  const finished = TIMELINE.filter((t) => ms >= t.end).length;
+  const lastDone = finished ? CALL_SCRIPT[finished - 1] : undefined;
+  const stage = phase === 'talk' ? 1 : phase === 'ended' ? 2 : 0;
+  const started = phase !== 'idle';
+  const ringsAgain = phase === 'ended' && autoLeft > 0 && !reduce;
+  const langName = CALL_LANGS.find((l) => l.key === lang)!.name;
+
+  const hint = phase === 'talk' || phase === 'answer'
+    ? 'An example call. The words appear as they are said.'
+    : phase === 'ended'
+      ? 'Call ended. Saathi has noted how Amma is.'
+      : reduce
+        ? 'Slide the green button to answer.'
+        : 'Slide to answer, or wait and the call picks up by itself.';
 
   return (
-    <div ref={rootRef}>
-      <div className={s.phone}>
-        <span className={s.exampleTag} style={{ top: '-12px', right: '24px' }}>Example</span>
-        <div className={s.phoneScreen}>
-          <span className={s.notch} aria-hidden="true" />
-          <div className={s.phoneTop}>
-            <span className={s.phoneAvatar}>A</span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Amma</div>
-              <div style={{ fontSize: '0.76rem', color: 'var(--ink-subtle)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span className="dot live" style={{ width: '6px', height: '6px' }} />
-                {stage === 0 ? 'Calling… 8:30 AM' : stage === 1 ? 'On call · Hindi' : 'Call ended · 1m 12s'}
+    <div className={c.stage}>
+      <div className={c.scene}>
+        {/* Left: the call language */}
+        <div className={c.colLeft}>
+          <div className={`${c.card} ${c.langCard}`}>
+            <span className={c.kicker}><Languages size={14} /> Call language</span>
+            <div className={`segmented ${c.seg}`} role="group" aria-label="Language of the example call">
+              {CALL_LANGS.map((l) => (
+                <button key={l.key} type="button" aria-pressed={lang === l.key} onClick={() => setLang(l.key)} lang={l.key}>
+                  {l.label}
+                </button>
+              ))}
+            </div>
+            <p className={c.cardNote}>Amma hears Saathi in her own language. Your update always comes in English.</p>
+            <button type="button" className={c.replay} onClick={replay}>
+              <RotateCcw size={14} /> Ring Amma again
+            </button>
+          </div>
+        </div>
+
+        {/* The phone */}
+        <div className={c.colPhone}>
+          <div className={c.phoneWrap}>
+            <div
+              ref={deviceRef}
+              className={c.device}
+              data-ringing={phase === 'ring' || undefined}
+              role="group"
+              aria-label="Example call on Amma’s phone"
+            >
+              <span className={`${c.hw} ${c.hwAction}`} aria-hidden="true" />
+              <span className={`${c.hw} ${c.hwVolUp}`} aria-hidden="true" />
+              <span className={`${c.hw} ${c.hwVolDown}`} aria-hidden="true" />
+              <span className={`${c.hw} ${c.hwSide}`} aria-hidden="true" />
+              <span className={`${c.hw} ${c.hwCamera}`} aria-hidden="true" />
+              <div className={c.bezel} aria-hidden="true" />
+
+              <div className={c.screen} data-screen={onCall ? 'call' : 'incoming'} data-ended={phase === 'ended' || undefined}>
+                <div className={c.wallpaper} aria-hidden="true" />
+                <StatusBar />
+
+                {/* Dynamic Island: a shaking phone icon while ringing, who is talking on the call */}
+                <div className={c.island} data-mode={islandMode} aria-hidden="true">
+                  <span className={c.islandIcon}><Phone fill="currentColor" strokeWidth={0} /></span>
+                  <span className={c.islandWave}>
+                    <IslandWave mode={waveMode} running={visible && !reduce && waveMode !== 'off'} />
+                  </span>
+                  <span className={c.islandTime}>{formatCallTime(ms)}</span>
+                  <span className={c.lens} />
+                </div>
+
+                {/* Incoming call */}
+                <div className={c.incoming} inert={onCall}>
+                  <div className={c.caller}>
+                    <span className={c.callerName}>Saathi</span>
+                    <span className={c.callerSub}>Aaptha · morning check-in</span>
+                  </div>
+                  <div className={c.avatar} aria-hidden="true">
+                    <Heart fill="currentColor" strokeWidth={0} />
+                  </div>
+                  <div className={c.quick} aria-hidden="true">
+                    <span><i><AlarmClock /></i>Remind Me</span>
+                    <span><i><MessageCircle fill="currentColor" strokeWidth={0} /></i>Message</span>
+                  </div>
+                  <SlideToAnswer key={run} autoDelay={reduce ? null : phase === 'ring' ? RING_BEFORE_AUTO_MS : null} onAnswer={answer} />
+                </div>
+
+                {/* On the call: live transcript */}
+                <div className={c.incall} inert={!onCall}>
+                  <div className={c.callHead}>
+                    <span className={c.headName}>Saathi</span>
+                    <span className={c.headSub}>{phase === 'ended' ? 'Call ended' : formatCallTime(ms)}</span>
+                  </div>
+
+                  <div className={c.transcript}>
+                    <span className={c.liveLabel}>
+                      <span className={c.liveDot} data-on={phase === 'talk' || undefined} />
+                      {phase === 'ended' ? 'Transcript' : 'Live transcript'} · {langName}
+                    </span>
+                    <div className={c.feed}>
+                      {shown.map((t) => {
+                        const line = CALL_SCRIPT[t.index];
+                        const words = line.text[lang].split(' ');
+                        const p = clamp01((ms - t.start) / (t.end - t.start));
+                        const upTo = Math.ceil(p * words.length);
+                        const done = p >= 1;
+                        return (
+                          <div
+                            key={t.index}
+                            className={`${c.bubble} ${t.who === 'saathi' ? c.bSaathi : c.bParent}`}
+                            data-live={!done || undefined}
+                          >
+                            <span className={c.bubbleWho}>{t.who === 'saathi' ? 'Saathi' : 'Amma'}</span>
+                            <p lang={lang}>
+                              {words.map((w, i) => (
+                                <span key={i} data-on={i < upTo || undefined}>{w}{i < words.length - 1 ? ' ' : ''}</span>
+                              ))}
+                            </p>
+                            {lang !== 'en' && <small className={c.bubbleEn} data-on={done || undefined}>{line.text.en}</small>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className={c.controls} aria-hidden="true">
+                    {CONTROLS.map((b) => (
+                      <span key={b.label} className={`${c.ctl} ${b.end ? c.ctlEnd : ''}`}>
+                        <i><b.icon /></i>
+                        {b.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <span className={c.homeBar} aria-hidden="true" />
+                <span className={c.glare} aria-hidden="true" />
               </div>
             </div>
           </div>
-
-          <div className={s.phoneBody} aria-live="polite">
-            {stage === 0 && (
-              <div className={s.ring}>
-                <div className={s.ringOrb}><PhoneCall size={32} /></div>
-                <div style={{ fontWeight: 600 }}>Saathi is calling Amma</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--ink-subtle)' }}>Morning medicine check-in</div>
-              </div>
+          <p className={c.hint}>
+            {hint}
+            {phase === 'ended' && !ringsAgain && (
+              <button type="button" className={c.replay} onClick={replay}>
+                <RotateCcw size={13} /> Ring again
+              </button>
             )}
+          </p>
+          <p className="sr-only" aria-live="polite">
+            {lastDone ? `${lastDone.who === 'saathi' ? 'Saathi' : 'Amma'}: ${lastDone.text[lang]}` : ''}
+          </p>
+        </div>
 
-            {stage >= 1 &&
-              LINES.slice(0, shown).map((l, i) => (
-                <div key={i} className={`${s.bubble} ${l.who === 'saathi' ? s.bSaathi : s.bParent}`}>
-                  <small>{l.who === 'saathi' ? 'Saathi' : 'Amma'}</small>
-                  {l.text}
-                </div>
-              ))}
-
-            {stage === 2 && (
-              <div className={s.noting}>
-                <div className={s.notingHead}><PenLine size={13} /> Saathi noted</div>
-                <div className={s.notingRow}><Check size={15} color="var(--green)" /> BP tablet taken</div>
-                <div className={s.notingRow} style={{ animationDelay: '180ms' }}><Smile size={15} color="var(--gold)" /> Mood: okay</div>
-                <div className={s.notingRow} style={{ animationDelay: '360ms' }}><AlertTriangle size={15} color="var(--amber)" /> Mentioned knee pain</div>
-              </div>
-            )}
-          </div>
-
-          <div className={s.phoneFoot}>
-            <span>{stage === 2 ? 'Sent to your dashboard' : 'Saathi · Aaptha'}</span>
-            <span className={s.hangup}><PhoneOff size={16} /></span>
+        {/* Right: what lands on your dashboard */}
+        <div className={c.colRight}>
+          <div className={`${c.card} ${c.result}`} data-state={phase === 'ended' ? 'sent' : 'noting'}>
+            <div className={c.resultHead}>
+              <span className={c.kicker}><LayoutDashboard size={14} /> {phase === 'ended' ? 'On your dashboard' : 'Saathi is noting'}</span>
+              <span className={c.resultStatus}>
+                {phase === 'ended'
+                  ? <><Check size={13} strokeWidth={3} /> Sent</>
+                  : <><span className={c.liveDot} data-on={phase === 'talk' || undefined} /> {phase === 'talk' ? 'Listening' : 'Waiting'}</>}
+              </span>
+            </div>
+            <div className={c.resultTitle}>Morning check-in · 8:30 AM</div>
+            <ul className={c.rows}>
+              {NOTES.map((n) => {
+                const on = phase === 'ended' || finished > n.after;
+                return (
+                  <li key={n.label} data-on={on || undefined}>
+                    <span className={c.noteIcon} data-tone={n.tone}><n.icon size={14} /></span>
+                    <span>{n.label}</span>
+                    <b>{on ? n.value : '…'}</b>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className={c.resultFoot}>
+              {phase === 'ended'
+                ? lang === 'en'
+                  ? `Call length ${formatCallTime(CALL_MS)}. Sent right after the call.`
+                  : `Amma spoke ${langName}. You read it in English.`
+                : 'Fills in as Amma answers.'}
+            </p>
           </div>
         </div>
       </div>
@@ -139,8 +397,8 @@ export function LiveCallPhone() {
             key={st.title}
             type="button"
             className={s.stepCard}
-            aria-current={running && stage === i ? 'step' : undefined}
-            onClick={() => play(i as Stage)}
+            aria-current={started && stage === i ? 'step' : undefined}
+            onClick={() => jump(i)}
           >
             <span className={s.stepBadge}>
               <span><st.icon size={18} /></span>
@@ -148,9 +406,9 @@ export function LiveCallPhone() {
             </span>
             <h3>{st.title}</h3>
             <p>{st.body}</p>
-            {running && stage === i && (
+            {started && !reduce && visible && stage === i && (i !== 2 || ringsAgain) && (
               <span className={s.stepProgress} aria-hidden="true">
-                <i key={`${runId}-${stage}`} style={{ '--dur-step': `${st.ms}ms` } as React.CSSProperties} />
+                <i key={`${run}-${stage}`} style={{ '--dur-step': `${st.ms}ms` } as React.CSSProperties} />
               </span>
             )}
           </button>
