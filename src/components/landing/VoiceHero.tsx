@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Play, Square, RotateCcw } from 'lucide-react';
 import { SaathiOrb, type OrbMode, type SaathiOrbHandle } from '@/components/voice/SaathiOrb';
@@ -104,6 +104,14 @@ function chunk(text: string): Chunk[] {
 
 const CHARS_PER_SEC = 13;            // estimate when a browser voice doesn't report word timing
 
+/* The site theme (<html data-theme>): the orb glows on dark pages and uses ink on light ones (no dark backing). */
+const subscribeTheme = (cb: () => void) => {
+  const mo = new MutationObserver(cb);
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  return () => mo.disconnect();
+};
+const readDarkTheme = () => document.documentElement.getAttribute('data-theme') === 'dark';
+
 /** The browser's voices, waiting (briefly) for them to load if the list is still empty. */
 function loadVoices(synth: SpeechSynthesis): Promise<SpeechSynthesisVoice[]> {
   const now = synth.getVoices();
@@ -126,6 +134,7 @@ function loadVoices(synth: SpeechSynthesis): Promise<SpeechSynthesisVoice[]> {
 export function VoiceHero({ primaryHref, primaryLabel, trialDays }: { primaryHref: string; primaryLabel: string; trialDays: number }) {
   const orb = useRef<SaathiOrbHandle>(null);
   const [orbMode, setOrbMode] = useState<OrbMode>('idle');
+  const dark = useSyncExternalStore(subscribeTheme, readDarkTheme, () => false);
 
   const [lang, setLang] = useState<LangKey>('en');
   const [status, setStatus] = useState<Status>('idle');
@@ -139,6 +148,8 @@ export function VoiceHero({ primaryHref, primaryLabel, trialDays }: { primaryHre
   const timers = useRef<number[]>([]);
   const runId = useRef(0);
   const lineStart = useRef(0);
+  const lineToken = useRef(0);        // which line the estimated word timers belong to
+  const realWords = useRef(false);    // true once the browser reports word timing for this line
 
   const clearTimers = () => { timers.current.forEach((t) => window.clearTimeout(t)); timers.current = []; };
 
@@ -181,8 +192,24 @@ export function VoiceHero({ primaryHref, primaryLabel, trialDays }: { primaryHre
 
     // A short "ringing" before the first word.
     setOrbMode('ringing');
+    // Until (unless) the browser reports word timing, feed the orb each word on the
+    // same estimate the captions use, so the waves still swell with the words.
+    const estimateWords = (l: Line) => {
+      const token = ++lineToken.current;
+      realWords.current = false;
+      const words = [...l.text.matchAll(/\S+/g)];
+      words.forEach((w, k) => {
+        const at = (w.index ?? 0) / CHARS_PER_SEC;
+        const next = k + 1 < words.length ? (words[k + 1].index ?? 0) / CHARS_PER_SEC : at + w[0].length / CHARS_PER_SEC;
+        timers.current.push(window.setTimeout(() => {
+          if (id !== runId.current || token !== lineToken.current || realWords.current) return;
+          orb.current?.say(w[0], (next - at) * 0.85);
+        }, at * 1000));
+      });
+    };
     const begin = (i: number, l: Line) => {
       if (id !== runId.current) return;
+      estimateWords(l);
       lineStart.current = Date.now();
       setBegun(true);
       setOrbMode(l.to === 'reply' ? 'family' : 'saathi');
@@ -223,9 +250,11 @@ export function VoiceHero({ primaryHref, primaryLabel, trialDays }: { primaryHre
         u.pitch = l.pitch;
         u.onstart = () => begin(i, l);
         u.onboundary = (e) => {
-          if (id !== runId.current) return;
-          orb.current?.pulse(l.to === 'reply' ? 'family' : 'saathi');
-          setSpokenTo(e.charIndex + (e.charLength || 0));
+          if (id !== runId.current || e.name === 'sentence') return;
+          realWords.current = true;
+          const word = /^\S+/.exec(l.text.slice(e.charIndex))?.[0] ?? '';
+          orb.current?.say(word);
+          setSpokenTo(e.charIndex + (e.charLength || word.length));
         };
         u.onend = () => { if (i === lines.length - 1) finish(); };
         u.onerror = () => { if (id === runId.current) finish(); };
@@ -279,7 +308,7 @@ export function VoiceHero({ primaryHref, primaryLabel, trialDays }: { primaryHre
           <div className={s.stage}>
             {/* The ring is the call, the waves are the voice: dead centre, captions above, pill below */}
             <div className={s.orb} aria-hidden="true">
-              <SaathiOrb ref={orb} mode={orbMode} variant="day" waveAmp={0.7} />
+              <SaathiOrb ref={orb} mode={orbMode} variant={dark ? 'night' : 'day'} waveAmp={0.7} />
             </div>
 
             {/* Live captions, inside the ring above the waves */}

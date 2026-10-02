@@ -54,7 +54,7 @@ export function OrbPlayground() {
         if (voice) u.voice = voice;
         u.pitch = line.pitch;
         u.rate = 0.95;
-        u.onboundary = () => orb.current?.pulse(line.who);
+        u.onboundary = (e) => orb.current?.say(/^\S+/.exec(line.text.slice(e.charIndex))?.[0] ?? '');
         u.onend = () => window.setTimeout(() => say(i + 1), 350);
         u.onerror = () => say(i + 1);
         synth.speak(u);

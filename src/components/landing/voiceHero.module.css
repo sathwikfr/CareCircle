@@ -8,8 +8,11 @@
    Phones stack it: orb, its controls, then the pitch.
    ========================================================================== */
 
+/* The orb's soft haze reaches past the panel: it is clipped at the screen edges
+   (here), not by the panel, where it would show as a faint box. */
 .hero {
   padding: 8px 16px 0;
+  overflow-x: clip;
 }
 
 .panel {
@@ -52,7 +55,6 @@
 
   position: relative;
   isolation: isolate;
-  overflow: hidden;
   container-type: inline-size;        /* so cqw lengths (columns, headline fit) follow the panel */
   height: calc(100svh - 68px - 16px);
   min-height: 660px;
@@ -249,6 +251,11 @@
   height: calc(var(--hole) * 2.9);
   transform: translate(-50%, -50%);
   pointer-events: none;
+  /* The haze fades out before the canvas edge (the ring's strands reach ~74% of it
+     at their loudest), so it never shows a line where something cuts it, such as
+     the header. */
+  -webkit-mask-image: radial-gradient(closest-side, #000 74%, transparent 90%);
+  mask-image: radial-gradient(closest-side, #000 74%, transparent 90%);
 }
 
 /* ---------- Live captions, inside the ring ----------
@@ -476,11 +483,11 @@
 
 @media (max-width: 1023px) {
   .hero {
-    padding: 6px 10px 0;
+    padding: 6px 0 0;
   }
 
   .panel {
-    --edge: 24px;
+    --edge: 34px;
     --hole: min(190px, 50cqw);
     --h1: 58px;
     --ui: 16px;
@@ -493,7 +500,6 @@
     flex-direction: column;
     gap: 28px;
     padding: 40px var(--edge) 64px;
-    border-radius: 26px;
   }
 
   .left,
@@ -511,7 +517,7 @@
 
 @media (max-width: 560px) {
   .panel {
-    --edge: 18px;
+    --edge: 28px;
     --h1: 46px;
     --ui: 15px;
     --btnh: 50px;
