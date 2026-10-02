@@ -391,6 +391,13 @@ async function partB() {
     const s8c = await runDispatch({ now: day5(3, 30), fetchImpl: denied.fetchImpl, config: cfg, alertDeps, parentIds: scope });
     const f2 = await prisma.callLog.findFirst({ where: { parentId: parent.id, callDate: '2026-10-09', attemptNumber: 1 } });
     check('401 (our config) → failed, no retry, no family alert', s8c.failedToPlace === 1 && f2?.status === 'failed' && f2.nextRetryAt === null && emails.length === emailsB8, f2);
+    const dayB8d = (hh: number, mm: number) => new Date(Date.UTC(2026, 9, 11, hh, mm));
+    const noCredits = makeFakeSarvam({ mode: 'http', status: 402 });
+    const s8d = await runDispatch({ now: dayB8d(3, 30), fetchImpl: noCredits.fetchImpl, config: cfg, alertDeps, parentIds: scope });
+    const f3 = await prisma.callLog.findFirst({ where: { parentId: parent.id, callDate: '2026-10-11', attemptNumber: 1 } });
+    check('402 (our Sarvam credits used up) → failed, no retry, no family alert',
+      s8d.failedToPlace === 1 && f3?.status === 'failed' && f3.nextRetryAt === null && emails.length === emailsB8 &&
+      (await prisma.alertRecord.count({ where: { callLogId: f3.id } })) === 0, f3);
 
     // ---- B9 stale placed calls --------------------------------------------------
     console.log('\nB9. Result never arrives');
@@ -432,9 +439,12 @@ async function partB() {
     check("test call logged with slot 'test', no slot id", mlog?.slot === 'test' && mlog.slotId === null && mlog.status === 'placed');
     const mo = m1.ok ? await processSarvamWebhook({ attempt_id: mlog!.providerAttemptId, status: 'no_answer' }, { deps: alertDeps }) : null;
     check('test call never retried', mo?.status === 'processed' && (mo as { retryAt: string | null }).retryAt === null);
+    const noCredits11 = makeFakeSarvam({ mode: 'http', status: 402 });
+    const mx = await placeManualCall({ parentId: parent.id, ownerId: user.id, kind: 'test' }, { config: cfg, fetchImpl: noCredits11.fetchImpl });
+    check('402 from Sarvam → clear "problem on our side" error (503), not "try again in a few minutes"', !mx.ok && mx.status === 503 && mx.code === 'CALLING_UNAVAILABLE', mx);
     const m2 = await placeManualCall({ parentId: parent.id, ownerId: user.id, kind: 'test' }, { config: cfg, fetchImpl: sarvam11.fetchImpl });
     const m3 = await placeManualCall({ parentId: parent.id, ownerId: user.id, kind: 'test' }, { config: cfg, fetchImpl: sarvam11.fetchImpl });
-    check('2 per hour allowed, 3rd rate-limited', m2.ok && !m3.ok && m3.status === 429, [m2.ok, m3.ok]);
+    check('2 per hour allowed, 3rd rate-limited (a refused attempt does not count)', m2.ok && !m3.ok && m3.status === 429, [m2.ok, m3.ok]);
     await prisma.parentProfile.update({ where: { id: parent.id }, data: { isPaused: true } });
     const mp = await placeManualCall({ parentId: parent.id, ownerId: user.id, kind: 'test' }, { config: cfg, fetchImpl: sarvam11.fetchImpl });
     check('paused parent → 409', !mp.ok && mp.status === 409);

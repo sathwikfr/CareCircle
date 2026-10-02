@@ -4,8 +4,8 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { getEffectivePlan } from '@/lib/plans';
-import { Medicine, EmergencyContact, MedicineTimingSlot, ExtractedMedicineCandidate, ScheduledCallSlot, FoodRelation } from '@/lib/types';
+import { getEffectivePlan, getPlan } from '@/lib/plans';
+import { PlanId, Medicine, EmergencyContact, MedicineTimingSlot, ExtractedMedicineCandidate, ScheduledCallSlot, FoodRelation } from '@/lib/types';
 import {
   Heart,
   Pill,
@@ -49,10 +49,33 @@ function OnboardingContent() {
 
   const currentPlan = getEffectivePlan(user?.subscription, user?.createdAt);
 
+  // Room on the plan for another parent, checked up front so nobody fills in every step only to be stopped at the end.
+  const [parentLimit, setParentLimit] = useState<{
+    canAddMore: boolean;
+    expired: boolean;
+    allowedParents: number;
+    currentCount: number;
+    planName: string;
+    upgradePlanId: PlanId | null;
+  } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/parents')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (!cancelled && data?.planLimits) setParentLimit(data.planLimits);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Step state (1 to 6)
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [errorUpgradeHref, setErrorUpgradeHref] = useState<string | null>(null);
 
   // Step 1: Parent Info
   const [name, setName] = useState('');
@@ -459,6 +482,7 @@ function OnboardingContent() {
 
     setSubmitting(true);
     setErrorMsg('');
+    setErrorUpgradeHref(null);
 
     try {
       const validMeds = hasMedicines ? medicines.filter(m => m.name.trim() !== '') : [];
@@ -484,6 +508,9 @@ function OnboardingContent() {
       const data = await res.json();
       if (!res.ok) {
         setErrorMsg(data.error || 'Failed to create parent profile');
+        if (data.code === 'PARENT_LIMIT' || data.code === 'TRIAL_ENDED') {
+          setErrorUpgradeHref(`/checkout/confirm?plan=${data.upgradePlanId || 'family'}`);
+        }
         setSubmitting(false);
         return;
       }
@@ -523,12 +550,49 @@ function OnboardingContent() {
     return <Heart size={19} />;
   };
 
+  if (parentLimit && !parentLimit.canAddMore && step < 6) {
+    const upgradePlan = parentLimit.upgradePlanId ? getPlan(parentLimit.upgradePlanId) : null;
+    return (
+      <WizardShell step={1}>
+        <div className="animate-fade-in">
+          <StepHeader
+            eyebrow="Add a parent"
+            title={parentLimit.expired ? 'Your free trial has ended' : `Your ${parentLimit.planName} plan is full`}
+          >
+            {parentLimit.expired
+              ? 'Choose a plan to add a parent and restart the daily check-in calls.'
+              : `It includes ${parentLimit.allowedParents} parent${parentLimit.allowedParents === 1 ? '' : 's'} and you've added ${parentLimit.currentCount}. ` +
+                (upgradePlan
+                  ? `${upgradePlan.name} covers up to ${upgradePlan.parentsIncluded}. Once your payment is confirmed you can add another parent here.`
+                  : 'To add someone new, archive a parent from the dashboard first.')}
+          </StepHeader>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            {upgradePlan && (
+              <Link href={`/checkout/confirm?plan=${upgradePlan.id}`} className="btn btn-primary btn-lg">
+                Upgrade to {upgradePlan.name} <ArrowRight size={18} className="arrow" />
+              </Link>
+            )}
+            <Link href="/dashboard" className="btn btn-ghost">Back to dashboard</Link>
+          </div>
+        </div>
+      </WizardShell>
+    );
+  }
+
   return (
     <WizardShell step={step}>
       {errorMsg && (
         <div className="alert-box error" role="alert">
           <AlertCircle size={18} />
-          <span>{errorMsg}</span>
+          <span>
+            {errorMsg}
+            {errorUpgradeHref && (
+              <>
+                {' '}
+                <Link href={errorUpgradeHref} className="link">See plans</Link>
+              </>
+            )}
+          </span>
         </div>
       )}
 

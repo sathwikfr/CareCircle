@@ -102,6 +102,11 @@ export function getPlan(planId: string | null | undefined): Plan {
   return PLANS.family; // Default to popular plan
 }
 
+/** Cheapest paid plan that covers this many parents (null when none does). */
+export function smallestPlanFor(parentCount: number): Plan | null {
+  return (['solo', 'family', 'extended'] as PlanId[]).map(id => PLANS[id]).find(p => p.parentsIncluded >= parentCount) || null;
+}
+
 /** When an account's free trial ends: FREE_TRIAL_DAYS after the account was created (it can't be restarted). */
 export function freeTrialEnd(accountCreatedAt: string | Date): Date {
   return new Date(new Date(accountCreatedAt).getTime() + FREE_TRIAL_DAYS * DAY_MS);

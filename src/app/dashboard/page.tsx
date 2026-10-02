@@ -9,7 +9,7 @@ import { Medicine, FoodRelation, ExtractedMedicineCandidate, ParentProfile } fro
 import { Heart, Pause, Plus, ArrowRight, Sparkles, CheckCircle2, AlertTriangle, Info, X, Phone, Languages, CalendarClock } from 'lucide-react';
 import { SAMPLE_PRESCRIPTIONS } from '@/lib/medicineExtractor';
 import { formatScheduleSummary } from '@/lib/scheduleGenerator';
-import { getEffectivePlan, freeTrialDaysLeft } from '@/lib/plans';
+import { getEffectivePlan, freeTrialDaysLeft, smallestPlanFor } from '@/lib/plans';
 import {
   ParentDetails, Toast, computeCallStats, formatCallTime, initial, downloadFile, safeFileName, displayName
 } from '@/components/dashboard/helpers';
@@ -443,6 +443,7 @@ function DashboardContent() {
   const stats = computeCallStats(parentData?.callLogs || [], currentParent?.callSchedule || []);
   const { activeSlots, completedCalls } = stats;
   const effectivePlan = getEffectivePlan(user?.subscription, user?.createdAt);
+  const upgradeForParent = smallestPlanFor(parentsList.length + 1);
   const dailyCallCap = effectivePlan.callsPerDay;
   const dailyCallCapExceeded = !effectivePlan.expired && activeSlots.length > dailyCallCap;
   const trialDaysLeft = effectivePlan.id === 'free' && !effectivePlan.expired ? freeTrialDaysLeft(user?.createdAt) : null;
@@ -512,7 +513,8 @@ function DashboardContent() {
           setSelectedParentId(id);
           setActiveTab('overview');
         }}
-        canAddMore={parentsList.length < effectivePlan.parentsIncluded}
+        canAddMore={!effectivePlan.expired && parentsList.length < effectivePlan.parentsIncluded}
+        upgradeHref={upgradeForParent ? `/checkout/confirm?plan=${upgradeForParent.id}` : undefined}
       />
 
       {/* SELECTED PARENT */}

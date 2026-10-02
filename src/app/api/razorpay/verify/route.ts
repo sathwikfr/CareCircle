@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/access';
-import { invoiceNumberForPayment, verifySubscriptionPayment } from '@/lib/razorpay';
+import { cancelRazorpaySubscription, invoiceNumberForPayment, verifySubscriptionPayment } from '@/lib/razorpay';
 import { updateUserSubscription } from '@/lib/db';
 import { PlanId } from '@/lib/types';
 import { PLANS } from '@/lib/plans';
@@ -36,6 +36,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: verification.error }, { status: 400 });
     }
 
+    const previousSubscriptionId = user.subscription?.razorpaySubscriptionId;
     const invoiceNumber = invoiceNumberForPayment(String(razorpay_payment_id));
     const updatedSub = await updateUserSubscription(user.id, {
       planId: planId as PlanId,
@@ -44,6 +45,16 @@ export async function POST(req: Request) {
       paymentMethodBrand: verification.isSandbox ? 'Sandbox (no charge)' : (paymentMethodBrand || 'Razorpay').toString().slice(0, 40),
       invoiceNumber
     });
+
+    // Switching from another paid plan: stop the old Razorpay subscription so the customer isn't
+    // charged for both. Its webhooks no longer match this account's row, so they are ignored.
+    if (previousSubscriptionId && previousSubscriptionId !== String(razorpay_subscription_id)) {
+      try {
+        await cancelRazorpaySubscription(previousSubscriptionId, false);
+      } catch (err) {
+        console.error(`[payments] Could not cancel replaced subscription ${previousSubscriptionId} for ${user.id}; cancel it in the Razorpay dashboard.`, err);
+      }
+    }
 
     // Tell the customer their subscription is active. Awaited (not fire-and-forget) so a
     // serverless host can't cut the request off before the email is handed to Resend.

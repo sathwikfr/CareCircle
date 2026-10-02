@@ -46,10 +46,12 @@ type Props = {
   selectedId: string;
   onSelect: (id: string) => void;
   canAddMore?: boolean;
+  /** Checkout link shown instead of "Add a parent" when the plan is full (none on the biggest plan). */
+  upgradeHref?: string;
 };
 
 /** Family-level header: greeting, live totals across every parent, and a parent picker with today's status. */
-export function FamilyOverview({ userName, parents, detailsById, selectedId, onSelect, canAddMore = true }: Props) {
+export function FamilyOverview({ userName, parents, detailsById, selectedId, onSelect, canAddMore = true, upgradeHref }: Props) {
   const firstName = userName?.split(' ')[0];
   const [nowMs] = useState(() => Date.now());
 
@@ -92,11 +94,15 @@ export function FamilyOverview({ userName, parents, detailsById, selectedId, onS
               {next ? `Next check-in: ${next.name} at ${next.time}` : 'Here’s how your parents are today'}
             </p>
           </div>
-          {canAddMore && (
+          {canAddMore ? (
             <Link href="/onboarding" className="btn btn-sm family-add">
               <Plus size={15} /> Add a parent
             </Link>
-          )}
+          ) : upgradeHref ? (
+            <Link href={upgradeHref} className="btn btn-sm family-add" title="Your plan is full. Upgrade to add another parent.">
+              <Plus size={15} /> Upgrade to add a parent
+            </Link>
+          ) : null}
         </div>
 
         <div className="family-tiles">

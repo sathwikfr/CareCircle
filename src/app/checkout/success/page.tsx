@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, Suspense } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getPlan } from '@/lib/plans';
@@ -33,6 +33,23 @@ function SuccessContent() {
     refreshUser();
   }, []);
 
+  // Upgrading families already have parents: point them at adding the next one, not "your first".
+  const [parentCount, setParentCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/parents')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (!cancelled && data?.planLimits) setParentCount(data.planLimits.currentCount);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const hasParents = (parentCount ?? 0) > 0;
+  const roomForMore = parentCount === null || parentCount < plan.parentsIncluded;
+
   return (
     <CheckoutShell step={4} wide={false}>
       <div style={{ textAlign: 'center', marginBottom: '28px' }}>
@@ -43,7 +60,10 @@ function SuccessContent() {
           {plan.hasTrial ? `Your ${plan.trialDays}-day free trial has started` : 'Welcome to Aaptha'}
         </h1>
         <p style={{ fontSize: '1.02rem', color: 'var(--ink-muted)', maxWidth: '46ch', margin: '0 auto' }}>
-          You&apos;re on <strong style={{ color: 'var(--ink)' }}>{plan.name}</strong>. One last step: tell us about your parent so Saathi can start calling.
+          You&apos;re on <strong style={{ color: 'var(--ink)' }}>{plan.name}</strong>.{' '}
+          {hasParents
+            ? `It covers up to ${plan.parentsIncluded} parent${plan.parentsIncluded === 1 ? '' : 's'}.`
+            : 'One last step: tell us about your parent so Saathi can start calling.'}
         </p>
       </div>
 
@@ -51,13 +71,29 @@ function SuccessContent() {
         <span className="icon-tile" style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'var(--teal)', color: 'var(--on-teal)', marginBottom: '14px' }}>
           <UserPlus size={24} />
         </span>
-        <h2 style={{ fontSize: '1.35rem', marginBottom: '6px' }}>Add your first parent</h2>
-        <p style={{ fontSize: '0.92rem', color: 'var(--ink-muted)', maxWidth: '42ch', margin: '0 auto 22px' }}>
-          Their name, phone number, language and medicines. It takes a few minutes.
-        </p>
-        <Link href="/onboarding" className="btn btn-primary btn-lg">
-          Start setup <ArrowRight size={18} className="arrow" />
-        </Link>
+        {roomForMore ? (
+          <>
+            <h2 style={{ fontSize: '1.35rem', marginBottom: '6px' }}>{hasParents ? 'Add another parent' : 'Add your first parent'}</h2>
+            <p style={{ fontSize: '0.92rem', color: 'var(--ink-muted)', maxWidth: '42ch', margin: '0 auto 22px' }}>
+              {hasParents
+                ? `You've added ${parentCount} of ${plan.parentsIncluded}. Their name, phone number, language and medicines take a few minutes.`
+                : 'Their name, phone number, language and medicines. It takes a few minutes.'}
+            </p>
+            <Link href="/onboarding" className="btn btn-primary btn-lg">
+              {hasParents ? 'Add a parent' : 'Start setup'} <ArrowRight size={18} className="arrow" />
+            </Link>
+          </>
+        ) : (
+          <>
+            <h2 style={{ fontSize: '1.35rem', marginBottom: '6px' }}>You&apos;re all set</h2>
+            <p style={{ fontSize: '0.92rem', color: 'var(--ink-muted)', maxWidth: '42ch', margin: '0 auto 22px' }}>
+              Saathi keeps calling your parents as scheduled.
+            </p>
+            <Link href="/dashboard" className="btn btn-primary btn-lg">
+              Go to dashboard <ArrowRight size={18} className="arrow" />
+            </Link>
+          </>
+        )}
       </section>
 
       <section className="panel" aria-labelledby="sub-title">

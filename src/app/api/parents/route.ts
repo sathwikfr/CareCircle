@@ -8,7 +8,7 @@ import {
   newId
 } from '@/lib/db';
 import { requireUser } from '@/lib/access';
-import { getEffectivePlan } from '@/lib/plans';
+import { getEffectivePlan, smallestPlanFor } from '@/lib/plans';
 import { Medicine, EmergencyContact, MedicineTimingSlot, FoodRelation } from '@/lib/types';
 import { normalizePhone } from '@/lib/phone';
 
@@ -32,7 +32,9 @@ export async function GET() {
       planName: plan.name,
       allowedParents: plan.parentsIncluded,
       currentCount: list.length,
-      canAddMore: list.length < plan.parentsIncluded
+      canAddMore: !plan.expired && list.length < plan.parentsIncluded,
+      expired: Boolean(plan.expired),
+      upgradePlanId: smallestPlanFor(list.length + 1)?.id || null
     }
   });
 }
@@ -123,7 +125,9 @@ export async function POST(req: Request) {
     if (existing.length >= plan.parentsIncluded) {
       return NextResponse.json(
         {
-          error: `Your current ${plan.name} plan allows up to ${plan.parentsIncluded} parent profile${plan.parentsIncluded === 1 ? '' : 's'}. Please upgrade to add more.`
+          error: `Your current ${plan.name} plan allows up to ${plan.parentsIncluded} parent profile${plan.parentsIncluded === 1 ? '' : 's'}. Please upgrade to add more.`,
+          code: 'PARENT_LIMIT',
+          upgradePlanId: smallestPlanFor(existing.length + 1)?.id || null
         },
         { status: 403 }
       );

@@ -7,8 +7,8 @@ import { PLANS } from './plans';
  *  - Live/test-mode Razorpay: RAZORPAY_KEY_ID (or NEXT_PUBLIC_RAZORPAY_KEY_ID),
  *    RAZORPAY_KEY_SECRET, and real plan ids in RAZORPAY_PLAN_ID_SOLO /
  *    RAZORPAY_PLAN_ID_FAMILY / RAZORPAY_PLAN_ID_EXTENDED (scripts/create-razorpay-plans.ts).
- *  - Without real keys, a local sandbox is available ONLY under `next dev`.
- *    Production never falls back to sandbox.
+ *  - Until keys AND all three plan ids are set, a local sandbox is available ONLY under
+ *    `next dev`. Production never falls back to sandbox.
  */
 const PLACEHOLDER = /demo|CareCircle|xxxx|your_/i;
 
@@ -26,8 +26,9 @@ export function isRazorpayConfigured(): boolean {
   return Boolean(id && secret && !PLACEHOLDER.test(id) && !PLACEHOLDER.test(secret));
 }
 
+/** Test keys alone can't take a subscription, so under `next dev` the sandbox stays until the plan ids exist too. */
 export function isSandboxAllowed(): boolean {
-  return !isRazorpayConfigured() && process.env.NODE_ENV === 'development';
+  return process.env.NODE_ENV === 'development' && !(isRazorpayConfigured() && hasAllRazorpayPlanIds());
 }
 
 const SANDBOX_PREFIX = 'sub_sandbox_';
@@ -60,11 +61,21 @@ export function describeRazorpayPaymentMethod(payment: {
   }
 }
 
+/**
+ * The real Razorpay plan id from the env (scripts/create-razorpay-plans.ts). The ids in PLANS are
+ * placeholders that don't exist in Razorpay, so they are never sent.
+ */
 function getRazorpayPlanId(planId: PlanId): string | undefined {
-  if (planId === 'solo') return process.env.RAZORPAY_PLAN_ID_SOLO || PLANS.solo.razorpayPlanId;
-  if (planId === 'family') return process.env.RAZORPAY_PLAN_ID_FAMILY || PLANS.family.razorpayPlanId;
-  if (planId === 'extended') return process.env.RAZORPAY_PLAN_ID_EXTENDED || PLANS.extended.razorpayPlanId;
-  return undefined;
+  const id =
+    planId === 'solo' ? process.env.RAZORPAY_PLAN_ID_SOLO
+    : planId === 'family' ? process.env.RAZORPAY_PLAN_ID_FAMILY
+    : planId === 'extended' ? process.env.RAZORPAY_PLAN_ID_EXTENDED
+    : undefined;
+  return id && !PLACEHOLDER.test(id) ? id : undefined;
+}
+
+function hasAllRazorpayPlanIds(): boolean {
+  return (['solo', 'family', 'extended'] as PlanId[]).every(id => Boolean(getRazorpayPlanId(id)));
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,10 +105,8 @@ export async function createSubscriptionServer(
     throw new Error('Free plan does not require a Razorpay subscription.');
   }
 
-  if (isRazorpayConfigured()) {
-    const rzpPlanId = getRazorpayPlanId(planId);
-    if (!rzpPlanId) throw new PaymentsUnavailableError('Razorpay plan id is not configured for this plan.');
-
+  const rzpPlanId = isRazorpayConfigured() ? getRazorpayPlanId(planId) : undefined;
+  if (rzpPlanId && !isSandboxAllowed()) {
     const response = await getClient().subscriptions.create({
       plan_id: rzpPlanId,
       total_count: 120,
@@ -138,7 +147,10 @@ export async function createSubscriptionServer(
     };
   }
 
-  throw new PaymentsUnavailableError('Online payments are not configured yet. Please try again later.');
+  if (isRazorpayConfigured() && !rzpPlanId) {
+    console.error(`[payments] RAZORPAY_PLAN_ID_${planId.toUpperCase()} is missing: run scripts/create-razorpay-plans.ts and add the ids.`);
+  }
+  throw new PaymentsUnavailableError('Online payments are not set up yet. Please try again later.');
 }
 
 function safeEqualHex(a: string, b: string): boolean {

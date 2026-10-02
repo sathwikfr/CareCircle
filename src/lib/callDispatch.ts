@@ -138,7 +138,16 @@ async function claimAttempt(data: ClaimData) {
   }
 }
 
-type PlaceOutcome = 'placed' | 'failed';
+/** 'provider_account' = our own Sarvam account can't place calls (bad key, no access, out of credits). */
+type PlaceOutcome = 'placed' | 'failed' | 'provider_account';
+
+/**
+ * Sarvam refused because of OUR account, not the parent's phone: 401/403 = key or access,
+ * 402 = Payment Required (credits used up). Retrying or alerting the family won't help.
+ */
+function isProviderAccountProblem(httpStatus: number | undefined): boolean {
+  return httpStatus === 401 || httpStatus === 402 || httpStatus === 403;
+}
 
 async function placeClaimedCall(
   cfg: SarvamConfig,
@@ -174,8 +183,14 @@ async function placeClaimedCall(
   } catch (err) {
     const httpStatus = err instanceof SarvamApiError ? err.status : undefined;
     const message = err instanceof Error ? err.message : 'unknown error';
-    // Our own configuration problem (bad key / no access): retrying or alerting the family won't help.
-    const configProblem = httpStatus === 401 || httpStatus === 403;
+    const configProblem = isProviderAccountProblem(httpStatus);
+    if (configProblem) {
+      console.error(
+        httpStatus === 402
+          ? '[calls] Sarvam returned 402 Payment Required: the Sarvam account is out of credits. Top up in the Sarvam dashboard; no calls can be placed until then.'
+          : `[calls] Sarvam returned ${httpStatus}: check SARVAM_API_KEY and the agent/workspace ids. No calls can be placed until this is fixed.`
+      );
+    }
     const retryable = !configProblem && (httpStatus === undefined || httpStatus >= 500 || httpStatus === 429);
     const canRetry = retryable && !!log.slotId && log.attemptNumber < MAX_CALL_ATTEMPTS;
     const retryAt = canRetry ? new Date(now.getTime() + RETRY_DELAY_MINUTES * 60000) : null;
@@ -204,7 +219,7 @@ async function placeClaimedCall(
         deps.alertDeps
       );
     }
-    return 'failed';
+    return configProblem ? 'provider_account' : 'failed';
   }
 }
 
@@ -433,9 +448,15 @@ export async function placeManualCall(
 
   const hourAgo = new Date(now.getTime() - 60 * 60000);
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60000);
+  // Attempts Sarvam refused (no attempt id, the phone never rang) don't use up the limit.
+  const manualCalls = {
+    parentId: parent.id,
+    slot: { in: ['test', 'manual'] },
+    NOT: { status: 'failed', providerAttemptId: null }
+  };
   const [lastHour, lastDay] = await Promise.all([
-    prisma.callLog.count({ where: { parentId: parent.id, slot: { in: ['test', 'manual'] }, createdAt: { gte: hourAgo } } }),
-    prisma.callLog.count({ where: { parentId: parent.id, slot: { in: ['test', 'manual'] }, createdAt: { gte: dayAgo } } })
+    prisma.callLog.count({ where: { ...manualCalls, createdAt: { gte: hourAgo } } }),
+    prisma.callLog.count({ where: { ...manualCalls, createdAt: { gte: dayAgo } } })
   ]);
   if (lastHour >= MAX_MANUAL_PER_HOUR || lastDay >= MAX_MANUAL_PER_DAY) {
     return {
@@ -477,6 +498,14 @@ export async function placeManualCall(
   const outcome = await placeClaimedCall(
     cfg, log, { ...parent, phone: phone.e164 }, chosen?.label || 'check-in', medicines, deps, now, summary
   );
+  if (outcome === 'provider_account') {
+    return {
+      ok: false,
+      status: 503,
+      code: 'CALLING_UNAVAILABLE',
+      error: "Saathi can't place calls right now because of a problem on our side. No call was made. Please try again later."
+    };
+  }
   if (outcome === 'failed') {
     return { ok: false, status: 502, code: 'PLACE_FAILED', error: 'The call could not be placed. Please try again in a few minutes.' };
   }
