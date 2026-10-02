@@ -9,15 +9,10 @@ import { VoiceHero } from '@/components/landing/VoiceHero';
 import { LiveCallPhone } from '@/components/landing/LiveCallPhone';
 import { SetupSteps } from '@/components/landing/SetupSteps';
 import { CALL_MS, formatCallTime } from '@/components/landing/callScript';
-import { FlowTabs } from '@/components/landing/FlowTabs';
-import { FamiliesCarousel } from '@/components/landing/FamiliesCarousel';
-import { DashboardShowcase } from '@/components/landing/DashboardShowcase';
 import { ScrollProgress } from '@/components/motion/ScrollProgress';
 import { FloatingCta } from '@/components/motion/FloatingCta';
 import { Ticker } from '@/components/motion/Ticker';
-import { WaveBand } from '@/components/motion/WaveBand';
 import { WordReveal } from '@/components/motion/WordReveal';
-import { MagneticLink } from '@/components/motion/MagneticLink';
 import { TiltCard } from '@/components/motion/TiltCard';
 import styles from '@/components/landing/landing.module.css';
 import s from '@/components/landing/home.module.css';
@@ -25,24 +20,9 @@ import { PLANS, FREE_TRIAL_DAYS } from '@/lib/plans';
 import { PlanId } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 import {
-  ArrowRight, Check, Phone, PhoneCall, Languages, ShieldCheck, Stethoscope, Siren, HeartHandshake,
-  ClipboardCheck, Plus, Sparkles, LayoutDashboard, Mail, PhoneMissed, AlertTriangle, Minus
+  Check, PhoneCall, Languages, ShieldCheck, Stethoscope, Siren, HeartHandshake,
+  ClipboardCheck, Plus, Sparkles, Minus, Heart, Reply, ExternalLink, CheckCheck, MessageCircle
 } from 'lucide-react';
-
-const TICKER = [
-  { icon: <Languages size={16} />, text: 'हिंदी' },
-  { text: 'తెలుగు' },
-  { text: 'தமிழ்' },
-  { text: 'മലയാളം' },
-  { text: 'ಕನ್ನಡ' },
-  { text: 'বাংলা' },
-  { text: 'मराठी' },
-  { text: 'ગુજરાતી' },
-  { text: 'English' },
-  { icon: <Phone size={16} />, text: 'Works on any phone, even a landline' },
-  { icon: <ShieldCheck size={16} />, text: 'Never gives medical advice' },
-  { icon: <HeartHandshake size={16} />, text: 'Your parent agrees before any call' },
-];
 
 const LANGS = [
   { native: 'हिंदी', en: 'Hindi' },
@@ -105,8 +85,6 @@ export default function LandingPage() {
         {/* HERO */}
         <VoiceHero primaryHref={primaryHref} primaryLabel={primaryLabel} trialDays={FREE_TRIAL_DAYS} />
 
-        <Ticker items={TICKER} />
-
         {/* HOW IT WORKS: live phone */}
         <section id="how" className={`section ${s.alt}`}>
           <div className="wrap">
@@ -124,36 +102,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* FLOWS */}
-        <section id="why" className="section">
-          <div className="wrap">
-            <Reveal className={s.head}>
-              <span className={s.pill}><HeartHandshake size={14} /> Every kind of check-in</span>
-              <WordReveal>One companion, <span className={s.grad}>three kinds of care.</span></WordReveal>
-              <p>Medicine reminders, a daily “how are you”, and a calm response when something isn’t right.</p>
-            </Reveal>
-            <Reveal>
-              <FlowTabs />
-            </Reveal>
-          </div>
-        </section>
-
-        {/* DARK: FAMILIES */}
-        <section className={`section ${s.dark}`}>
-          <div className="wrap">
-            <Reveal className={s.head}>
-              <span className={s.pill}><Sparkles size={14} /> Made for Indian families</span>
-              <WordReveal>Who is <span style={{ color: 'var(--marigold)' }}>Aaptha</span> for?</WordReveal>
-              <p>Whether your parents live across town or across the world, a short daily call closes the distance.</p>
-            </Reveal>
-          </div>
-          <Reveal variant="fade">
-            <div className="wrap" style={{ paddingInline: 0 }}>
-              <FamiliesCarousel ctaHref={primaryHref} />
-            </div>
-          </Reveal>
-        </section>
-
         {/* LANGUAGES */}
         <section className={`section ${s.alt}`}>
           <div className="wrap">
@@ -164,15 +112,11 @@ export default function LandingPage() {
                 Saathi talks in the language your parent thinks in, and understands when they mix in a little English. Switch the example call above to Telugu or Hindi to see it.
               </p>
             </Reveal>
-            <Reveal className={s.langGrid}>
-              {LANGS.map((l) => (
-                <div key={l.en} className={s.langChip}>
-                  <b>{l.native}</b>
-                  <span>{l.en}</span>
-                </div>
-              ))}
-            </Reveal>
           </div>
+          {/* The nine languages drift past, each in its own script */}
+          <Reveal variant="fade">
+            <Ticker items={LANGS.map((l) => ({ text: l.native, sub: l.en }))} label="Languages Saathi speaks" className={s.langBand} />
+          </Reveal>
         </section>
 
         {/* SUMMARY + ALERTS */}
@@ -181,7 +125,7 @@ export default function LandingPage() {
             <Reveal className={s.head}>
               <span className={s.pill}><ClipboardCheck size={14} /> After every call</span>
               <WordReveal>Know how she is <span className={s.grad}>in ten seconds.</span></WordReveal>
-              <p>A short summary of every call, and a clear alert when something needs you. Nothing else to read.</p>
+              <p>Every call is summed up on your dashboard and sent to your WhatsApp. When something needs you, act on it with one tap.</p>
             </Reveal>
 
             <div className="grid-2" style={{ alignItems: 'center' }}>
@@ -198,7 +142,7 @@ export default function LandingPage() {
                     </p>
                     <div className={s.kv}>
                       <div><span>Amlodipine 5mg</span><b style={{ color: 'var(--green)' }}>✓ Taken</b></div>
-                      <div><span>Mood</span><b>Okay</b></div>
+                      <div><span>Mood</span><b>Calm</b></div>
                       <div><span>Mentioned</span><b>Knee pain</b></div>
                       <div><span>Call length</span><b>{formatCallTime(CALL_MS)}</b></div>
                     </div>
@@ -206,40 +150,44 @@ export default function LandingPage() {
                 </div>
               </Reveal>
 
+              {/* The same call as it reaches you on WhatsApp. The wording is the real
+                  'aaptha_call_alert' template (lib/whatsapp.ts) and its buttons. */}
               <Reveal variant="right" delay={120}>
-                <div className={s.notifStack}>
-                  <div className={s.notif}>
-                    <span className="icon-tile" style={{ background: 'var(--amber-soft)', color: 'var(--amber)', width: '40px', height: '40px' }}><PhoneMissed size={18} /></span>
-                    <div><b>Appa didn’t pick up twice</b><p>We tried at 9:00 and 9:15 PM. Maybe give him a call?</p></div>
-                    <time>9:31 PM</time>
-                  </div>
-                  <div className={s.notif}>
-                    <span className="icon-tile" style={{ width: '40px', height: '40px' }}><Mail size={18} /></span>
-                    <div><b>Evening tablet not confirmed</b><p>Metformin 500mg, after dinner.</p></div>
-                    <time>9:02 PM</time>
-                  </div>
-                  <div className={s.notif}>
-                    <span className="icon-tile" style={{ background: 'var(--red-soft)', color: 'var(--red)', width: '40px', height: '40px' }}><AlertTriangle size={18} /></span>
-                    <div><b>Amma mentioned feeling dizzy</b><p>Emailed to you straight away.</p></div>
-                    <time>8:33 AM</time>
+                <div className={s.waWrap}>
+                  <div className={`${s.syncPill} ${s.waPill}`}><span><MessageCircle size={16} strokeWidth={2.5} /></span> On your WhatsApp</div>
+                  <div className={s.waChat} aria-label="Example WhatsApp update">
+                    <div className={s.waHead}>
+                      <span className={s.waAvatar}><Heart size={15} fill="currentColor" /></span>
+                      <div><b>Aaptha</b><small>Call updates</small></div>
+                    </div>
+                    <div className={s.waBody}>
+                      <div className={s.waIn}>
+                        <p>
+                          Your scheduled check-in call with Amma needs your attention. Details: Amma mentioned not feeling well:
+                          “knee pain since yesterday”. Please check in with them today. Call details: Answered the morning call
+                          at 8:31 AM. Medicines: Amlodipine taken. Mood: calm.
+                        </p>
+                        <p className={s.waNote}>This alert is part of the care plan you set up on Aaptha.</p>
+                        <time>8:31 AM</time>
+                        <div className={s.waBtns}>
+                          <span><Reply size={14} /> I’ll handle it</span>
+                          <span><Reply size={14} /> Call again</span>
+                          <span><ExternalLink size={14} /> Open Aaptha</span>
+                        </div>
+                      </div>
+                      <div className={s.waOut}>
+                        <p>I’ll handle it</p>
+                        <time>8:33 AM <CheckCheck size={14} /></time>
+                      </div>
+                      <div className={s.waIn}>
+                        <p>Thanks. We have marked this as handled on your Aaptha dashboard.</p>
+                        <time>8:33 AM</time>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </Reveal>
             </div>
-          </div>
-        </section>
-
-        {/* DASHBOARD */}
-        <section className={`section ${s.alt}`}>
-          <div className="wrap">
-            <Reveal className={s.head}>
-              <span className={s.pill}><LayoutDashboard size={14} /> Your dashboard</span>
-              <WordReveal>Both parents, <span className={s.grad}>at a glance.</span></WordReveal>
-              <p>What happened today, what’s coming up and what needs you. No jargon, no clutter.</p>
-            </Reveal>
-            <Reveal variant="scale">
-              <DashboardShowcase />
-            </Reveal>
           </div>
         </section>
 
@@ -265,8 +213,8 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* COMPARE */}
-        <section className={`section ${s.alt}`}>
+        {/* COMPARE (the nav's "Why a phone call" lands here) */}
+        <section id="why" className={`section ${s.alt}`}>
           <div className="wrap">
             <Reveal className={s.head}>
               <span className={s.pill}><Sparkles size={14} /> Compare</span>
@@ -361,23 +309,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* FINAL CTA */}
-        <section className="section">
-          <div className="wrap">
-            <Reveal className={s.cta} variant="scale">
-              <div className={s.ctaWave}><WaveBand /></div>
-              <span className={s.pill}><Sparkles size={14} /> Start in a few minutes</span>
-              <WordReveal>Tomorrow morning, someone will ask how she’s doing.</WordReveal>
-              <p>Start with a {FREE_TRIAL_DAYS}-day free trial. Choose a plan when you’re ready.</p>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <MagneticLink href={primaryHref} className={`btn btn-lg ${s.ctaBtn}`}>
-                  {primaryLabel} <ArrowRight size={18} className="arrow" />
-                </MagneticLink>
-                <Link href="#plans" className={`btn btn-ghost btn-lg ${s.ctaGhost}`}>Compare plans</Link>
-              </div>
-            </Reveal>
-          </div>
-        </section>
       </main>
 
       <Footer />
