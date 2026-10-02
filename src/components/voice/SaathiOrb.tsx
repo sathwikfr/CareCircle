@@ -41,7 +41,7 @@ const LILAC = [0.86, 0.6, 0.92];
 const BLUE_DAY = [0.13, 0.33, 0.9];
 const RED_DAY = [0.86, 0.2, 0.1];
 const LILAC_DAY = [0.58, 0.32, 0.84];
-const INK = [0.2, 0.2, 0.23];      // calm waves on a light page: soft charcoal
+const INK = [0.1, 0.1, 0.12];      // calm waves on a light page: near-black charcoal
 
 const NOISE = `
 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
@@ -603,11 +603,11 @@ export function SaathiOrb({ mode = 'idle', scale = 0.62, variant = 'night', dark
         gl.uniform1f(cu.time, T);
         gl.uniform1f(cu.scale, scaleRef.current);
         gl.uniform1f(cu.aspect, aspect);
-        gl.uniform1f(cu.size, 2.2 * dpr);
+        gl.uniform1f(cu.size, (dayRef.current ? 2.6 : 2.2) * dpr);
         gl.uniform1f(cu.dir, st.dir);
         gl.uniform1f(cu.amp, (reduced ? 0.08 : st.amp) * waveRef.current.amp);
         gl.uniform1f(cu.waveY, waveRef.current.y);
-        gl.uniform1f(cu.alpha, (dayRef.current && !coreRef.current ? 0.95 : 1.25) * st.curtainAlpha);
+        gl.uniform1f(cu.alpha, (dayRef.current && !coreRef.current ? 2.2 : 1.25) * Math.max(st.curtainAlpha, dayRef.current ? 0.6 : 0));
         gl.uniform1f(cu.ripple, speaking ? 1 : 0);
         gl.uniform1f(cu.rippleAge, t - e.rippleAt);
         const inkWaves = dayRef.current && !coreRef.current;   // on a dark core, white still reads best
