@@ -3,15 +3,16 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Play, Square, RotateCcw } from 'lucide-react';
-import { SaathiOrb, type OrbMode, type SaathiOrbHandle } from '@/components/voice/SaathiOrb';
+import { type OrbMode, type SaathiOrbHandle } from '@/components/voice/SaathiOrb';
+import { SaathiBlob } from '@/components/voice/SaathiBlob';
 import s from './voiceHero.module.css';
 
 /**
- * Landing hero: the pitch on the left, Saathi's voice orb on the right.
- * Tap the orb and Saathi greets Amma out loud (browser speech synthesis), Amma
+ * Landing hero: the pitch on the left, Saathi's voice orb (a living glass blob) on the right.
+ * Tap it and Saathi greets Amma out loud (browser speech synthesis), Amma
  * answers, and Saathi says hello to you. The live captions appear inside the
- * ring, one sentence at a time with the spoken words lighting up, above the
- * phone waves; the language switch sits just under the ring.
+ * orb, one sentence at a time with the spoken words lighting up, above its
+ * centre; the language switch sits just under it.
  */
 
 type LangKey = 'te' | 'hi' | 'en';
@@ -193,7 +194,7 @@ export function VoiceHero({ primaryHref, primaryLabel, trialDays }: { primaryHre
     // A short "ringing" before the first word.
     setOrbMode('ringing');
     // Until (unless) the browser reports word timing, feed the orb each word on the
-    // same estimate the captions use, so the waves still swell with the words.
+    // same estimate the captions use, so the lines still swell with the words.
     const estimateWords = (l: Line) => {
       const token = ++lineToken.current;
       realWords.current = false;
@@ -308,7 +309,7 @@ export function VoiceHero({ primaryHref, primaryLabel, trialDays }: { primaryHre
           <div className={s.stage}>
             {/* The ring is the call, the waves are the voice: dead centre, captions above, pill below */}
             <div className={s.orb} aria-hidden="true">
-              <SaathiOrb ref={orb} mode={orbMode} variant={dark ? 'night' : 'day'} waveAmp={0.7} />
+              <SaathiBlob ref={orb} mode={orbMode} variant={dark ? 'night' : 'day'} />
             </div>
 
             {/* Live captions, inside the ring above the waves */}

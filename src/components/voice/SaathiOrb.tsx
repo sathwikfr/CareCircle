@@ -40,7 +40,7 @@ export type SaathiOrbHandle = {
 };
 
 /** Rough syllable count: vowel groups for Latin text, letters (less vowel signs) for Indian scripts. */
-function syllables(word: string) {
+export function syllables(word: string) {
   const w = word.replace(/[^\p{L}\p{M}]/gu, '');
   if (!w) return 1;
   if (/^[A-Z]{1,4}$/.test(w)) return w.length;                    // "BP" is said letter by letter
@@ -62,7 +62,7 @@ const WAVE_WHITE = [1, 0.97, 0.95];
 const WAVE_BLUE = [0.22, 0.48, 1.0];
 const WAVE_RED = [1.0, 0.26, 0.12];
 
-const NOISE = `
+export const NOISE = `
 vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
 vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
 float snoise(vec3 v){

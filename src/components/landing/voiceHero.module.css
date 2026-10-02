@@ -44,8 +44,8 @@
   --solid-ink: #f8f5ef;
   --ghost-edge: rgba(21, 20, 19, 0.55);
   --ghost-hover: rgba(21, 20, 19, 0.05);
-  --who-saathi: #2f5fe8;
-  --who-amma: #d9442a;
+  --who-saathi: #0a6fc2;              /* cyan-blue, like the orb when Saathi speaks */
+  --who-amma: #c0247a;                /* pink, like the orb when Amma speaks */
   --grad: linear-gradient(90deg, #e0452a 0%, #9b4dff 50%, #2f5fe8 100%);
   --mark: #e0452a;
   --bokeh: rgba(255, 255, 255, 0.7);
@@ -84,8 +84,8 @@
   --solid-ink: #0b0c10;
   --ghost-edge: rgba(244, 239, 230, 0.4);
   --ghost-hover: rgba(244, 239, 230, 0.08);
-  --who-saathi: #9db8ff;
-  --who-amma: #ff9a85;
+  --who-saathi: #7fd6ff;
+  --who-amma: #ff8fc8;
   --grad: linear-gradient(90deg, #ff6a4d 0%, #c77dff 50%, #5b8cff 100%);
   --mark: #ff6a4d;
   --bokeh: rgba(244, 239, 230, 0.05);
@@ -251,11 +251,10 @@
   height: calc(var(--hole) * 2.9);
   transform: translate(-50%, -50%);
   pointer-events: none;
-  /* The haze fades out before the canvas edge (the ring's strands reach ~74% of it
-     at their loudest), so it never shows a line where something cuts it, such as
-     the header. */
-  -webkit-mask-image: radial-gradient(closest-side, #000 74%, transparent 90%);
-  mask-image: radial-gradient(closest-side, #000 74%, transparent 90%);
+  /* The glow and dust fade out before the canvas edge (the orb's biggest bumps reach
+     ~76% of it), so it never shows a line where something cuts it, such as the header. */
+  -webkit-mask-image: radial-gradient(closest-side, #000 80%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 80%, transparent 100%);
 }
 
 /* ---------- Live captions, inside the ring ----------

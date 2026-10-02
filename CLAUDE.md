@@ -42,7 +42,7 @@
 | Area | Reality |
 |---|---|
 | Framework | Next.js **16.3.6** App Router, React 19.2, TypeScript strict. |
-| Styling | Plain CSS design system in `src/app/globals.css` (tokens on `:root`, dark theme under `[data-theme='dark']`, shared classes: `.btn`, `.panel`, `.form-input`, `.segmented`, `.badge`, `.notice`, …) + CSS module for the landing page + `lucide-react`. Palette is warm ivory paper (`--paper` #f8f5ef) with a deep peacock-teal brand (`--teal` #0d6b63) and a marigold accent (`--gold` #a8510c for text, `--marigold` #f2a33a for fills); fonts are Bricolage Grotesque (headings) + Figtree (body) via next/font in `layout.tsx`; the token names are legacy. The landing hero is the exception: its voice orb is red/blue (Saathi blue, family red) with its own palette in `voiceHero.module.css`. Use tokens (`var(--teal)`, `--on-teal`, `--teal-text`), never raw hex. Dark mode: inline `<head>` script from `lib/theme.ts` + `ThemeToggle`. **No Tailwind / shadcn.** |
+| Styling | Plain CSS design system in `src/app/globals.css` (tokens on `:root`, dark theme under `[data-theme='dark']`, shared classes: `.btn`, `.panel`, `.form-input`, `.segmented`, `.badge`, `.notice`, …) + CSS module for the landing page + `lucide-react`. Palette is warm ivory paper (`--paper` #f8f5ef) with a deep peacock-teal brand (`--teal` #0d6b63) and a marigold accent (`--gold` #a8510c for text, `--marigold` #f2a33a for fills); fonts are Bricolage Grotesque (headings) + Figtree (body) via next/font in `layout.tsx`; the token names are legacy. The landing hero is the exception: its voice orb (`SaathiBlob`) is blue→violet→magenta (leans cyan while Saathi talks, pink for the family) with its own palette in `voiceHero.module.css` and the component. Use tokens (`var(--teal)`, `--on-teal`, `--teal-text`), never raw hex. Dark mode: inline `<head>` script from `lib/theme.ts` + `ThemeToggle`. **No Tailwind / shadcn.** |
 | DB | Prisma 6 + Supabase Postgres. `db push`, no migrations history. |
 | Data layer | `src/lib/db.ts` is **Prisma-only** (no caches); write helpers throw on failure. |
 | Auth | Custom. bcrypt passwords; opaque DB sessions (`sess_…` in cookie `carecircle_session`), checked against `DBSession` on every request; no JWT. Google = Google Identity Services ID token verified server-side (needs `GOOGLE_CLIENT_ID`). OTP = DB-stored hashed codes; **no SMS provider**, so phone OTP only works under `next dev` (503 elsewhere). Master OTP `123456` works only under `next dev`. |
@@ -106,7 +106,7 @@ src/components/               Navbar (+Brand), Footer, Reveal, ThemeToggle, ui/M
                               checkout/CheckoutUI, account/AccountUI, landing/* (LiveCallPhone, DashboardPreview),
                               dashboard/* (helpers.computeCallStats, 6 panels, DashboardModals)
 src/components/landing/VoiceHero.tsx   landing hero: pitch on the left, Saathi's voice orb on the right with live
-                              captions INSIDE the ring (one sentence at a time) and an English/Telugu/Hindi switch.
+                              captions INSIDE the orb (one sentence at a time) and an English/Telugu/Hindi switch.
                               Tapping plays a sample greeting through the browser's speechSynthesis (English
                               voice + note when the browser has no Telugu/Hindi voice; pre-recorded Sarvam clips
                               were offered and deferred). No real call, no data.
@@ -116,9 +116,13 @@ src/components/landing/LiveCallPhone.tsx   "How it works": scripted example call
                               (IslandWave.tsx, canvas) flow left->right green for Saathi, right->left red for Amma.
                               Script in callScript.ts: hand-written English/Telugu/Hindi, shared timings, no API.
                               Plays twice by itself, then waits with "Ring again". The summary card's call length reads CALL_MS.
-src/components/voice/SaathiOrb.tsx     raw-WebGL voice orb (no three.js): red/blue particle ring, phone waves, echo
-                              rings; modes idle/ringing/saathi/family/ended; 'day' variant for light pages.
-                              src/app/dev/orb = dev-only playground for it (404 outside `next dev`)
+src/components/voice/SaathiBlob.tsx    the hero's voice orb (raw WebGL1, no three.js): a living glass blob. Bumpy
+                              geodesic net of dots + lines, glass rim/glint, two inner ribbons (cyan = Saathi,
+                              pink = family), offscreen bloom (two blur sizes), drifting dust, leans toward the mouse.
+                              Modes idle/ringing/saathi/family/ended; 'day' variant = ink on light pages. Handle
+                              (setMode/pulse/say/level/echo) shared with the older SaathiOrb (red/blue ring, also
+                              exports NOISE + syllables) and SaathiSphere (wave-line sheet); those two are only used
+                              by src/app/dev/orb, the dev-only playground ("Look" button cycles; 404 outside `next dev`)
 src/app/                    pages: landing, login, signup, reset-password, onboarding (6 steps),
                             dashboard (6 tabs; panels in components/dashboard), account/profile, account/billing,
                             checkout/confirm → payment → success
