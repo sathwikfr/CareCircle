@@ -2,9 +2,9 @@
  * Decides the ONE WhatsApp message a family gets about a call, and its words.
  * Pure functions: no database or network access.
  *
- *   emergency (level 4)       -> aaptha_emergency        (sent mid-call by the escalate tool, or at call end)
- *   needs attention (2-3)     -> aaptha_needs_attention  (missed medicine, unwell, couldn't reach)
- *   everything else (0-1)     -> aaptha_call_update      (only when the family wants every call result)
+ *   emergency (level 4)       -> aaptha_call_emergency   (sent mid-call by the escalate tool, or at call end)
+ *   needs attention (2-3)     -> aaptha_call_alert       (missed medicine, unwell, couldn't reach)
+ *   everything else (0-1)     -> aaptha_call_result      (only when the family wants every call result)
  *
  * `minimumAlertLevel` (NotificationPreferences) is the family's choice:
  *   1 = every call result, 2 = only when something needs attention, 3 = health concerns, 4 = emergencies.

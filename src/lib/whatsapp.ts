@@ -40,21 +40,26 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
  */
 export const WA_PAYLOAD = { ack: 'ack', recall: 'recall' } as const;
 
-/** Must match the templates submitted to Meta (docs/whatsapp-setup.md). */
+/**
+ * Must match the templates submitted to Meta (scripts/create-whatsapp-templates.ts, docs/whatsapp-setup.md).
+ * The fixed text ties each message to the check-in calls the family scheduled: Meta filed the first,
+ * promotional-sounding wording ("Open Aaptha for…", "Tap a button…") under MARKETING, which costs ~7x more
+ * and can be capped or dropped per person. Keep new wording transactional.
+ */
 export const WHATSAPP_TEMPLATES = {
   call_update: {
-    name: 'aaptha_call_update',
-    body: 'Call update for {{1}}: {{2}}\n\nOpen Aaptha for the full call details.',
+    name: 'aaptha_call_result',
+    body: 'Your scheduled check-in call with {{1}} has ended. Result: {{2}}\n\nThis is an automated update for the care plan you set up on Aaptha.',
     quickReplies: [] as string[]
   },
   attention: {
-    name: 'aaptha_needs_attention',
-    body: 'Aaptha alert about {{1}}: {{2}}\n\nTap a button below to tell us how you will handle it.',
+    name: 'aaptha_call_alert',
+    body: 'Your scheduled check-in call with {{1}} needs your attention. Details: {{2}}\n\nThis alert is part of the care plan you set up on Aaptha.',
     quickReplies: [WA_PAYLOAD.ack, WA_PAYLOAD.recall] as string[]
   },
   emergency: {
-    name: 'aaptha_emergency',
-    body: 'URGENT from Aaptha about {{1}}: {{2}}\n\nTheir phone number is {{3}}. Please call them right away.',
+    name: 'aaptha_call_emergency',
+    body: 'Urgent alert from your scheduled check-in call with {{1}}: {{2}}\n\nTheir phone number is {{3}}. Please call them now.',
     quickReplies: [WA_PAYLOAD.ack] as string[]
   }
 } as const;

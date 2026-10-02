@@ -12,9 +12,9 @@ replies), `/api/account/whatsapp` (opt in / out). Tests: `npx tsx scripts/test-w
 
 | Call outcome | Template | Buttons |
 |---|---|---|
-| Answered, all fine (or only a low mood) | `aaptha_call_update` | Open Aaptha |
-| Missed medicine, feeling unwell, couldn't reach (level 2–3) | `aaptha_needs_attention` | I'll handle it · Call again · Open Aaptha |
-| Emergency (level 4), sent mid-call by the escalate tool | `aaptha_emergency` | I'm on it · Open Aaptha |
+| Answered, all fine (or only a low mood) | `aaptha_call_result` | Open Aaptha |
+| Missed medicine, feeling unwell, couldn't reach (level 2–3) | `aaptha_call_alert` | I'll handle it · Call again · Open Aaptha |
+| Emergency (level 4), sent mid-call by the escalate tool | `aaptha_call_emergency` | I'm on it · Open Aaptha |
 
 - **One message per call.** Unanswered attempts that will be retried send nothing; the message comes after the last attempt.
 - **I'll handle it / I'm on it** marks the alert as handled (dashboard shows "Handled by you").
@@ -49,43 +49,54 @@ Business Settings → **Users → System users** → add an admin system user �
 full control) → **Generate token** with `whatsapp_business_messaging` and `whatsapp_business_management`, expiry **Never**.
 The temporary token on the API Setup page expires in 24 hours: don't use it beyond a first test.
 
-## 3. Message templates (WhatsApp Manager → Message templates → Create)
+## 3. Message templates
 
-Category **Utility**, language **English**. The text must match `WHATSAPP_TEMPLATES` in `src/lib/whatsapp.ts` exactly
-(variables, order, and the order of the quick-reply buttons). Use your final domain in the URL buttons; when the domain
-changes, edit the templates. Example values for Meta's review are given after each one.
+**Easiest:** `npx tsx scripts/create-whatsapp-templates.ts --waba <WhatsApp Business account id> --app-url https://<your-domain>`
+(dry run), then add `--confirm`. It creates the templates exactly as `WHATSAPP_TEMPLATES` in `src/lib/whatsapp.ts`
+defines them; re-running it shows each template's review status. Templates belong to one WhatsApp Business account,
+so run it again for the real account when you move off Meta's test number.
 
-### `aaptha_call_update`
+To create them by hand instead: WhatsApp Manager → Message templates → Create, category **Utility**, language
+**English**, text exactly as below (variables, order, and quick-reply button order must match the code). Use your
+final domain in the URL buttons; when the domain changes, edit the templates.
+
+**Category matters.** Meta files promotional-sounding templates under **Marketing** (about 7x the price, and Meta caps
+or drops marketing messages per person: an emergency alert could go missing). The first wording (`aaptha_call_update`,
+`aaptha_needs_attention`, `aaptha_emergency`, "Open Aaptha for the full call details…") was moved to Marketing on
+2026-10-02; the wording below ties every message to the check-in calls the family scheduled. If Meta still picks
+Marketing, appeal in WhatsApp Manager (template → Request review).
+
+### `aaptha_call_result`
 Body:
 ```
-Call update for {{1}}: {{2}}
+Your scheduled check-in call with {{1}} has ended. Result: {{2}}
 
-Open Aaptha for the full call details.
+This is an automated update for the care plan you set up on Aaptha.
 ```
 Buttons: **Visit website**, text `Open Aaptha`, URL `https://<your-domain>/dashboard` (static).
 Samples: `{{1}}` = `Amma`, `{{2}}` = `Answered the morning call at 09:10 AM. Medicines: Telmisartan taken, Metformin taken. Mood: cheerful.`
 
-### `aaptha_needs_attention`
+### `aaptha_call_alert`
 Body:
 ```
-Aaptha alert about {{1}}: {{2}}
+Your scheduled check-in call with {{1}} needs your attention. Details: {{2}}
 
-Tap a button below to tell us how you will handle it.
+This alert is part of the care plan you set up on Aaptha.
 ```
 Buttons, in this order: **Quick reply** `I'll handle it` · **Quick reply** `Call again` · **Visit website** `Open Aaptha` → `https://<your-domain>/dashboard`.
 Samples: `{{1}}` = `Amma`, `{{2}}` = `Amma said she has not taken Metformin this evening. Call details: Answered the evening call at 08:05 PM.`
 
-### `aaptha_emergency`
+### `aaptha_call_emergency`
 Body:
 ```
-URGENT from Aaptha about {{1}}: {{2}}
+Urgent alert from your scheduled check-in call with {{1}}: {{2}}
 
-Their phone number is {{3}}. Please call them right away.
+Their phone number is {{3}}. Please call them now.
 ```
 Buttons, in this order: **Quick reply** `I'm on it` · **Visit website** `Open Aaptha` → `https://<your-domain>/dashboard`.
 Samples: `{{1}}` = `Amma`, `{{2}}` = `During the afternoon call, Amma may have described an emergency: "chest pain".`, `{{3}}` = `+91 98765 43210`.
 
-Approval usually takes minutes to a day. A template that is rejected or not yet approved makes sends fail with
+Approval usually takes minutes to a few hours. A template that is rejected or not yet approved makes sends fail with
 error 132001; level 3–4 alerts then fall back to email.
 
 ## 4. Webhook
@@ -115,7 +126,7 @@ phone number id are set; redeploy after adding them on Vercel.
 ## 6. Live test
 
 1. Opt in on your own account (dashboard prompt or Profile → Call updates) with a number added to the test number's list.
-2. Place a test call from the dashboard and answer it: you should get `aaptha_call_update` (or needs-attention if you say you skipped a medicine).
+2. Place a test call from the dashboard and answer it: you should get `aaptha_call_result` (or `aaptha_call_alert` if you say you skipped a medicine).
 3. Tap **I'll handle it**: the alert on the dashboard shows "Handled by you", and WhatsApp replies with a confirmation.
 4. Reply `STOP`, then `START`.
 5. `WhatsAppMessage` rows show each message's status moving sent → delivered → read.

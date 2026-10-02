@@ -42,13 +42,13 @@ function partA() {
   check('empty param becomes "-"', cleanParam('  ') === '-');
   const req = buildTemplateRequest('attention', '+91 98765 43210', ['Amma', 'Missed\nMetformin'], 'en');
   check('to = digits only', req.to === '919876543210');
-  check('template name', req.template.name === 'aaptha_needs_attention');
+  check('template name', req.template.name === 'aaptha_call_alert');
   const comps = req.template.components as Array<{ type: string; index?: string; parameters: Array<{ text?: string; payload?: string }> }>;
   check('body params cleaned', comps[0].type === 'body' && comps[0].parameters[1].text === 'Missed Metformin');
   check('quick replies in order: ack, recall', comps[1]?.parameters[0].payload === 'ack' && comps[1].index === '0' && comps[2]?.parameters[0].payload === 'recall' && comps[2].index === '1');
   const upd = buildTemplateRequest('call_update', '+919876543210', ['Amma', 'All good'], 'en');
   check('call update has no quick replies', upd.template.components.length === 1);
-  check('render fills placeholders', renderTemplate('emergency', ['Amma', 'Chest pain.', '+919876543210']).startsWith('URGENT from Aaptha about Amma: Chest pain.'));
+  check('render fills placeholders', renderTemplate('emergency', ['Amma', 'Chest pain.', '+919876543210']).startsWith('Urgent alert from your scheduled check-in call with Amma: Chest pain.'));
   check('every template ends with fixed text (Meta rule)', Object.values(WHATSAPP_TEMPLATES).every(t => !/\}\}\s*$/.test(t.body) && !/^\s*\{\{/.test(t.body)));
 
   console.log('\nA2. Webhook signature');
@@ -204,7 +204,7 @@ async function partB() {
     await answer(log1!.providerAttemptId!, { all_medicines_taken: 'yes', mood: 'cheerful', health_concern: 'none', emergency: 'no' });
     check('one template sent', templatesSent().length === 1, graph.requests.length);
     const t1 = lastTemplate();
-    check('aaptha_call_update to the owner', t1?.body.template?.name === 'aaptha_call_update' && t1.body.to === ownerDigits, t1?.body);
+    check('aaptha_call_result to the owner', t1?.body.template?.name === 'aaptha_call_result' && t1.body.to === ownerDigits, t1?.body);
     check('bearer token + phone number id in URL', t1?.auth === 'Bearer wa-token' && t1.url === 'http://graph.test/v23.0/1234567890/messages');
     const row1 = await msgRow(log1!.id);
     check('stored as sent with Meta id', row1?.status === 'sent' && !!row1.providerMessageId && row1.body.includes('Telmisartan taken'), row1);
@@ -217,7 +217,7 @@ async function partB() {
     const log2 = await placedCall();
     await answer(log2.providerAttemptId!, { all_medicines_taken: 'partial', medicines_taken: 'Telmisartan', medicines_missed: 'Metformin', mood: 'calm' });
     const t2 = lastTemplate();
-    check('aaptha_needs_attention', t2?.body.template?.name === 'aaptha_needs_attention' && templatesSent().length === 2, t2?.body.template?.name);
+    check('aaptha_call_alert', t2?.body.template?.name === 'aaptha_call_alert' && templatesSent().length === 2, t2?.body.template?.name);
     const alert2 = await prisma.alertRecord.findFirst({ where: { callLogId: log2.id } });
     check('alert marked as sent on WhatsApp', alert2?.channel === 'whatsapp', alert2?.channel);
     const row2 = await msgRow(log2.id);
@@ -263,7 +263,7 @@ async function partB() {
     await raiseToolEscalation(log6.id, 'I have chest pain', deps);
     const t6 = lastTemplate();
     const p6 = (t6?.body.template?.components[0] as { parameters: Array<{ text: string }> }).parameters;
-    check('aaptha_emergency sent immediately with the parent phone', t6?.body.template?.name === 'aaptha_emergency' && p6[2].text === parentPhone, p6);
+    check('aaptha_call_emergency sent immediately with the parent phone', t6?.body.template?.name === 'aaptha_call_emergency' && p6[2].text === parentPhone, p6);
     await answer(log6.providerAttemptId!, { all_medicines_taken: 'yes', emergency: 'yes', health_concern: 'chest pain', mood: 'unwell' }, 'I have chest pain');
     const kinds6 = (await prisma.whatsAppMessage.findMany({ where: { callLogId: log6.id } })).map(m => m.kind).sort();
     check('one emergency + one end-of-call update (no second emergency)', JSON.stringify(kinds6) === JSON.stringify(['attention', 'emergency']), kinds6);
@@ -307,7 +307,7 @@ async function partB() {
     check('all-fine call sends nothing', templatesSent().length === sent10);
     const log10b = await placedCall();
     await processSarvamWebhook({ attempt_id: log10b.providerAttemptId, status: 'no_answer' }, { deps });
-    check('unreachable (no retry for this call) still sends', templatesSent().length === sent10 + 1 && lastTemplate().body.template?.name === 'aaptha_needs_attention');
+    check('unreachable (no retry for this call) still sends', templatesSent().length === sent10 + 1 && lastTemplate().body.template?.name === 'aaptha_call_alert');
     await prisma.notificationPreferences.update({ where: { userId: user.id }, data: { minimumAlertLevel: 1 } });
 
     console.log('\nB11. Not opted in → no WhatsApp; only level 3-4 emailed');
