@@ -45,7 +45,7 @@
 | Styling | Plain CSS design system in `src/app/globals.css` (tokens on `:root`, dark theme under `[data-theme='dark']`, shared classes: `.btn`, `.panel`, `.form-input`, `.segmented`, `.badge`, `.notice`, …) + CSS module for the landing page + `lucide-react`. Palette is warm ivory paper (`--paper` #f8f5ef) with a deep peacock-teal brand (`--teal` #0d6b63) and a marigold accent (`--gold` #a8510c for text, `--marigold` #f2a33a for fills); fonts are Bricolage Grotesque (headings) + Figtree (body) via next/font in `layout.tsx`; the token names are legacy. The landing hero is the exception: its voice orb (`SaathiBlob`) is blue→violet→magenta (leans cyan while Saathi talks, pink for the family) with its own palette in `voiceHero.module.css` and the component. Use tokens (`var(--teal)`, `--on-teal`, `--teal-text`), never raw hex. Dark mode: inline `<head>` script from `lib/theme.ts` + `ThemeToggle`. **No Tailwind / shadcn.** |
 | DB | Prisma 6 + Supabase Postgres. `db push`, no migrations history. |
 | Data layer | `src/lib/db.ts` is **Prisma-only** (no caches); write helpers throw on failure. |
-| Auth | Custom. bcrypt passwords; opaque DB sessions (`sess_…` in cookie `carecircle_session`), checked against `DBSession` on every request; no JWT. Google = Google Identity Services ID token verified server-side (needs `GOOGLE_CLIENT_ID`). OTP = DB-stored hashed codes; **no SMS provider**, so phone OTP only works under `next dev` (503 elsewhere). Master OTP `123456` works only under `next dev`. |
+| Auth | Custom. bcrypt passwords; opaque DB sessions (`sess_…` in cookie `carecircle_session`), checked against `DBSession` on every request; no JWT. Google = Google Identity Services ID token verified server-side (needs `GOOGLE_CLIENT_ID`). OTP = DB-stored hashed codes; **no SMS provider**, so phone OTP only works under `next dev` (503 elsewhere). Master OTP `123456` works only under `next dev`. **Email signup is two steps (2026-10-02):** `/api/auth/signup/send-code` checks the details + the email domain's MX records (`lib/emailDomain.ts`, public-DNS fallback, fails open on DNS trouble) and emails a 6-digit code; `/api/auth/signup` creates the account only with that code (`OTPRecord`, purpose `signup_email`, the `phone` column holds the email). No provider (Google included) can say whether a mailbox exists; the code is the proof. **Changing the email** works the same way (`/api/account/email/send-code` then `/api/account/email`, purpose `email_change`, key `<userId>:<new email>`): the account keeps its old email until the code is entered, `db.changeUserEmail()` is the only writer of `User.email` after signup, and the old address gets an "email changed" notice. Google sign-in finds accounts by email, so a Google-only account that changes its email must log in with Google on the new address or use Forgot password. Shared code-mail logic: `lib/emailCode.ts`. Outside `next dev` a failed send is a 503, so **email signup and email changes need a verified Resend domain** (`onboarding@resend.dev` only delivers to the Resend owner). |
 | Payments | Razorpay Checkout + server signature verification + subscription ownership check (notes.carecircle_user_id). Until keys **and** all three `RAZORPAY_PLAN_ID_*` are set: local sandbox **only under `next dev`** (test keys alone used to send placeholder plan ids and checkout failed); production returns 503. The PLANS `razorpayPlanId` values are placeholders and are never sent. Checkout refuses a plan smaller than the parents already added (`PLAN_TOO_SMALL`); paying for a new plan cancels the previous Razorpay subscription (no double billing). Webhook requires valid signature. |
 | WhatsApp | **Call updates go to WhatsApp, email is only account/billing** (rule set by the user 2026-10-01). Meta WhatsApp Cloud API via `fetch` (`lib/whatsapp.ts`), one message per call (`lib/familyMessages.ts` + `lib/familyNotify.ts`), webhook for statuses/button taps/STOP (`lib/whatsappInbound.ts`). Inactive until `WHATSAPP_ACCESS_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID` are set; until then alerts are emailed as before. Setup + exact template texts: `docs/whatsapp-setup.md`. |
 | Email | Resend (`lib/email.ts`). Default sender `onboarding@resend.dev` only delivers to the Resend account owner (warning logged); needs a verified domain in `RESEND_FROM_EMAIL`. Replies go to `NEXT_PUBLIC_SUPPORT_EMAIL`. Billing emails are sent once each via `lib/emailLog.ts` (see §7a). |
@@ -76,6 +76,8 @@ src/lib/
   razorpay.ts               config detection, create/verify/cancel subscription, webhook signature
   medicineReportIntake.ts   shared upload parsing + extraction (no sample fallback)
   redirect.ts               safeRedirectPath() (client-safe)
+  signupChecks.ts           checkNewAccount(): signup field checks + email/phone not taken (`field` says which)
+  emailDomain.ts, emailCode.ts   MX check for typo domains; mailVerificationCode() (503 outside dev if not delivered, devCode in dev)
   types.ts, plans.ts        domain types; plans + getEffectivePlan()
   email.ts                  Resend transport + templates (receipt, activated, payment failed, stopped, cancelled, trial reminders, alerts)
   emailLog.ts               sendOnce()/markEmailSent(): once-only emails via the EmailLog unique key
@@ -147,14 +149,17 @@ All private routes: **S** = `requireUser`, **O** = `requireOwnedParent` (404 for
 
 | Route | Method | Purpose | Auth |
 |---|---|---|---|
-| /api/auth/signup | POST | email + password + E.164 phone (unique) → user, session | — |
+| /api/auth/signup/send-code | POST | step 1: validate name/email/phone, neither taken (409 `ACCOUNT_EXISTS` + `field: email\|phone`), domain takes mail, email a 6-digit code (3/10 min per email, 10/h per IP; `devCode` under `next dev`) | — |
+| /api/auth/signup | POST | step 2: same checks + password + the emailed `code` → user (emailVerified), session | — |
 | /api/auth/login | POST | email or phone + password, rate-limited | — |
 | /api/auth/otp/send, /verify | POST | phone OTP (dev only until an SMS provider exists) | — |
 | /api/auth/google | POST | verifies Google ID token (`credential`), login/signup | — |
 | /api/auth/logout | POST | revokes DB session + clears cookie | — |
 | /api/auth/me | GET | current user | S |
 | /api/auth/forgot-password, /reset-password | POST | single-use 20-min token; reset revokes all sessions | — |
-| /api/account/profile | GET/PATCH | profile + notification prefs (phone must be unique) | S |
+| /api/account/profile | GET/PATCH | profile + notification prefs (phone must be unique); a different `email` is refused (400 `EMAIL_CHANGE_NEEDS_CODE`) | S |
+| /api/account/email/send-code | POST | email change step 1: valid, not current, not taken (409 `EMAIL_TAKEN`), domain takes mail → code to the NEW address (3/10 min per user) | S |
+| /api/account/email | POST | email change step 2: `{email, code}` → email switched + verified, notice to the old address | S |
 | /api/account/whatsapp | GET/POST | WhatsApp status / opt in (`{optIn:true, number?}`, stores consent time) / opt out | S |
 | /api/whatsapp/webhook | GET/POST | Meta verification (`WHATSAPP_VERIFY_TOKEN`) / signed statuses + replies (`X-Hub-Signature-256`, `WHATSAPP_APP_SECRET`); idempotent | signature |
 | /api/account/password | POST | change password (min 8) | S |
@@ -190,7 +195,7 @@ Every email goes through `lib/email.ts` (Resend). Anything that must reach the c
 | Free trial ending (48 h before) / ended (up to 3 days after) | `runLifecycleEmails()` via cron | `trial_ending` / `trial_ended` + `free-trial`; accounts whose trial ended long ago are never emailed |
 | Paid trial ending (3 days before first charge) | `runLifecycleEmails()` via cron | `paid_trial_ending` + trial end date |
 
-Cron reminders are fail-closed (no EmailLog row = no email, so they never repeat every 5 minutes); payment/cancel notices are fail-open. Dates in emails are IST. Tests: `npx tsx scripts/test-billing-emails.ts` (68 checks; throwaway `billing-test-*@example.com` accounts, Resend key removed in-process, reminder runs scoped by `userIds`). Not built: email-verification flow, caregiver invite emails.
+Cron reminders are fail-closed (no EmailLog row = no email, so they never repeat every 5 minutes); payment/cancel notices are fail-open. Dates in emails are IST. Tests: `npx tsx scripts/test-billing-emails.ts` (68 checks; throwaway `billing-test-*@example.com` accounts, Resend key removed in-process, reminder runs scoped by `userIds`). Signup emails a 6-digit code instead of the old "please verify" welcome email. An email change sends a code to the new address and an "email changed" notice to the old one. Not built: caregiver invite emails.
 
 ## 8. Status (plan vs reality)
 
@@ -199,13 +204,13 @@ Cron reminders are fail-closed (no EmailLog row = no email, so they never repeat
 | Auth: password, sessions, remember-me, reset | DONE (DB-authoritative) |
 | Google sign-in | DONE in code; needs `GOOGLE_CLIENT_ID` + `NEXT_PUBLIC_GOOGLE_CLIENT_ID` to appear |
 | Phone OTP | PARTIAL: needs an SMS provider (MSG91/Twilio Verify/etc.) before production |
-| Email verification | NOT BUILT: email signups are marked verified; the "verify" link just opens the dashboard |
+| Email verification | DONE 2026-10-02: signup (6-digit code before the account exists) and profile email changes (code to the new address before it's saved, notice to the old one); MX check catches typo domains. Accounts created before this may still have `emailVerified` from the old flow |
 | Razorpay subscriptions | DONE in code; needs real keys, plan ids and webhook secret; untested against live Razorpay |
 | Groq vision draft → confirm | DONE; reports persisted; no sample fallback; PDFs rejected |
 | Free trial | DONE: 7 days from signup, then calls stop (`plans.ts` `freeTrialEnd`, dashboard/billing banners, tested in A7/B14/B15) |
 | Privacy + Terms pages | DONE (draft written from how the product works; needs a lawyer's read) |
 | Onboarding wizard | DONE (meds keep timing/food relation; Malayalam added; honest test-call) |
-| Admin overview (`/admin`) | DONE 2026-09-30: read-only; only emails in `ADMIN_EMAILS`; shows customers, plans, est. revenue, parents, calls/day, answer rate, recent alerts. Admin link in the user menu via `user.isAdmin`. Email verification isn't built, so only list an email whose account already exists (otherwise someone could sign up with it) |
+| Admin overview (`/admin`) | DONE 2026-09-30: read-only; only emails in `ADMIN_EMAILS`; shows customers, plans, est. revenue, parents, calls/day, answer rate, recent alerts. Admin link in the user menu via `user.isAdmin`. Signup and email changes now prove the inbox, so an admin email can't be claimed without access to it |
 | Dashboard | Today card, Trends, call history from real data; CSV export. Split into `components/dashboard/*` (DONE 2026-09-30) |
 | Pause/resume | DONE (real dates) |
 | Caregiver invites | PARTIAL: row only; no email, no invitee access |
@@ -248,7 +253,7 @@ Still unverified: per-minute price, DND/NDNC handling, webhook retry behaviour.
 ## 10. Known remaining issues
 
 - Calling is not live: needs Sarvam account/KYC, agent, `SARVAM_*`, public HTTPS URL (ngrok locally), and an external cron.
-- No SMS provider (phone OTP dev-only), no email verification flow, no caregiver invite emails/access, no SMS alerts. WhatsApp is built but not live (Meta setup pending); templates are English only.
+- No SMS provider (phone OTP dev-only), no caregiver invite emails/access, no SMS alerts. WhatsApp is built but not live (Meta setup pending); templates are English only.
 - The WhatsApp code reads the columns added 2026-10-01 (applied to the live DB that day). Any other database (a new Supabase project, a restore from an older backup) needs them before this code runs.
 - Rate limits are per-process memory (weak on serverless). All parent times are treated as IST (single timezone).
 - Pricing (reset 2026-10-01 from real Sarvam bills: ₹4.90/min incl. telephony, billed per started minute, ~₹4.90 per call): at 2 calls/day Solo ~57%, Family ~48%, Extended ~51% margin; at the 3-calls/day cap ~37% / ~23% / ~28%. Details in the `plans.ts` comment. Free trial ≈ ₹35-50 of calls per user. GST not included in prices.

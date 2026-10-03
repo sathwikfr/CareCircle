@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { NotificationPreferences } from '@/lib/types';
 import { User as UserIcon, Mail, Lock, Bell, CheckCircle2, AlertCircle, ShieldCheck, KeyRound, Save, Smartphone, X } from 'lucide-react';
 import { WhatsAppSettings } from '@/components/account/WhatsAppSettings';
+import { ChangeEmailModal } from '@/components/account/ChangeEmailModal';
 
 export default function EditProfilePage() {
   const { user, refreshUser, setUserDirectly } = useAuth();
@@ -16,7 +17,7 @@ export default function EditProfilePage() {
 
   // Profile Form state
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [showEmailModal, setShowEmailModal] = useState(false);
   const [phone, setPhone] = useState('');
   const [avatar, setAvatar] = useState('');
   const [profileSaving, setProfileSaving] = useState(false);
@@ -56,7 +57,6 @@ export default function EditProfilePage() {
   useEffect(() => {
     if (user) {
       setName(user.name || '');
-      setEmail(user.email || '');
       setPhone(user.phone || '');
       setAvatar(user.avatar || '');
       if (user.notificationPreferences) {
@@ -81,11 +81,6 @@ export default function EditProfilePage() {
       return;
     }
 
-    if (!email.trim() || !email.includes('@')) {
-      setNotification({ type: 'error', message: 'Please provide a valid email address.' });
-      return;
-    }
-
     setProfileSaving(true);
     try {
       const res = await fetch('/api/account/profile', {
@@ -93,7 +88,6 @@ export default function EditProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
-          email: email.trim(),
           phone: phone.trim(),
           avatar: avatar.trim() || undefined
         })
@@ -285,8 +279,13 @@ export default function EditProfilePage() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label" htmlFor="pf-email">Email</label>
-                  <input id="pf-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="form-input" autoComplete="email" required />
-                  <span className="form-hint">Alerts and receipts go here.</span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input id="pf-email" type="email" value={user?.email || ''} readOnly className="form-input" style={{ flex: 1, minWidth: 0 }} />
+                    <button type="button" className="btn btn-ghost" style={{ flex: 'none' }} onClick={() => setShowEmailModal(true)}>
+                      Change
+                    </button>
+                  </div>
+                  <span className="form-hint">Sign-in, alerts and receipts go here. Changing it needs a code sent to the new address.</span>
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="pf-phone">Mobile number</label>
@@ -417,7 +416,7 @@ export default function EditProfilePage() {
                   <div>
                     <strong><Mail size={16} color="var(--teal)" /> Email backup</strong>
                     <p>
-                      Until WhatsApp updates are live, alerts that need attention are emailed to {email || 'your email'}.
+                      Until WhatsApp updates are live, alerts that need attention are emailed to {user?.email || 'your email'}.
                       After that, we email only if a health concern or emergency can&apos;t reach you on WhatsApp.
                     </p>
                   </div>
@@ -448,6 +447,19 @@ export default function EditProfilePage() {
           )}
         </div>
       </div>
+
+      {/* Outside the profile <form>, so the dialog's own form never submits it. */}
+      <ChangeEmailModal
+        open={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        currentEmail={user?.email || ''}
+        onChanged={async (updatedUser, message) => {
+          setShowEmailModal(false);
+          setUserDirectly(updatedUser);
+          await refreshUser();
+          setNotification({ type: 'success', message });
+        }}
+      />
     </AccountShell>
   );
 }

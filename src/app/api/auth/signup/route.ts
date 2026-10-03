@@ -1,69 +1,51 @@
 import { NextResponse } from 'next/server';
-import { getUserByEmail, isPhoneRegistered, createUser } from '@/lib/db';
+import { createUser } from '@/lib/db';
 import { hashPassword, AUTH_COOKIE_NAME } from '@/lib/auth';
-import { createDBSession } from '@/lib/security';
-import { normalizePhone } from '@/lib/phone';
+import { createDBSession, verifySignupEmailCode } from '@/lib/security';
+import { checkNewAccount } from '@/lib/signupChecks';
 import { PLANS } from '@/lib/plans';
 import { PlanId } from '@/lib/types';
 
+/**
+ * Email signup, step 2: create the account once the code from
+ * /api/auth/signup/send-code is entered.
+ */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, email, phone, password, planId } = body;
+    const { password, planId, code } = body;
 
-    if (!name || typeof name !== 'string' || !name.trim()) {
-      return NextResponse.json({ error: 'Please enter your full name.' }, { status: 400 });
-    }
-
-    if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
-    }
-
-    if (!phone || typeof phone !== 'string' || !phone.trim()) {
-      return NextResponse.json({ error: 'Please enter a valid mobile number.' }, { status: 400 });
-    }
-    const phoneResult = normalizePhone(phone);
-    if (!phoneResult.ok) {
-      return NextResponse.json({ error: phoneResult.reason }, { status: 400 });
-    }
+    const check = await checkNewAccount(body);
+    if (!check.ok) return check.response;
 
     if (!password || typeof password !== 'string' || password.length < 8) {
       return NextResponse.json({ error: 'Password must be at least 8 characters long.' }, { status: 400 });
     }
 
-    if (await getUserByEmail(email)) {
+    if (typeof code !== 'string' || !/^\d{6}$/.test(code.trim())) {
       return NextResponse.json(
-        { error: 'An account with this email already exists. Please log in instead.', code: 'ACCOUNT_EXISTS' },
-        { status: 409 }
+        { error: 'Please enter the 6-digit code we emailed you.', code: 'CODE_REQUIRED' },
+        { status: 400 }
       );
     }
 
-    if (await isPhoneRegistered(phoneResult.e164)) {
-      return NextResponse.json(
-        { error: 'An account with this mobile number already exists. Please log in instead.', code: 'ACCOUNT_EXISTS' },
-        { status: 409 }
-      );
+    const verified = await verifySignupEmailCode(check.email, code.trim());
+    if (!verified.success) {
+      return NextResponse.json({ error: verified.error, code: 'CODE_INVALID' }, { status: 400 });
     }
 
     const user = await createUser({
-      name: name.trim(),
-      email: email.trim(),
-      phone: phoneResult.e164,
+      name: check.name,
+      email: check.email,
+      phone: check.phone,
       passwordHash: await hashPassword(password),
       // Only the Free plan is granted at signup; paid plans require checkout.
       planId: planId && PLANS[planId as PlanId] ? (planId as PlanId) : undefined,
+      // Proven by the emailed code above.
       emailVerified: true
     });
 
     const session = await createDBSession(user.id, true);
-
-    const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const { sendVerificationEmail } = await import('@/lib/email');
-    sendVerificationEmail({
-      to: user.email,
-      name: user.name,
-      verifyUrl: `${origin}/dashboard`
-    }).catch(err => console.error('[Aaptha Signup] Failed to dispatch welcome email:', err));
 
     const response = NextResponse.json({ success: true, user });
     response.cookies.set(AUTH_COOKIE_NAME, session.token, {

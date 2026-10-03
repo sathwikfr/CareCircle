@@ -437,18 +437,25 @@ export async function sendOtpEmail({
   to,
   name,
   code,
-  expiresInMinutes = 10
+  expiresInMinutes = 10,
+  purpose = 'signin'
 }: {
   to: string;
   name?: string;
   code: string;
   expiresInMinutes?: number;
+  purpose?: 'signin' | 'signup' | 'email_change';
 }) {
-  const recipientName = name ? name.split(' ')[0] : 'there';
+  const recipientName = firstName(name);
   const title = 'Your Aaptha Verification Code';
+  const intro = {
+    signin: 'Here is your one-time verification code to sign in to Aaptha:',
+    signup: 'Here is your code to confirm this email address and finish creating your Aaptha account:',
+    email_change: 'Here is your code to make this the email address on your Aaptha account:'
+  }[purpose];
   const contentHtml = `
     <p>Hi ${recipientName},</p>
-    <p>Here is your one-time verification code to sign in to Aaptha:</p>
+    <p>${intro}</p>
     <div style="background-color: #f7f3ec; border: 2px dashed #2f4a45; border-radius: 12px; padding: 18px; text-align: center; margin: 24px 0;">
       <span style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #2f4a45; font-family: monospace;">${code}</span>
     </div>
@@ -460,7 +467,7 @@ export async function sendOtpEmail({
     contentHtml,
     secondaryNote: `If you didn't request this code, someone may have entered your email address by mistake.`
   });
-  const text = `Hi ${recipientName},\n\nYour Aaptha verification code is: ${code}\n\nIt expires in ${expiresInMinutes} minutes.`;
+  const text = `Hi ${name?.trim().split(/\s+/)[0] || 'there'},\n\nYour Aaptha verification code is: ${code}\n\nIt expires in ${expiresInMinutes} minutes.`;
 
   return dispatchEmail({
     to,
@@ -468,6 +475,42 @@ export async function sendOtpEmail({
     html,
     text,
     templateName: 'otp_code'
+  });
+}
+
+// --------------------------------------------------------------------------
+// 3b. EMAIL CHANGED NOTICE (to the OLD address, so a hijacked session can't
+// quietly move the account to someone else's inbox)
+// --------------------------------------------------------------------------
+export async function sendEmailChangedNotice({
+  to,
+  name,
+  newEmail
+}: {
+  to: string;
+  name?: string;
+  newEmail: string;
+}) {
+  const title = 'Your Aaptha email address was changed';
+  const contentHtml = `
+    <p>Hi ${firstName(name)},</p>
+    <p>The email address on your Aaptha account was changed to <strong>${esc(newEmail)}</strong>. Sign-in, receipts and alerts go there from now on.</p>
+    <p>If you made this change, there's nothing else to do.</p>
+  `;
+  const html = renderAapthaTemplate({
+    title,
+    badge: 'Account Security',
+    contentHtml,
+    secondaryNote: "If this wasn't you, reply to this email straight away and we'll help you secure your account."
+  });
+  const text = `Hi ${name?.trim().split(/\s+/)[0] || 'there'},\n\nThe email address on your Aaptha account was changed to ${newEmail}. Sign-in, receipts and alerts go there from now on.\n\nIf this wasn't you, reply to this email straight away and we'll help you secure your account.`;
+
+  return dispatchEmail({
+    to,
+    subject: 'Your Aaptha email address was changed',
+    html,
+    text,
+    templateName: 'email_changed'
   });
 }
 

@@ -27,7 +27,6 @@ async function runTests() {
     avatar: 'SR'
   });
   console.log('Updated User:', updateRes1?.user.name, '| Phone:', updateRes1?.user.phone, '| Avatar:', updateRes1?.user.avatar);
-  console.log('Email Changed Flag:', updateRes1?.emailChanged);
 
   console.log('\n=== TEST 3: Update Notification Preferences ===');
   const updateRes3 = await updateUserProfile(demoUser.id, {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AuthShell, PasswordField, PhoneField, StrengthMeter } from '@/components/auth/AuthUI';
@@ -9,7 +9,7 @@ import { GoogleSignInButton, isGoogleSignInEnabled } from '@/components/GoogleSi
 import { getPlan } from '@/lib/plans';
 import { normalizePhone } from '@/lib/phone';
 import { PlanId } from '@/lib/types';
-import { AlertCircle, ArrowRight, CheckCircle2, Phone, Mail, UserCheck, MessageSquareCode } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, Phone, Mail, MailCheck, UserCheck, MessageSquareCode } from 'lucide-react';
 
 function SignUpContent() {
   const router = useRouter();
@@ -30,6 +30,18 @@ function SignUpContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Email signup step 2: the code we mailed to prove the address is real
+  const [emailStep, setEmailStep] = useState<'form' | 'code'>('form');
+  const [emailCode, setEmailCode] = useState('');
+  const [devEmailNotice, setDevEmailNotice] = useState<string | null>(null);
+  const [resendIn, setResendIn] = useState(0);
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const timer = setTimeout(() => setResendIn(s => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendIn]);
+
   // OTP signup form state
   const [otpName, setOtpName] = useState('');
   const [otpPhone, setOtpPhone] = useState(!identifierParam.includes('@') ? identifierParam : '');
@@ -47,8 +59,56 @@ function SignUpContent() {
   const [errorMessage, setErrorMessage] = useState('');
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [accountExists, setAccountExists] = useState(false);
+  // What "Log in instead" prefills: the email or number that matched an existing account
+  const [existingIdentifier, setExistingIdentifier] = useState('');
 
-  // 1. Standard Signup
+  const showAccountExists = (field: string | undefined, phoneE164: string) => {
+    setAccountExists(true);
+    setExistingIdentifier(field === 'phone' ? phoneE164 : email.trim().toLowerCase());
+  };
+
+  // 1a. Email signup: check the details, then email a 6-digit code
+  const requestEmailCode = async (): Promise<boolean> => {
+    setErrorMessage('');
+    setErrorCode(null);
+    setAccountExists(false);
+    setDevEmailNotice(null);
+
+    const phoneResult = normalizePhone(phone);
+    if (!phoneResult.ok) {
+      setErrorMessage(phoneResult.reason);
+      return false;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/signup/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), email: email.trim().toLowerCase(), phone: phoneResult.e164 })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorMessage(data.error || 'Could not send the verification code.');
+        setErrorCode(data.code || null);
+        if (data.code === 'ACCOUNT_EXISTS') showAccountExists(data.field, phoneResult.e164);
+        return false;
+      }
+
+      setResendIn(30);
+      if (data.devCode) {
+        setDevEmailNotice(`[Dev email simulation] Your verification code is: ${data.devCode}`);
+      }
+      return true;
+    } catch {
+      setErrorMessage('Network error while sending the verification code.');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
@@ -60,7 +120,7 @@ function SignUpContent() {
       return;
     }
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setErrorMessage('Please enter a valid email address');
       return;
     }
@@ -76,13 +136,38 @@ function SignUpContent() {
       return;
     }
 
+    if (await requestEmailCode()) {
+      setEmailCode('');
+      setEmailStep('code');
+    }
+  };
+
+  // 1b. Email signup: the code checks out -> create the account
+  const handleVerifyEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setErrorCode(null);
+    setAccountExists(false);
+
+    if (emailCode.length !== 6) {
+      setErrorMessage('Please enter the 6-digit code we emailed you.');
+      return;
+    }
+
+    const phoneResult = normalizePhone(phone);
+    if (!phoneResult.ok) {
+      setErrorMessage(phoneResult.reason);
+      return;
+    }
+
     setLoading(true);
     const result = await signup({
       name: name.trim(),
       email: email.trim().toLowerCase(),
       phone: phoneResult.e164,
       password,
-      planId: planParam
+      planId: planParam,
+      code: emailCode
     });
     setLoading(false);
 
@@ -92,9 +177,17 @@ function SignUpContent() {
       setErrorMessage(result.error || 'Failed to create account. Please try again.');
       setErrorCode(result.code || null);
       if (result.code === 'ACCOUNT_EXISTS') {
-        setAccountExists(true);
+        showAccountExists(result.field, phoneResult.e164);
+        setEmailStep('form');
       }
     }
+  };
+
+  const changeEmail = () => {
+    setEmailStep('form');
+    setEmailCode('');
+    setDevEmailNotice(null);
+    setErrorMessage('');
   };
 
   // 2. Send OTP for signup
@@ -129,7 +222,7 @@ function SignUpContent() {
         setErrorMessage(data.error || 'Failed to send OTP.');
         setErrorCode(data.code || null);
         if (data.code === 'ACCOUNT_EXISTS') {
-          setAccountExists(true);
+          showAccountExists('phone', otpPhoneResult.e164);
         }
         return;
       }
@@ -207,6 +300,7 @@ function SignUpContent() {
       setErrorCode(result.code || null);
       if (result.code === 'ACCOUNT_EXISTS') {
         setAccountExists(true);
+        setExistingIdentifier('');
       }
     }
   };
@@ -273,7 +367,7 @@ function SignUpContent() {
             <strong>You already have an account</strong>
             <p>{errorMessage || 'An account with this email or phone number already exists.'}</p>
             <Link
-              href={`/login?identifier=${encodeURIComponent(email || phone || otpPhone)}&redirect=/checkout/confirm?plan=${planParam}`}
+              href={`/login?${existingIdentifier ? `identifier=${encodeURIComponent(existingIdentifier)}&` : ''}redirect=/checkout/confirm?plan=${planParam}`}
               className="btn btn-primary btn-sm"
             >
               Log in instead <ArrowRight size={14} className="arrow" />
@@ -289,7 +383,7 @@ function SignUpContent() {
         </div>
       )}
 
-      {signupMode === 'standard' && (
+      {signupMode === 'standard' && emailStep === 'form' && (
         <form onSubmit={handleSubmit} noValidate>
           <div className="form-group">
             <label className="form-label" htmlFor="name">Your name</label>
@@ -340,8 +434,66 @@ function SignUpContent() {
           </div>
 
           <button type="submit" disabled={loading} className="btn btn-primary btn-block btn-lg" style={{ marginTop: '8px' }}>
-            {loading ? <><span className="spinner" /> Creating your account…</> : <>Continue <ArrowRight size={18} className="arrow" /></>}
+            {loading ? <><span className="spinner" /> Sending a code to your email…</> : <>Continue <ArrowRight size={18} className="arrow" /></>}
           </button>
+        </form>
+      )}
+
+      {signupMode === 'standard' && emailStep === 'code' && (
+        <form onSubmit={handleVerifyEmail} noValidate>
+          <div className="notice teal">
+            <MailCheck size={20} />
+            <div>
+              We emailed a 6-digit code to <b>{email.trim().toLowerCase()}</b>. It can take a minute; check spam too.{' '}
+              <button type="button" className="link-btn" onClick={changeEmail}>
+                Change email
+              </button>
+            </div>
+          </div>
+
+          {devEmailNotice && (
+            <div className="alert-box success" style={{ fontWeight: 600 }}>
+              <CheckCircle2 size={18} />
+              <span>{devEmailNotice}</span>
+            </div>
+          )}
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="emailCode">6-digit code</label>
+            <input
+              id="emailCode"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="••••••"
+              value={emailCode}
+              onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, ''))}
+              className="form-input otp-input"
+              required
+              autoFocus
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || emailCode.length !== 6}
+            className="btn btn-primary btn-block btn-lg"
+            style={{ marginTop: '8px' }}
+          >
+            {loading ? <><span className="spinner" /> Creating your account…</> : <>Verify & create account <ArrowRight size={18} className="arrow" /></>}
+          </button>
+
+          <p style={{ fontSize: '0.86rem', color: 'var(--ink-muted)', marginTop: '14px', textAlign: 'center' }}>
+            Didn&apos;t get it?{' '}
+            {resendIn > 0 ? (
+              <span>Send a new code in {resendIn}s</span>
+            ) : (
+              <button type="button" className="link-btn" disabled={loading} onClick={() => { setEmailCode(''); requestEmailCode(); }}>
+                Send a new code
+              </button>
+            )}
+          </p>
         </form>
       )}
 

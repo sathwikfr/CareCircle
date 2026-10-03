@@ -7,6 +7,8 @@ export interface AuthResult {
   success: boolean;
   error?: string;
   code?: string;
+  /** On ACCOUNT_EXISTS from signup: which field matched an existing account. */
+  field?: 'email' | 'phone';
   notFound?: boolean;
   enteredIdentifier?: string;
   user?: User;
@@ -19,7 +21,7 @@ interface AuthContextType {
   loginWithOtp: (phone: string, code: string, rememberMe?: boolean) => Promise<AuthResult>;
   loginWithGoogle: (credential: string, rememberMe?: boolean) => Promise<AuthResult>;
   signupWithGoogle: (credential: string, rememberMe?: boolean) => Promise<AuthResult>;
-  signup: (userData: { name: string; email: string; phone: string; password?: string; planId?: PlanId }) => Promise<AuthResult>;
+  signup: (userData: { name: string; email: string; phone: string; password?: string; planId?: PlanId; code?: string }) => Promise<AuthResult>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   setUserDirectly: (user: User | null) => void;
@@ -152,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signup = async (userData: { name: string; email: string; phone: string; password?: string; planId?: PlanId }): Promise<AuthResult> => {
+  const signup = async (userData: { name: string; email: string; phone: string; password?: string; planId?: PlanId; code?: string }): Promise<AuthResult> => {
     try {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
@@ -164,7 +166,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return {
           success: false,
           error: data.error || 'Failed to sign up',
-          code: data.code
+          code: data.code,
+          field: data.field
         };
       }
       setUser(data.user);

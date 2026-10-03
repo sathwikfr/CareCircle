@@ -77,48 +77,50 @@ function isDevMasterOtp(code: string): boolean {
   return process.env.NODE_ENV === 'development' && code === '123456';
 }
 
-export async function createAndStoreOtp(
-  phone: string,
-  purpose: 'login' | 'signup'
-): Promise<{ code: string; expiresAt: string }> {
-  const cleanPhone = phone.replace(/\D/g, '');
+/**
+ * Codes live in OTPRecord, keyed by its `phone` column: the phone's digits for
+ * SMS codes, the lowercased email address for purpose 'signup_email', and
+ * `<userId>:<new email>` for purpose 'email_change'.
+ */
+type CodePurpose = 'login' | 'signup' | 'signup_email' | 'email_change';
+
+async function storeCode(key: string, purpose: CodePurpose): Promise<{ code: string; expiresAt: string }> {
   const code = crypto.randomInt(100000, 1000000).toString();
   const codeHash = await bcrypt.hash(code, await bcrypt.genSalt(8));
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-  // Only the newest code for a phone + purpose is valid.
+  // Only the newest code for a key + purpose is valid.
   await prisma.$transaction([
-    prisma.oTPRecord.deleteMany({ where: { phone: cleanPhone, purpose } }),
-    prisma.oTPRecord.create({ data: { phone: cleanPhone, codeHash, expiresAt, purpose } })
+    prisma.oTPRecord.deleteMany({ where: { phone: key, purpose } }),
+    prisma.oTPRecord.create({ data: { phone: key, codeHash, expiresAt, purpose } })
   ]);
 
   return { code, expiresAt: expiresAt.toISOString() };
 }
 
-export async function verifyAndConsumeOtp(
-  phone: string,
+async function consumeCode(
+  key: string,
   enteredCode: string,
-  purpose: 'login' | 'signup'
+  purpose: CodePurpose,
+  sentTo: string
 ): Promise<{ success: boolean; error?: string }> {
-  const cleanPhone = phone.replace(/\D/g, '');
-
   const record = await prisma.oTPRecord.findFirst({
-    where: { phone: cleanPhone, purpose },
+    where: { phone: key, purpose },
     orderBy: { createdAt: 'desc' }
   });
 
   if (!record) {
-    return { success: false, error: 'No OTP requested for this mobile number or code has expired. Please request a new OTP.' };
+    return { success: false, error: `No code was requested for this ${sentTo}, or it has expired. Please request a new code.` };
   }
 
   if (record.expiresAt.getTime() < Date.now()) {
-    await prisma.oTPRecord.deleteMany({ where: { phone: cleanPhone, purpose } });
-    return { success: false, error: 'This OTP has expired. Please request a new code.' };
+    await prisma.oTPRecord.deleteMany({ where: { phone: key, purpose } });
+    return { success: false, error: 'This code has expired. Please request a new code.' };
   }
 
   if (record.attempts >= OTP_MAX_ATTEMPTS) {
-    await prisma.oTPRecord.deleteMany({ where: { phone: cleanPhone, purpose } });
-    return { success: false, error: 'Too many incorrect OTP attempts. Please request a new code.' };
+    await prisma.oTPRecord.deleteMany({ where: { phone: key, purpose } });
+    return { success: false, error: 'Too many incorrect attempts. Please request a new code.' };
   }
 
   const isMatch = isDevMasterOtp(enteredCode) || (await bcrypt.compare(enteredCode, record.codeHash));
@@ -132,9 +134,35 @@ export async function verifyAndConsumeOtp(
     return { success: false, error: `Incorrect verification code. ${remaining} attempts remaining.` };
   }
 
-  // Single use: consume every code for this phone + purpose.
-  await prisma.oTPRecord.deleteMany({ where: { phone: cleanPhone, purpose } });
+  // Single use: consume every code for this key + purpose.
+  await prisma.oTPRecord.deleteMany({ where: { phone: key, purpose } });
   return { success: true };
+}
+
+export function createAndStoreOtp(phone: string, purpose: 'login' | 'signup') {
+  return storeCode(phone.replace(/\D/g, ''), purpose);
+}
+
+export function verifyAndConsumeOtp(phone: string, enteredCode: string, purpose: 'login' | 'signup') {
+  return consumeCode(phone.replace(/\D/g, ''), enteredCode, purpose, 'mobile number');
+}
+
+/** Email signup: the code mailed to the address proves the inbox exists and is the user's. */
+export function createSignupEmailCode(email: string) {
+  return storeCode(email.trim().toLowerCase(), 'signup_email');
+}
+
+export function verifySignupEmailCode(email: string, enteredCode: string) {
+  return consumeCode(email.trim().toLowerCase(), enteredCode, 'signup_email', 'email address');
+}
+
+/** Profile email change: the code goes to the NEW address and only works for this user. */
+export function createEmailChangeCode(userId: string, newEmail: string) {
+  return storeCode(`${userId}:${newEmail.trim().toLowerCase()}`, 'email_change');
+}
+
+export function verifyEmailChangeCode(userId: string, newEmail: string, enteredCode: string) {
+  return consumeCode(`${userId}:${newEmail.trim().toLowerCase()}`, enteredCode, 'email_change', 'email address');
 }
 
 // ---------------------------------------------------------------------------

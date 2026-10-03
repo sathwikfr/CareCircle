@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import { getUserById, updateUserProfile } from '@/lib/db';
-import { sendVerificationEmail } from '@/lib/email';
 import { NotificationPreferences } from '@/lib/types';
 import { normalizePhone } from '@/lib/phone';
 
@@ -37,11 +36,13 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Full name must be at least 2 characters.' }, { status: 400 });
     }
 
-    if (email !== undefined) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!email || typeof email !== 'string' || !emailRegex.test(email.trim())) {
-        return NextResponse.json({ error: 'Please provide a valid email address.' }, { status: 400 });
-      }
+    // The email only changes after a code sent to the new address is entered
+    // (/api/account/email/send-code, then /api/account/email).
+    if (email !== undefined && (typeof email !== 'string' || email.trim().toLowerCase() !== sessionUser.email)) {
+      return NextResponse.json(
+        { error: 'To change your email, confirm the new address with the code we send to it.', code: 'EMAIL_CHANGE_NEEDS_CODE' },
+        { status: 400 }
+      );
     }
 
     let normalizedPhone: string | undefined = undefined;
@@ -76,7 +77,6 @@ export async function PATCH(req: Request) {
 
     const updateResult = await updateUserProfile(sessionUser.id, {
       name,
-      email,
       phone: normalizedPhone !== undefined ? normalizedPhone : phone,
       avatar,
       notificationPreferences: cleanNotifPrefs
@@ -86,31 +86,10 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'User account not found.' }, { status: 404 });
     }
 
-    const { user: updatedUser, emailChanged } = updateResult;
-
-    // If email was changed, trigger verification email
-    let emailVerificationTriggered = false;
-    if (emailChanged && updatedUser.email) {
-      try {
-        const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard?verified=pending`;
-        await sendVerificationEmail({
-          to: updatedUser.email,
-          name: updatedUser.name,
-          verifyUrl
-        });
-        emailVerificationTriggered = true;
-      } catch (emailErr) {
-        console.warn('Failed to send verification email after address change:', emailErr);
-      }
-    }
-
     return NextResponse.json({
       success: true,
-      message: emailChanged
-        ? 'Profile updated. A verification link has been sent to your new email.'
-        : 'Profile updated successfully.',
-      user: updatedUser,
-      emailVerificationTriggered
+      message: 'Profile updated successfully.',
+      user: updateResult.user
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to update profile.';

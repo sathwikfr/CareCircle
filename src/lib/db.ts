@@ -240,34 +240,50 @@ export async function createUser(userData: {
   return stripHash(toDBUser(created));
 }
 
+/**
+ * Switches the account's email. Only call this after the user has entered the
+ * code sent to the new address (POST /api/account/email); it marks the email
+ * verified. Returns 'taken' if another account already uses it.
+ */
+export async function changeUserEmail(
+  userId: string,
+  newEmail: string
+): Promise<{ user: User; previousEmail: string } | 'taken' | null> {
+  const email = newEmail.toLowerCase().trim();
+  const current = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+  if (!current) return null;
+
+  const conflict = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  if (conflict && conflict.id !== userId) return 'taken';
+
+  try {
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { email, emailVerified: true },
+      include: userInclude
+    });
+    return { user: stripHash(toDBUser(updated)), previousEmail: current.email };
+  } catch (err) {
+    // Another account claimed the address between the check and the update.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') return 'taken';
+    throw err;
+  }
+}
+
+/** Name, phone, initials and alert preferences. The email changes only through changeUserEmail(). */
 export async function updateUserProfile(
   userId: string,
   updates: {
     name?: string;
-    email?: string;
     phone?: string;
     avatar?: string;
     notificationPreferences?: NotificationPreferences;
   }
-): Promise<{ user: User; emailChanged: boolean } | null> {
+): Promise<{ user: User } | null> {
   const current = await prisma.user.findUnique({ where: { id: userId } });
   if (!current) return null;
 
   const data: Prisma.UserUpdateInput = {};
-  let emailChanged = false;
-
-  if (updates.email) {
-    const newEmail = updates.email.toLowerCase().trim();
-    if (newEmail !== current.email) {
-      const conflict = await prisma.user.findUnique({ where: { email: newEmail } });
-      if (conflict && conflict.id !== userId) {
-        throw new Error('An account with this email already exists.');
-      }
-      data.email = newEmail;
-      data.emailVerified = false;
-      emailChanged = true;
-    }
-  }
 
   if (updates.name && updates.name.trim()) {
     data.name = updates.name.trim();
@@ -302,7 +318,7 @@ export async function updateUserProfile(
   }
 
   const updated = await prisma.user.update({ where: { id: userId }, data, include: userInclude });
-  return { user: stripHash(toDBUser(updated)), emailChanged };
+  return { user: stripHash(toDBUser(updated)) };
 }
 
 export async function updateUserPasswordHash(userId: string, newHash: string): Promise<boolean> {
