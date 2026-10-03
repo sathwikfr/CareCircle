@@ -1,0 +1,350 @@
+/* ==========================================================================
+   After every call (AfterCallSection.tsx)
+   Two equal columns: the dashboard card and the WhatsApp update, each with
+   its label above it (not floating on the card), and a small "Same call"
+   marker between them. On phones they stack.
+   ========================================================================== */
+
+.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 22px;
+  align-items: stretch;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 26px;
+  padding: 0 6px;
+}
+
+.label > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-subtle);
+}
+
+.label svg {
+  color: var(--teal);
+}
+
+.example {
+  padding: 3px 9px;
+  border-radius: var(--r-full);
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-border);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+/* "Same call" between the two */
+.same {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-top: 38px;
+}
+
+.same span {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel-elevated);
+  border: 1px solid var(--line-subtle);
+  box-shadow: var(--shadow-sm);
+  color: var(--teal);
+}
+
+.same small {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ink-subtle);
+  white-space: nowrap;
+}
+
+.who {
+  min-width: 0;
+}
+
+.who b {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.who small {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--ink-subtle);
+}
+
+/* ---------- Dashboard card ---------- */
+
+.dash {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 24px;
+  border-radius: 26px;
+  background: var(--panel-elevated);
+  border: 1px solid var(--line-subtle);
+  box-shadow: var(--shadow-lg);
+}
+
+.dashHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  background: var(--teal);
+  color: var(--on-teal);
+}
+
+.answered {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--r-full);
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.summary {
+  margin: 18px 0 8px;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rows li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid var(--line-subtle);
+  font-size: 0.92rem;
+  color: var(--ink-muted);
+}
+
+.pill {
+  padding: 3px 11px;
+  border-radius: var(--r-full);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pill[data-tone='good'] { background: var(--green-soft); color: var(--green); }
+.pill[data-tone='calm'] { background: var(--gold-soft); color: var(--gold); }
+.pill[data-tone='warn'] { background: var(--amber-soft); color: var(--amber); }
+.pill[data-tone='plain'] { padding: 0; color: var(--ink); }
+
+/* Ties back to the WhatsApp reply */
+.handled {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--green-soft);
+  border: 1px solid var(--green-border);
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: var(--ink-muted);
+}
+
+.handled b {
+  color: var(--green);
+}
+
+.handledIcon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--green);
+  color: var(--panel-elevated);
+}
+
+/* ---------- WhatsApp ---------- */
+
+.wa {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-radius: 26px;
+  overflow: hidden;
+  background: var(--panel-sunken);
+  border: 1px solid var(--line-subtle);
+  box-shadow: var(--shadow-lg);
+}
+
+.waHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: var(--panel-elevated);
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.waAvatar {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--teal);
+  color: var(--on-teal);
+}
+
+.waBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 16px 18px;
+}
+
+.waIn,
+.waOut {
+  max-width: 90%;
+  padding: 9px 12px 6px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--ink);
+  box-shadow: var(--shadow-xs);
+}
+
+.waIn p,
+.waOut p {
+  margin: 0;
+}
+
+.waIn {
+  align-self: flex-start;
+  border-radius: 4px 14px 14px 14px;
+  background: var(--panel-elevated);
+}
+
+.waOut {
+  align-self: flex-end;
+  border-radius: 14px 4px 14px 14px;
+  background: var(--green-soft);
+  border: 1px solid var(--green-border);
+}
+
+.waIn time,
+.waOut time {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
+  font-size: 0.7rem;
+  color: var(--ink-subtle);
+}
+
+.waOut time svg {
+  color: var(--blue);
+}
+
+.waNote {
+  margin-top: 8px !important;
+  color: var(--ink-muted);
+}
+
+/* Quick-reply buttons under the message, inside the bubble */
+.waBtns {
+  display: grid;
+  margin: 8px -12px -6px;
+  border-top: 1px solid var(--line-subtle);
+}
+
+.waBtns span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--teal-text);
+}
+
+.waBtns span + span {
+  border-top: 1px solid var(--line-subtle);
+}
+
+/* ---------- Phones and tablets: stacked ---------- */
+
+@media (max-width: 900px) {
+  .pair {
+    grid-template-columns: 1fr;
+    max-width: 520px;
+    gap: 18px;
+  }
+
+  .same {
+    flex-direction: row;
+    justify-content: center;
+    padding-top: 0;
+  }
+}

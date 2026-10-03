@@ -75,7 +75,7 @@ export function Navbar() {
   return (
     <header className={`app-header${scrolled || sheetOpen ? ' scrolled' : ''}`}>
       <div className="wrap app-nav">
-        <Brand href={user ? '/dashboard' : '/'} />
+        <Brand href="/" />
 
         <nav className="nav-links" aria-label="Main">
           {links.map((l) => (

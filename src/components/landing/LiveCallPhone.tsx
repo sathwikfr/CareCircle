@@ -38,7 +38,7 @@ const RING_MS = RING_BEFORE_AUTO_MS + AUTO_SLIDE_MS + ANSWER_MS;
 /** What Saathi notes, and the line (index in CALL_SCRIPT) whose answer fills it in. */
 const NOTES: { after: number; icon: typeof Check; tone: 'good' | 'calm' | 'warn'; label: string; sub?: string; value: string }[] = [
   { after: 1, icon: Check, tone: 'good', label: 'Amlodipine 5mg', sub: 'BP tablet, after breakfast', value: 'Taken' },
-  { after: 3, icon: Smile, tone: 'calm', label: 'Mood', value: 'Okay' },
+  { after: 3, icon: Smile, tone: 'calm', label: 'Mood', value: 'Calm' },
   { after: 3, icon: AlertTriangle, tone: 'warn', label: 'Mentioned', value: 'Knee pain' },
 ];
 
