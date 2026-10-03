@@ -1,0 +1,207 @@
+/* ==========================================================================
+   Languages (LanguagesSection.tsx)
+   Two slow rows of same-size greeting cards drifting in opposite directions
+   across the full width, edges faded. Hovering a row pauses it. Under them,
+   a centred example of a parent mixing English into Hindi.
+   Reduced motion: one still, wrapped grid of the nine cards.
+   ========================================================================== */
+
+.marquee {
+  display: block;
+  margin-top: 8px;
+}
+
+.marquee > div {
+  display: grid;
+  gap: 14px;
+}
+
+.row {
+  overflow: hidden;
+  padding: 4px 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 9%, #000 91%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 9%, #000 91%, transparent 100%);
+}
+
+.track {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 14px;
+  width: max-content;
+  animation: drift 100s linear infinite;      /* about 35px a second: a calm drift */
+}
+
+.reverse {
+  animation-name: driftBack;
+  animation-duration: 86s;
+}
+
+/* Pause the row you are looking at, so "Hear it" is easy to press */
+.row:hover .track,
+.row:focus-within .track {
+  animation-play-state: paused;
+}
+
+/* Each half of the track is identical; sliding by exactly one half loops seamlessly
+   (the half includes its trailing gap: 7px is half of the 14px gap). */
+@keyframes drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(-50% - 7px)); }
+}
+
+@keyframes driftBack {
+  from { transform: translateX(calc(-50% - 7px)); }
+  to { transform: translateX(0); }
+}
+
+/* ---------- A card ---------- */
+
+.card {
+  position: relative;
+  flex: 0 0 214px;
+  height: 132px;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px 14px;
+  border-radius: 20px;
+  background: var(--panel-elevated);
+  border: 1px solid var(--line-subtle);
+  box-shadow: var(--shadow-xs);
+}
+
+.name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-subtle);
+}
+
+.hello {
+  margin: auto 0 4px;
+  font-family: var(--font-serif);
+  font-size: 1.7rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.say {
+  font-size: 0.8rem;
+  white-space: nowrap;
+  color: var(--ink-subtle);
+}
+
+/* "Hear it": only on the languages the phone demo speaks */
+.hear {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border: 0;
+  border-radius: var(--r-full);
+  background: var(--teal-light);
+  color: var(--teal-text);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--dur) ease, color var(--dur) ease;
+}
+
+.hear:hover {
+  background: var(--teal-fill);
+  color: var(--on-teal);
+}
+
+.hear:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+/* ---------- Mixing in English ---------- */
+
+.mix {
+  margin-top: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 10px 12px;
+}
+
+.bubble {
+  padding: 8px 13px 9px;
+  border-radius: 16px;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.bubble small {
+  display: block;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.fromSaathi {
+  border-bottom-left-radius: 5px;
+  background: var(--green-soft);
+  border: 1px solid var(--green-border);
+}
+
+.fromSaathi small { color: var(--green); }
+
+.fromAmma {
+  border-bottom-right-radius: 5px;
+  background: var(--red-soft);
+  border: 1px solid var(--red-border);
+}
+
+.fromAmma small { color: var(--red); }
+
+.mixNote {
+  flex-basis: 100%;
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--ink-subtle);
+}
+
+@media (max-width: 560px) {
+  .card {
+    flex-basis: 184px;
+    height: 120px;
+  }
+
+  .hello {
+    font-size: 1.45rem;
+  }
+}
+
+/* No motion: the nine cards sit still, wrapped and centred, each shown once */
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .track {
+    width: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 0 20px;
+    animation: none;
+  }
+
+  .track > [aria-hidden] {
+    display: none;
+  }
+}

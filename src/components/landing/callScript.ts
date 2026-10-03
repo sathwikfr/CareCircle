@@ -16,6 +16,16 @@ export const CALL_LANGS: { key: CallLang; label: string; name: string }[] = [
   { key: 'hi', label: 'हिंदी', name: 'Hindi' },
 ];
 
+/**
+ * Other sections can switch the example call's language by dispatching this
+ * window event with the language key as `detail` (LiveCallPhone listens).
+ */
+export const CALL_LANG_EVENT = 'aaptha:call-lang';
+
+export function isCallLang(v: unknown): v is CallLang {
+  return CALL_LANGS.some((l) => l.key === v);
+}
+
 export type ScriptLine = { who: Speaker; ms: number; text: Record<CallLang, string> };
 
 export const CALL_SCRIPT: ScriptLine[] = [

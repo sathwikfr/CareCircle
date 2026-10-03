@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { IslandWave, type WaveMode } from './IslandWave';
 import { SlideToAnswer, AUTO_SLIDE_MS } from './SlideToAnswer';
-import { CALL_LANGS, CALL_SCRIPT, TIMELINE, CALL_MS, formatCallTime, type CallLang } from './callScript';
+import { CALL_LANGS, CALL_SCRIPT, TIMELINE, CALL_MS, CALL_LANG_EVENT, formatCallTime, isCallLang, type CallLang } from './callScript';
 import c from './liveCallPhone.module.css';
 
 /**
@@ -160,6 +160,16 @@ export function LiveCallPhone() {
     io.observe(node);
     return () => io.disconnect();
   }, [ring]);
+
+  // Other sections (the language grid) can switch the call's language.
+  useEffect(() => {
+    const onLang = (e: Event) => {
+      const next = (e as CustomEvent).detail;
+      if (isCallLang(next)) setLang(next);
+    };
+    window.addEventListener(CALL_LANG_EVENT, onLang);
+    return () => window.removeEventListener(CALL_LANG_EVENT, onLang);
+  }, []);
 
   // Picked up: a moment for the screen to change, then the conversation.
   useEffect(() => {
