@@ -1,0 +1,115 @@
+import React from 'react';
+import { ShieldCheck, PhoneCall, AlertTriangle, Check, Camera, Pause } from 'lucide-react';
+import { Reveal } from '@/components/Reveal';
+import { WordReveal } from '@/components/motion/WordReveal';
+import s from './home.module.css';
+import x from './safety.module.css';
+
+/**
+ * "A companion, not a doctor": the four safety promises as equal cards, each
+ * showing a tiny example of the promise in action (like the phone demo above)
+ * with a title and one line under it. The examples play once as the card
+ * scrolls into view. Everything here is illustrative; nothing is fetched.
+ */
+
+function DoctorDemo() {
+  return (
+    <div className={x.chat}>
+      <span className={`${x.bubble} ${x.fromAmma}`}>
+        <small>Amma</small>Can I take two tablets for the pain?
+      </span>
+      <span className={`${x.bubble} ${x.fromSaathi}`}>
+        <small>Saathi</small>I can’t advise on medicines. Please ask your doctor, and I’ll tell your family.
+      </span>
+    </div>
+  );
+}
+
+function WarningDemo() {
+  return (
+    <div className={x.stack}>
+      <span className={x.alert}>
+        <span className={x.alertIcon}><AlertTriangle size={16} /></span>
+        <span className={x.alertText}>
+          <b>Amma said she felt dizzy</b>
+          <small>Saathi asked her to call someone nearby.</small>
+        </span>
+      </span>
+      <span className={x.sent}><Check size={13} strokeWidth={3} /> Sent to you right away · 8:32 AM</span>
+    </div>
+  );
+}
+
+function ConsentDemo() {
+  return (
+    <div className={x.settings}>
+      <span className={x.setRow}>
+        <span className={x.okDot}><Check size={12} strokeWidth={3} /></span>
+        <span>Amma agreed to the calls</span>
+      </span>
+      <span className={x.setRow}>
+        <span>Daily calls</span>
+        <span className={x.toggle} />
+      </span>
+      <span className={x.setRow}>
+        <span>Going on a trip?</span>
+        <span className={x.pauseBtn}><Pause size={12} /> Pause</span>
+      </span>
+    </div>
+  );
+}
+
+function MedsDemo() {
+  return (
+    <div className={x.meds}>
+      <span className={x.medsHead}><Camera size={13} /> Read from the prescription photo</span>
+      <span className={x.med}>
+        <span className={x.box}><Check size={12} strokeWidth={3} /></span>
+        <b>Amlodipine 5mg</b><small>after breakfast</small>
+      </span>
+      <span className={x.med}>
+        <span className={x.box}><Check size={12} strokeWidth={3} /></span>
+        <b>Metformin 500mg</b><small>after dinner</small>
+      </span>
+      <span className={x.confirm}>Confirm list</span>
+    </div>
+  );
+}
+
+const PROMISES = [
+  { title: 'Never plays doctor', body: 'Saathi doesn’t diagnose or give medical advice. Health questions go to their doctor, or to you.', Demo: DoctorDemo },
+  { title: 'Listens for warning signs', body: 'A fall, chest pain, feeling faint: Saathi stays calm, asks them to get help, and tells you straight away.', Demo: WarningDemo },
+  { title: 'Consent comes first', body: 'Calls only start once your parent has agreed. Pause or stop them at any time.', Demo: ConsentDemo },
+  { title: 'You confirm every medicine', body: 'We draft the list from a prescription photo. Nothing is saved until you have checked it.', Demo: MedsDemo },
+];
+
+export function SafetySection() {
+  return (
+    <section id="safety" className="section">
+      <div className="wrap">
+        <Reveal className={s.head}>
+          <span className={s.pill}><ShieldCheck size={14} /> Built with care</span>
+          <WordReveal>A companion, <span className={s.grad}>not a doctor.</span></WordReveal>
+          <p>Saathi is gentle and knows its limits. It keeps your parents connected to you, and never replaces the people who care for them.</p>
+        </Reveal>
+
+        <div className={x.grid}>
+          {PROMISES.map(({ title, body, Demo }, i) => (
+            <Reveal key={title} delay={i * 90} className={x.card}>
+              <div className={x.demo} aria-hidden="true"><Demo /></div>
+              <div className={x.text}>
+                <h3>{title}</h3>
+                <p>{body}</p>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+
+        <Reveal className={x.sos}>
+          <PhoneCall size={16} aria-hidden="true" />
+          <span>Aaptha is not an emergency service. In an emergency, call <b>112</b>.</span>
+        </Reveal>
+      </div>
+    </section>
+  );
+}

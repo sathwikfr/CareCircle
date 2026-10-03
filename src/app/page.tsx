@@ -8,19 +8,19 @@ import { Reveal } from '@/components/Reveal';
 import { VoiceHero } from '@/components/landing/VoiceHero';
 import { LiveCallPhone } from '@/components/landing/LiveCallPhone';
 import { SetupSteps } from '@/components/landing/SetupSteps';
+import { SafetySection } from '@/components/landing/SafetySection';
 import { CALL_MS, formatCallTime } from '@/components/landing/callScript';
 import { ScrollProgress } from '@/components/motion/ScrollProgress';
 import { FloatingCta } from '@/components/motion/FloatingCta';
 import { Ticker } from '@/components/motion/Ticker';
 import { WordReveal } from '@/components/motion/WordReveal';
-import { TiltCard } from '@/components/motion/TiltCard';
 import styles from '@/components/landing/landing.module.css';
 import s from '@/components/landing/home.module.css';
 import { PLANS, FREE_TRIAL_DAYS } from '@/lib/plans';
 import { PlanId } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 import {
-  Check, PhoneCall, Languages, ShieldCheck, Stethoscope, Siren, HeartHandshake,
+  Check, PhoneCall, Languages,
   ClipboardCheck, Plus, Sparkles, Minus, Heart, Reply, ExternalLink, CheckCheck, MessageCircle
 } from 'lucide-react';
 
@@ -34,13 +34,6 @@ const LANGS = [
   { native: 'मराठी', en: 'Marathi' },
   { native: 'ગુજરાતી', en: 'Gujarati' },
   { native: 'English', en: 'or a mix' },
-];
-
-const SAFETY = [
-  { icon: Stethoscope, title: 'Never plays doctor', body: 'Saathi doesn’t diagnose or advise. For anything health-related it points your parent to their doctor or to you.' },
-  { icon: Siren, title: 'Listens for warning signs', body: 'A fall, chest pain, feeling faint: Saathi stays calm, asks them to get help, and flags it to you.' },
-  { icon: HeartHandshake, title: 'Consent comes first', body: 'Calls only start once your parent has agreed. Pause or stop them any time.' },
-  { icon: ClipboardCheck, title: 'You confirm every medicine', body: 'We draft the list from a prescription photo, but nothing is saved until you’ve checked it.' },
 ];
 
 type Cell = true | false | string;
@@ -191,27 +184,8 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* SAFETY */}
-        <section id="safety" className="section">
-          <div className="wrap">
-            <Reveal className={s.head}>
-              <span className={s.pill}><ShieldCheck size={14} /> Built with care</span>
-              <WordReveal>A companion, <span className={s.grad}>not a doctor.</span></WordReveal>
-              <p>Saathi is gentle and knows its limits. It helps your parents stay connected to you, never replaces the people who care for them.</p>
-            </Reveal>
-            <div className={s.safetyGrid}>
-              {SAFETY.map((x, i) => (
-                <Reveal key={x.title} delay={i * 90}>
-                  <TiltCard className={s.safetyCard}>
-                    <span className="icon-tile"><x.icon size={20} /></span>
-                    <h3>{x.title}</h3>
-                    <p>{x.body}</p>
-                  </TiltCard>
-                </Reveal>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* SAFETY: four promises, each shown in action */}
+        <SafetySection />
 
         {/* COMPARE (the nav's "Why a phone call" lands here) */}
         <section id="why" className={`section ${s.alt}`}>
