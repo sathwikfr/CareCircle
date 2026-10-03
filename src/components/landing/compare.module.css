@@ -1,0 +1,226 @@
+/* ==========================================================================
+   Compare (CompareSection.tsx)
+   A real table. The Aaptha column is raised like a featured card: tinted,
+   outlined in teal, with a solid teal head. Below 760px each row becomes a
+   small card listing the four options.
+   ========================================================================== */
+
+.frame {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 26px 26px 18px;
+  border-radius: 28px;
+  background: var(--panel-elevated);
+  border: 1px solid var(--line-subtle);
+  box-shadow: var(--shadow-md);
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.table th,
+.table td {
+  padding: 18px 14px;
+  text-align: center;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.table tbody tr:last-child th,
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Column widths (a fixed table takes them from the head row) */
+.table thead th:first-child {
+  width: 31%;
+}
+
+.table thead th:nth-child(2) {
+  width: 19%;
+}
+
+/* Row labels */
+.table tbody th {
+  padding-left: 6px;
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: 0.98rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+
+/* Column heads */
+.table thead th {
+  padding: 16px 12px;
+  border-bottom: 0;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink-subtle);
+}
+
+/* ---------- The raised Aaptha column ---------- */
+
+.table .us {
+  background: var(--teal-light);
+  box-shadow: inset 2px 0 0 var(--teal), inset -2px 0 0 var(--teal);
+  border-bottom-color: color-mix(in srgb, var(--teal) 18%, transparent);
+}
+
+.table thead .us {
+  border-radius: 18px 18px 0 0;
+  background: var(--teal);
+  box-shadow: none;
+}
+
+.table tbody tr:last-child .us {
+  border-radius: 0 0 18px 18px;
+  box-shadow: inset 2px 0 0 var(--teal), inset -2px 0 0 var(--teal), inset 0 -2px 0 var(--teal);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-serif);
+  font-size: 1.06rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--on-teal);
+}
+
+.brandHeart {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ---------- Values ---------- */
+
+.mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.markUs {
+  background: var(--teal);
+  color: var(--on-teal);
+}
+
+.markYes {
+  background: var(--panel-sunken);
+  color: var(--ink-muted);
+}
+
+.markNo {
+  color: var(--ink-subtle);
+  opacity: 0.7;
+}
+
+.text {
+  font-size: 0.86rem;
+  line-height: 1.35;
+  color: var(--ink-muted);
+}
+
+.textUs {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--teal-text);
+}
+
+/* ---------- Phones: one card per row ---------- */
+
+@media (max-width: 760px) {
+  .frame {
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .table,
+  .table tbody,
+  .table tr,
+  .table th,
+  .table td {
+    display: block;
+    width: auto;
+  }
+
+  .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .table tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  .table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    padding: 14px;
+    border-radius: 20px;
+    background: var(--panel-elevated);
+    border: 1px solid var(--line-subtle);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .table tbody th {
+    grid-column: 1 / -1;
+    padding: 0 0 4px;
+    border: 0;
+  }
+
+  .table tbody td,
+  .table tbody tr:last-child td {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--paper);
+    text-align: left;
+    box-shadow: none;
+  }
+
+  .table tbody td::before {
+    content: attr(data-col);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--ink-subtle);
+  }
+
+  .table tbody .us,
+  .table tbody tr:last-child .us {
+    background: var(--teal-light);
+    box-shadow: inset 0 0 0 1.5px var(--teal);
+    border-radius: 14px;
+  }
+
+  .table tbody .us::before {
+    color: var(--teal-text);
+  }
+}

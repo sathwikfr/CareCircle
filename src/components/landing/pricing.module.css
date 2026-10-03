@@ -1,0 +1,194 @@
+/* ==========================================================================
+   Pricing (PricingSection.tsx)
+   Three equal cards with the buttons on one line; the popular plan is a
+   teal-outlined card. What every plan shares sits once, in a strip under them.
+   ========================================================================== */
+
+.plans {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  align-items: stretch;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.plan {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 30px 28px 28px;
+  border-radius: 28px;
+  background: var(--panel-elevated);
+  border: 1px solid var(--line-subtle);
+  box-shadow: var(--shadow-sm);
+}
+
+.plan h3 {
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  margin-top: 6px;
+  min-height: 2.9em;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+.price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.price b {
+  font-family: var(--font-serif);
+  font-size: clamp(2.6rem, 4vw, 3.2rem);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.price span {
+  font-size: 0.92rem;
+  color: var(--ink-muted);
+}
+
+.perDay {
+  margin-top: 8px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--teal-text);
+}
+
+.facts {
+  list-style: none;
+  margin: 22px 0 26px;
+  padding: 20px 0 0;
+  border-top: 1px solid var(--line-subtle);
+  display: grid;
+  gap: 12px;
+  flex: 1;
+  align-content: start;
+}
+
+.facts li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.factIcon {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--teal-light);
+  color: var(--teal-text);
+}
+
+.cta {
+  min-height: 48px;
+}
+
+/* ---------- The popular plan: light, outlined in teal ---------- */
+
+.featured {
+  border: 2px solid var(--teal);
+  box-shadow: var(--shadow-lg), 0 0 0 5px var(--teal-soft);
+}
+
+.badge {
+  position: absolute;
+  top: -13px;
+  left: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--r-full);
+  background: var(--marigold);
+  color: var(--on-marigold);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------- Every plan includes ---------- */
+
+.every {
+  max-width: 1080px;
+  margin: 28px auto 0;
+  padding: 20px 24px;
+  border-radius: 22px;
+  background: var(--panel);
+  border: 1px solid var(--line-subtle);
+  display: flex;
+  align-items: center;
+  gap: 14px 28px;
+  flex-wrap: wrap;
+}
+
+.everyTitle {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-subtle);
+}
+
+.every ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  flex: 1;
+}
+
+.every li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.every li svg {
+  color: var(--teal);
+}
+
+@media (max-width: 960px) {
+  .plans {
+    grid-template-columns: 1fr;
+    max-width: 460px;
+    gap: 28px;
+  }
+
+  .tagline {
+    min-height: 0;
+  }
+
+  .every {
+    max-width: 460px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .every ul {
+    flex-direction: column;
+  }
+}

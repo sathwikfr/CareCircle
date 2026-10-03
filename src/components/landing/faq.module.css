@@ -1,0 +1,181 @@
+/* ==========================================================================
+   FAQ (FaqSection.tsx)
+   Heading and contact on the left (sticky on wide screens), questions on the
+   right as calm rows. The answer opens smoothly where the browser supports
+   animating <details>; elsewhere it simply opens.
+   ========================================================================== */
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+  gap: clamp(32px, 6vw, 96px);
+  align-items: start;
+}
+
+.intro {
+  position: sticky;
+  top: 110px;
+}
+
+.title {
+  margin: 0 0 14px;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+.lead {
+  max-width: 34ch;
+  font-size: 1.02rem;
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+
+.contact {
+  margin-top: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px 12px 12px;
+  border-radius: 18px;
+  background: var(--panel-elevated);
+  border: 1px solid var(--line-subtle);
+  box-shadow: var(--shadow-sm);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color var(--dur) ease, transform var(--dur) var(--ease-out);
+}
+
+.contact:hover {
+  border-color: var(--teal);
+  transform: translateY(-2px);
+}
+
+.contactIcon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--teal-light);
+  color: var(--teal-text);
+}
+
+.contact b {
+  display: block;
+  font-size: 0.94rem;
+  color: var(--ink);
+}
+
+.contact small {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+}
+
+/* ---------- The questions ---------- */
+
+.list {
+  display: grid;
+  gap: 10px;
+}
+
+.item {
+  border-radius: 20px;
+  background: var(--panel-elevated);
+  border: 1px solid var(--line-subtle);
+  transition: border-color var(--dur) ease, box-shadow var(--dur) ease;
+  interpolate-size: allow-keywords;
+}
+
+.item:hover {
+  border-color: var(--line);
+}
+
+.item[open] {
+  border-color: var(--teal);
+  box-shadow: var(--shadow-sm), 0 0 0 3px var(--teal-soft);
+}
+
+.item summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 20px 20px 24px;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: 1.08rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.item summary::-webkit-details-marker {
+  display: none;
+}
+
+.item summary:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+  border-radius: 20px;
+}
+
+.toggle {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--panel);
+  color: var(--ink-muted);
+  transition: transform var(--dur) var(--ease-out), background var(--dur) ease, color var(--dur) ease;
+}
+
+.item[open] .toggle {
+  transform: rotate(45deg);
+  background: var(--teal);
+  color: var(--on-teal);
+}
+
+.item p {
+  padding: 0 24px 22px;
+  max-width: 62ch;
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: var(--ink-muted);
+}
+
+/* Smooth open/close in browsers that can animate <details> */
+.item::details-content {
+  block-size: 0;
+  overflow: hidden;
+  transition: block-size 320ms var(--ease-out), content-visibility 320ms allow-discrete;
+}
+
+.item[open]::details-content {
+  block-size: auto;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .intro {
+    position: static;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item::details-content {
+    transition: none;
+  }
+}

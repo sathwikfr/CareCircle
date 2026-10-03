@@ -72,7 +72,8 @@ export const PLANS: Record<PlanId, Plan> = {
       '9 Indian languages, including Hindi, Tamil, Telugu and Bengali',
       'Medicine and mood trends on your dashboard',
       'Alerts when something needs your attention',
-      'Pause calls anytime (travel, hospital stay)'
+      'Pause calls anytime (travel, hospital stay)',
+      'Invite 1 sibling to share the care'
     ]
   },
   extended: {
@@ -89,7 +90,7 @@ export const PLANS: Record<PlanId, Plan> = {
     features: [
       'Up to 5 parents or elder relatives',
       'Everything in Family Care (up to 3 calls a day per parent)',
-      'Invite siblings to share the care',
+      'Invite up to 3 siblings to share the care',
       'Priority support'
     ]
   }

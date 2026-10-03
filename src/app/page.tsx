@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Reveal } from '@/components/Reveal';
@@ -9,19 +8,21 @@ import { VoiceHero } from '@/components/landing/VoiceHero';
 import { LiveCallPhone } from '@/components/landing/LiveCallPhone';
 import { SetupSteps } from '@/components/landing/SetupSteps';
 import { SafetySection } from '@/components/landing/SafetySection';
+import { CompareSection } from '@/components/landing/CompareSection';
+import { PricingSection } from '@/components/landing/PricingSection';
+import { FaqSection } from '@/components/landing/FaqSection';
 import { CALL_MS, formatCallTime } from '@/components/landing/callScript';
 import { ScrollProgress } from '@/components/motion/ScrollProgress';
 import { FloatingCta } from '@/components/motion/FloatingCta';
 import { Ticker } from '@/components/motion/Ticker';
 import { WordReveal } from '@/components/motion/WordReveal';
-import styles from '@/components/landing/landing.module.css';
 import s from '@/components/landing/home.module.css';
-import { PLANS, FREE_TRIAL_DAYS } from '@/lib/plans';
+import { FREE_TRIAL_DAYS } from '@/lib/plans';
 import { PlanId } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 import {
   Check, PhoneCall, Languages,
-  ClipboardCheck, Plus, Sparkles, Minus, Heart, Reply, ExternalLink, CheckCheck, MessageCircle
+  ClipboardCheck, Heart, Reply, ExternalLink, CheckCheck, MessageCircle
 } from 'lucide-react';
 
 const LANGS = [
@@ -35,31 +36,6 @@ const LANGS = [
   { native: 'ગુજરાતી', en: 'Gujarati' },
   { native: 'English', en: 'or a mix' },
 ];
-
-type Cell = true | false | string;
-const COMPARE: { label: string; us: Cell; self: Cell; carer: Cell; app: Cell }[] = [
-  { label: 'Asks about every medicine, every day', us: true, self: 'When you remember', carer: true, app: 'If they open it' },
-  { label: 'Works on any phone, nothing to install', us: true, self: true, carer: true, app: false },
-  { label: 'In their own language', us: true, self: true, carer: 'Depends', app: false },
-  { label: 'A written record you can look back on', us: true, self: false, carer: false, app: 'Partly' },
-  { label: 'Tells you when something seems off', us: true, self: false, carer: 'Depends', app: false },
-  { label: 'Cost', us: 'Free to start', self: 'Your time, daily', carer: 'A monthly salary', app: 'Free' },
-];
-
-const FAQ = [
-  { q: 'Does my parent need a smartphone or an app?', a: 'No. Saathi calls an ordinary phone number. If it rings and they can answer it, it works, including basic keypad phones and landlines.' },
-  { q: 'Which languages does Saathi speak?', a: 'Hindi, English, Tamil, Telugu, Kannada, Bengali, Marathi, Gujarati and Malayalam. You pick the language when you add your parent, and you can change it later.' },
-  { q: 'What does Saathi actually ask?', a: 'Each call is short. Saathi asks whether they have taken the medicines due at that time, asks one gentle question about how they are feeling, and passes on any reminder you have added.' },
-  { q: 'What happens if they don’t pick up?', a: 'The call shows up as missed on your dashboard, along with the medicines that were not confirmed, so you know to check in yourself.' },
-  { q: 'Is Aaptha a medical or emergency service?', a: 'No. Aaptha is a family check-in companion. It does not replace a doctor, a caregiver or emergency services. In an emergency, call 112.' },
-  { q: 'Can I pause or cancel?', a: 'Yes. Pause calls for a trip or a hospital stay and they resume on the date you choose. Paid plans can be cancelled from your billing page at any time.' },
-];
-
-function CompareCell({ v }: { v: Cell }) {
-  if (v === true) return <Check size={18} className={s.yes} aria-label="Yes" />;
-  if (v === false) return <Minus size={18} className={s.no} aria-label="No" />;
-  return <span className={s.meh}>{v}</span>;
-}
 
 export default function LandingPage() {
   const { user } = useAuth();
@@ -188,100 +164,13 @@ export default function LandingPage() {
         <SafetySection />
 
         {/* COMPARE (the nav's "Why a phone call" lands here) */}
-        <section id="why" className={`section ${s.alt}`}>
-          <div className="wrap">
-            <Reveal className={s.head}>
-              <span className={s.pill}><Sparkles size={14} /> Compare</span>
-              <WordReveal>Same worry. <span className={s.grad}>Much less effort.</span></WordReveal>
-              <p>How a daily Saathi call compares with the usual ways families keep an eye on their parents.</p>
-            </Reveal>
-            <Reveal variant="scale">
-              <div className={s.compare}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th scope="col"><span className="sr-only">Feature</span></th>
-                      <th scope="col" className={s.us}>Aaptha</th>
-                      <th scope="col">Calling yourself</th>
-                      <th scope="col">A hired caretaker</th>
-                      <th scope="col">Reminder app</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {COMPARE.map((r) => (
-                      <tr key={r.label}>
-                        <th scope="row">{r.label}</th>
-                        <td className={s.us}><CompareCell v={r.us} /></td>
-                        <td><CompareCell v={r.self} /></td>
-                        <td><CompareCell v={r.carer} /></td>
-                        <td><CompareCell v={r.app} /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Reveal>
-          </div>
-        </section>
+        <CompareSection />
 
         {/* PRICING */}
-        <section id="plans" className="section">
-          <div className="wrap">
-            <Reveal className={s.head}>
-              <span className={s.pill}><Check size={14} /> Pricing</span>
-              <WordReveal>Simple plans. <span className={s.grad}>Cancel anytime.</span></WordReveal>
-              <p>Try it free for {FREE_TRIAL_DAYS} days, no card needed. Then pick the plan that fits your family.</p>
-            </Reveal>
-
-            <div className={styles.plans}>
-              {(['solo', 'family', 'extended'] as PlanId[]).map((id, i) => {
-                const plan = PLANS[id];
-                const featured = !!plan.popular;
-                return (
-                  <Reveal key={id} delay={i * 100} className={`${styles.plan} ${featured ? styles.featured : ''}`}>
-                    {featured && <span className={styles.planBadge}>Most popular</span>}
-                    <h3>{plan.name}</h3>
-                    <p className={styles.planTag}>{plan.tagline}</p>
-                    <div className={styles.price}>
-                      ₹{plan.priceMonthly.toLocaleString('en-IN')}
-                      <span>{plan.priceMonthly === 0 ? 'for 7 days' : '/ month'}</span>
-                    </div>
-                    <p className={styles.priceNote}>{plan.hasTrial ? `${plan.trialDays}-day free trial` : ''}</p>
-                    <ul className={styles.planFeatures}>
-                      {plan.features.map((f) => (
-                        <li key={f}><Check size={15} /> <span>{f}</span></li>
-                      ))}
-                    </ul>
-                    <Link href={getPlanLink(id)} className={`btn btn-block ${featured ? 'btn-primary' : 'btn-ghost'}`}>
-                      {plan.hasTrial ? 'Start free trial' : 'Start free'}
-                    </Link>
-                  </Reveal>
-                );
-              })}
-            </div>
-          </div>
-        </section>
+        <PricingSection planHref={getPlanLink} />
 
         {/* FAQ */}
-        <section id="faq" className={`section ${s.alt}`}>
-          <div className="wrap">
-            <Reveal className={s.head}>
-              <span className={s.pill}><Plus size={14} /> Questions</span>
-              <WordReveal>What families <span className={s.grad}>usually ask.</span></WordReveal>
-            </Reveal>
-            <Reveal className={styles.faq}>
-              {FAQ.map((item) => (
-                <details key={item.q}>
-                  <summary>
-                    {item.q}
-                    <Plus size={20} />
-                  </summary>
-                  <p>{item.a}</p>
-                </details>
-              ))}
-            </Reveal>
-          </div>
-        </section>
+        <FaqSection />
 
       </main>
 
