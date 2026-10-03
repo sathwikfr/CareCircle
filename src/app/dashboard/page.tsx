@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Navbar } from '@/components/Navbar';
 import { useAuth } from '@/context/AuthContext';
 import { Medicine, FoodRelation, ExtractedMedicineCandidate, ParentProfile } from '@/lib/types';
-import { Heart, Pause, Plus, ArrowRight, Sparkles, CheckCircle2, AlertTriangle, Info, X, Phone, Languages, CalendarClock } from 'lucide-react';
+import { Heart, Pause, Pencil, Plus, ArrowRight, Sparkles, CheckCircle2, AlertTriangle, Info, X, Phone, Languages, CalendarClock } from 'lucide-react';
 import { SAMPLE_PRESCRIPTIONS } from '@/lib/medicineExtractor';
 import { formatScheduleSummary } from '@/lib/scheduleGenerator';
 import { canAddParents, getEffectivePlan, freeTrialDaysLeft, smallestPlanFor } from '@/lib/plans';
@@ -20,7 +20,7 @@ import { CallHistoryPanel } from '@/components/dashboard/CallHistoryPanel';
 import { MedicinesPanel } from '@/components/dashboard/MedicinesPanel';
 import { AlertsPanel } from '@/components/dashboard/AlertsPanel';
 import { SettingsPanel } from '@/components/dashboard/SettingsPanel';
-import { AddMedicineModal, PauseModal, InviteModal, DeleteParentModal, UploadReportModal } from '@/components/dashboard/DashboardModals';
+import { AddMedicineModal, PauseModal, InviteModal, DeleteParentModal, UploadReportModal, EditParentModal, ParentEdits } from '@/components/dashboard/DashboardModals';
 import { WhatsAppOptInBanner } from '@/components/account/WhatsAppSettings';
 
 type TabId = 'overview' | 'trends' | 'calls' | 'medicines' | 'alerts' | 'settings';
@@ -65,6 +65,8 @@ function DashboardContent() {
 
   const [testCalling, setTestCalling] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [savingParent, setSavingParent] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Toasts dismiss themselves after a few seconds.
@@ -163,6 +165,31 @@ function DashboardContent() {
       }
     } catch {
       setToastMessage({ text: 'Error updating pause status', type: 'error' });
+    }
+  };
+
+  // Edit name / phone / language
+  const handleSaveParent = async (edits: ParentEdits) => {
+    setSavingParent(true);
+    try {
+      const res = await fetch(`/api/parents/${selectedParentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update', updates: edits })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setShowEditModal(false);
+        setToastMessage({ text: 'Details saved.', type: 'success' });
+        fetchParentDetails(selectedParentId);
+        fetchParents();
+      } else {
+        setToastMessage({ text: data.error || 'Could not save the changes', type: 'error' });
+      }
+    } catch {
+      setToastMessage({ text: 'Could not save the changes', type: 'error' });
+    } finally {
+      setSavingParent(false);
     }
   };
 
@@ -557,7 +584,9 @@ function DashboardContent() {
             </div>
           </div>
         </div>
-
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowEditModal(true)}>
+          <Pencil size={14} /> Edit details
+        </button>
       </header>
 
       {/* BANNERS */}
@@ -702,6 +731,7 @@ function DashboardContent() {
             onResume={() => handleTogglePause(false)}
             onInvite={() => setShowInviteModal(true)}
             onDelete={() => setShowDeleteModal(true)}
+            onEdit={() => setShowEditModal(true)}
           />
         )}
       </motion.div>
@@ -742,6 +772,14 @@ function DashboardContent() {
         email={caregiverEmail}
         setEmail={setCaregiverEmail}
         onSubmit={handleInviteCaregiver}
+      />
+
+      <EditParentModal
+        open={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        parent={currentParent}
+        saving={savingParent}
+        onSave={handleSaveParent}
       />
 
       <DeleteParentModal

@@ -1,10 +1,13 @@
 'use client';
 
 import React from 'react';
-import { AlertTriangle, CheckCircle2, Download, FileText, Pause, Pill, Sparkles, Trash2, UploadCloud, Users, ArrowRight } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Download, FileText, Pause, Pencil, Pill, Sparkles, Trash2, UploadCloud, Users, ArrowRight } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { SlotPicker, FoodPicker } from '@/components/onboarding/WizardUI';
-import { ExtractedMedicineCandidate, FoodRelation, Medicine, MedicineTimingSlot } from '@/lib/types';
+import { ExtractedMedicineCandidate, FoodRelation, Medicine, MedicineTimingSlot, ParentProfile } from '@/lib/types';
+import { PhoneField } from '@/components/auth/AuthUI';
+import { normalizePhone } from '@/lib/phone';
+import { PARENT_LANGUAGES } from '@/lib/parentLanguages';
 import { SAMPLE_PRESCRIPTIONS } from '@/lib/medicineExtractor';
 
 function ModalTitle({ id, icon, title, sub }: { id: string; icon: React.ReactNode; title: React.ReactNode; sub?: React.ReactNode }) {
@@ -347,5 +350,89 @@ export function UploadReportModal(p: UploadProps) {
         </>
       )}
     </Modal>
+  );
+}
+
+/* ---------------- Edit parent details ---------------- */
+
+export type ParentEdits = { name: string; phone: string; language: string };
+
+type EditParentProps = {
+  open: boolean;
+  onClose: () => void;
+  parent: ParentProfile;
+  saving: boolean;
+  onSave: (edits: ParentEdits) => void;
+};
+
+export function EditParentModal({ open, onClose, parent, saving, onSave }: EditParentProps) {
+  return (
+    <Modal open={open} onClose={onClose} labelledBy="edit-parent-title">
+      {/* Remounts on every open so the form starts from the saved details. */}
+      {open && <EditParentForm parent={parent} saving={saving} onSave={onSave} />}
+    </Modal>
+  );
+}
+
+function EditParentForm({ parent, saving, onSave }: Omit<EditParentProps, 'open' | 'onClose'>) {
+  const [name, setName] = React.useState(parent.name);
+  const [phone, setPhone] = React.useState(parent.phone.replace(/^\+91/, ''));
+  const [language, setLanguage] = React.useState(parent.language);
+  const [error, setError] = React.useState('');
+
+  const phoneResult = normalizePhone(phone);
+  const phoneChanged = phoneResult.ok && phoneResult.e164 !== parent.phone;
+  const languages = PARENT_LANGUAGES.some(l => l.value === parent.language)
+    ? PARENT_LANGUAGES
+    : [{ value: parent.language, label: parent.language }, ...PARENT_LANGUAGES];
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return setError('Please enter a name.');
+    if (!phoneResult.ok) return setError(phoneResult.reason);
+    if (!phoneResult.e164.startsWith('+91')) return setError('Saathi can only call Indian numbers (+91).');
+    setError('');
+    onSave({ name: name.trim(), phone: phoneResult.e164, language });
+  };
+
+  return (
+    <>
+      <ModalTitle
+        id="edit-parent-title"
+        icon={<Pencil size={20} />}
+        title="Edit details"
+        sub={`Fix a typo or update ${parent.name}’s number. Call times and medicines stay as they are.`}
+      />
+      <form onSubmit={submit} noValidate>
+        {error && (
+          <div className="alert-box error" role="alert">
+            <AlertTriangle size={18} />
+            <span>{error}</span>
+          </div>
+        )}
+        <div className="form-group">
+          <label className="form-label" htmlFor="edit-parent-name">What do you call them?</label>
+          <input id="edit-parent-name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="form-input" maxLength={60} required />
+        </div>
+        <div className="form-group">
+          <label className="form-label" htmlFor="edit-parent-phone">Their phone number</label>
+          <PhoneField id="edit-parent-phone" value={phone} onChange={setPhone} indiaOnly />
+          {phoneChanged && (
+            <span className="form-hint" style={{ color: 'var(--gold)' }}>
+              From the next call, Saathi will ring this new number. A test call is a quick way to check it.
+            </span>
+          )}
+        </div>
+        <div className="form-group">
+          <label className="form-label" htmlFor="edit-parent-language">Call language</label>
+          <select id="edit-parent-language" value={language} onChange={(e) => setLanguage(e.target.value)} className="form-input">
+            {languages.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+          </select>
+        </div>
+        <button type="submit" disabled={saving} className="btn btn-primary btn-block btn-lg" style={{ marginTop: '8px' }}>
+          {saving ? <><span className="spinner" /> Saving…</> : 'Save changes'}
+        </button>
+      </form>
+    </>
   );
 }

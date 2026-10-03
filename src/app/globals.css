@@ -2232,10 +2232,11 @@ a.link:hover {
   color: var(--teal);
 }
 
+/* Sits inside the card, level with the icon (on the border, the translucent dark-mode fill let the line show through). */
 .choice-card .choice-flag {
   position: absolute;
-  top: -11px;
-  right: 16px;
+  top: 22px;
+  right: 22px;
 }
 
 /* Small toggle pills (timing, food relation) */

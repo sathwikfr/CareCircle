@@ -41,6 +41,7 @@ import {
   SLOT_DISPLAY_NAMES,
   getSelectableCallTimes
 } from '@/lib/scheduleGenerator';
+import { PARENT_LANGUAGES } from '@/lib/parentLanguages';
 
 function OnboardingContent() {
   const router = useRouter();
@@ -657,16 +658,7 @@ function OnboardingContent() {
             <div className="form-group">
               <label className="form-label" htmlFor="language">Call language</label>
               <select id="language" value={language} onChange={(e) => setLanguage(e.target.value)} className="form-input">
-                <option value="Hindi & English">Hindi & English (mixed)</option>
-                <option value="Pure Hindi">Hindi</option>
-                <option value="English">English</option>
-                <option value="Tamil">Tamil</option>
-                <option value="Telugu">Telugu</option>
-                <option value="Kannada">Kannada</option>
-                <option value="Bengali">Bengali</option>
-                <option value="Marathi">Marathi</option>
-                <option value="Gujarati">Gujarati</option>
-                <option value="Malayalam">Malayalam</option>
+                {PARENT_LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
               </select>
             </div>
           </div>

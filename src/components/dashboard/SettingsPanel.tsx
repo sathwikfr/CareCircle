@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Pause, Play, Plus, Trash2, UserRound } from 'lucide-react';
+import { Pause, Pencil, Play, Plus, Trash2, UserRound } from 'lucide-react';
 import { ParentProfile, CaregiverInvite, EmergencyContact } from '@/lib/types';
 import { formatScheduleSummary } from '@/lib/scheduleGenerator';
-import { CallStats } from './helpers';
+import { CallStats, formatPhone } from './helpers';
 
 type Props = {
   parent: ParentProfile;
@@ -15,9 +15,10 @@ type Props = {
   onResume: () => void;
   onInvite: () => void;
   onDelete: () => void;
+  onEdit: () => void;
 };
 
-export function SettingsPanel({ parent, stats, caregivers, contacts, onPause, onResume, onInvite, onDelete }: Props) {
+export function SettingsPanel({ parent, stats, caregivers, contacts, onPause, onResume, onInvite, onDelete, onEdit }: Props) {
   return (
     <div style={{ display: 'grid', gap: '20px' }}>
       <section className="panel" aria-labelledby="routine-title">
@@ -26,11 +27,14 @@ export function SettingsPanel({ parent, stats, caregivers, contacts, onPause, on
             <h3 id="routine-title">Calls</h3>
             <p>How and when Saathi calls {parent.name}.</p>
           </div>
-          {parent.isPaused ? (
-            <button onClick={onResume} className="btn btn-primary btn-sm"><Play size={15} /> Resume calls</button>
-          ) : (
-            <button onClick={onPause} className="btn btn-ghost btn-sm"><Pause size={15} /> Pause calls</button>
-          )}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button onClick={onEdit} className="btn btn-ghost btn-sm"><Pencil size={14} /> Edit details</button>
+            {parent.isPaused ? (
+              <button onClick={onResume} className="btn btn-primary btn-sm"><Play size={15} /> Resume calls</button>
+            ) : (
+              <button onClick={onPause} className="btn btn-ghost btn-sm"><Pause size={15} /> Pause calls</button>
+            )}
+          </div>
         </div>
         <div className="kv">
           <div>
@@ -47,7 +51,7 @@ export function SettingsPanel({ parent, stats, caregivers, contacts, onPause, on
           </div>
           <div>
             <span>Phone</span>
-            <strong>{parent.phone}</strong>
+            <strong>{formatPhone(parent.phone)}</strong>
           </div>
         </div>
       </section>

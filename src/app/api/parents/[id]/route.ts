@@ -87,6 +87,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
         if (!phoneResult.ok) {
           return NextResponse.json({ error: phoneResult.reason }, { status: 400 });
         }
+        // Saathi only calls numbers in India.
+        if (!phoneResult.e164.startsWith('+91')) {
+          return NextResponse.json({ error: 'Saathi can only call Indian numbers (+91).' }, { status: 400 });
+        }
         allowed.phone = phoneResult.e164;
       }
       const updated = await updateParent(id, allowed);
