@@ -172,6 +172,8 @@ export interface CallLog {
   notes?: string;
   createdAt?: string;
   slot?: string;
+  /** The ScheduledCallSlot this call was for; empty for test and manual calls. */
+  slotId?: string;
   attemptNumber?: number;
   failureReason?: string;
 }

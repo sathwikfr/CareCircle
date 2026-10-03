@@ -2,10 +2,12 @@
 
 import React from 'react';
 import {
-  CheckCircle2, AlertTriangle, Clock, PhoneCall, Pause, Play, Users, Plus, Pill, ChevronRight, Smile, PhoneMissed
+  Check, CheckCircle2, AlertTriangle, Clock, PhoneCall, Pause, Play, Users, Plus, Pill, ChevronRight, Smile, PhoneMissed
 } from 'lucide-react';
 import { ParentProfile, Medicine } from '@/lib/types';
-import { CallStats, formatCallTime, formatDuration, moodLabel, foodRelationLabel, shortSlotLabel } from './helpers';
+import {
+  CallStats, formatCallTime, formatDuration, moodLabel, foodRelationLabel, shortSlotLabel, displayName, isTestCall, slotOutcome
+} from './helpers';
 
 type Props = {
   parent: ParentProfile;
@@ -23,7 +25,8 @@ type Props = {
 export function OverviewPanel({
   parent, medicines, stats, testCalling, onTestCall, onPause, onResume, onInvite, onAddMedicine, onOpenMedicines
 }: Props) {
-  const { latestToday, activeSlots, nextSlot, now } = stats;
+  const { latestToday, todayCalls, activeSlots, nextSlot, now } = stats;
+  const name = displayName(parent.name);
   const answered = latestToday?.status === 'answered';
   const tone = latestToday ? (answered && latestToday.medicationConfirmed ? 'good' : 'warn') : '';
   const activeMeds = medicines.filter(m => m.isActive);
@@ -49,16 +52,17 @@ export function OverviewPanel({
                 <div>
                   <h3>
                     {answered
-                      ? `${parent.name} picked up`
+                      ? `${name} picked up`
                       : latestToday.status === 'busy'
                         ? 'The line was busy'
                         : latestToday.status === 'failed'
                           ? 'The call couldn’t connect'
-                          : `${parent.name} didn’t pick up`}
+                          : `${name} didn’t pick up`}
                   </h3>
                   <p>
                     {formatCallTime(latestToday.createdAt || latestToday.scheduledTime)}
                     {formatDuration(latestToday.durationSeconds) && ` · ${formatDuration(latestToday.durationSeconds)}`}
+                    {isTestCall(latestToday) && <span className="badge badge-neutral">Test call</span>}
                   </p>
                 </div>
               </div>
@@ -117,18 +121,23 @@ export function OverviewPanel({
                 const isNext = !parent.isPaused && idx === nextIdx;
                 const isPast = idx < nextIdx;
                 const meds = slot.linkedMedicines?.map(m => m.name) || slot.linkedMedicineNames || [];
+                const outcome = slotOutcome(todayCalls, slot.id, isPast);
+                const state = outcome && outcome.tone !== 'muted' ? outcome.tone : isNext ? 'next' : isPast ? 'past' : '';
                 return (
-                  <li key={slot.id} className={isNext ? 'next' : isPast ? 'past' : ''}>
+                  <li key={slot.id} className={state}>
                     <time>{slot.time}</time>
-                    <span className="node" aria-hidden="true" />
+                    <span className="node" aria-hidden="true">
+                      {outcome?.tone === 'good' && <Check size={10} strokeWidth={3.5} />}
+                    </span>
                     <div>
                       <strong>
                         {shortSlotLabel(slot.label)}
-                        {isNext && <span className="badge badge-teal">Next</span>}
+                        {isNext && !outcome && <span className="badge badge-teal">Next</span>}
+                        {outcome && <span className={`slot-outcome ${outcome.tone}`}>{outcome.text}</span>}
                       </strong>
                       {meds.length > 0 ? (
                         <span className="med-chips">
-                          {meds.slice(0, 3).map((m) => <span key={m}><Pill size={11} /> {m}</span>)}
+                          {meds.slice(0, 3).map((m) => <span key={m}><Pill size={11} /> {displayName(m)}</span>)}
                           {meds.length > 3 && <span className="more">+{meds.length - 3} more</span>}
                         </span>
                       ) : (
@@ -200,14 +209,17 @@ export function OverviewPanel({
           </div>
 
           {activeMeds.length === 0 ? (
-            <p style={{ fontSize: '0.9rem', color: 'var(--ink-muted)' }}>No medicines yet. Saathi will just ask how {parent.name} is doing.</p>
+            <p style={{ fontSize: '0.9rem', color: 'var(--ink-muted)' }}>No medicines yet. Saathi will just ask how {name} is doing.</p>
           ) : (
             <div className="list" style={{ gap: '8px' }}>
               {activeMeds.slice(0, 5).map((m) => (
                 <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span className="icon-tile" style={{ width: '34px', height: '34px', borderRadius: '10px' }}><Pill size={15} /></span>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>{m.name}</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>
+                      {displayName(m.name)}
+                      {m.dosage && <span style={{ fontWeight: 400, color: 'var(--ink-subtle)' }}> · {m.dosage}</span>}
+                    </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--ink-subtle)' }}>
                       {m.timeOfDay.charAt(0).toUpperCase() + m.timeOfDay.slice(1)}{foodRelationLabel(m.foodRelation) ? ` · ${foodRelationLabel(m.foodRelation)}` : ''}
                     </div>

@@ -11,10 +11,10 @@ import { SAMPLE_PRESCRIPTIONS } from '@/lib/medicineExtractor';
 import { formatScheduleSummary } from '@/lib/scheduleGenerator';
 import { canAddParents, getEffectivePlan, freeTrialDaysLeft, smallestPlanFor } from '@/lib/plans';
 import {
-  ParentDetails, Toast, computeCallStats, formatCallTime, initial, downloadFile, safeFileName, displayName
+  ParentDetails, Toast, computeCallStats, formatCallTime, formatPhone, initial, downloadFile, safeFileName, displayName
 } from '@/components/dashboard/helpers';
 import { OverviewPanel } from '@/components/dashboard/OverviewPanel';
-import { FamilyOverview } from '@/components/dashboard/FamilyOverview';
+import { FamilyOverview, parentStatus } from '@/components/dashboard/FamilyOverview';
 import { TrendsPanel } from '@/components/dashboard/TrendsPanel';
 import { CallHistoryPanel } from '@/components/dashboard/CallHistoryPanel';
 import { MedicinesPanel } from '@/components/dashboard/MedicinesPanel';
@@ -538,15 +538,20 @@ function DashboardContent() {
           <span className="parent-avatar" aria-hidden="true">{initial(currentParent.name)}</span>
           <div style={{ minWidth: 0 }}>
             <h1 className="dash-title">
-              {currentParent.name}
+              {displayName(currentParent.name)}
               {currentParent.isPaused ? (
                 <span className="badge badge-amber"><Pause size={12} /> Paused</span>
+              ) : parentsList.length === 1 ? (
+                (() => {
+                  const st = parentStatus(currentParent, parentData ?? undefined);
+                  return <span className={`badge badge-${st.tone}`}>{st.icon} {st.text}</span>;
+                })()
               ) : (
                 <span className="badge badge-green"><span className="dot live" /> Active</span>
               )}
             </h1>
             <div className="dash-meta">
-              <span><Phone size={14} /> {currentParent.phone}</span>
+              <span><Phone size={14} /> {formatPhone(currentParent.phone)}</span>
               <span><Languages size={14} /> {currentParent.language}</span>
               <span><CalendarClock size={14} /> {activeSlots.length > 0 ? formatScheduleSummary(activeSlots) : 'No calls scheduled'}</span>
             </div>

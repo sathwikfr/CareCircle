@@ -822,6 +822,7 @@ export async function getCallLogsForParent(parentId: string): Promise<CallLog[]>
     notes: cl.notes || undefined,
     createdAt: cl.createdAt.toISOString(),
     slot: cl.slot || undefined,
+    slotId: cl.slotId || undefined,
     attemptNumber: cl.attemptNumber,
     failureReason: cl.failureReason || undefined
   }));

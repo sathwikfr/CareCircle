@@ -3,13 +3,13 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'motion/react';
-import { Users, PhoneCall, Pill, Bell, Check, PhoneMissed, Pause, Clock, AlertTriangle, Plus, ChevronRight } from 'lucide-react';
+import { PhoneCall, Pill, Bell, Check, PhoneMissed, Pause, Clock, AlertTriangle, Plus, ChevronRight } from 'lucide-react';
 import { ParentProfile } from '@/lib/types';
 import { timeToMinutes } from '@/lib/scheduleGenerator';
 import { CountUp } from '@/components/motion/CountUp';
-import { ParentDetails, computeCallStats, displayName, initial } from './helpers';
+import { ParentDetails, computeCallStats, displayName, initial, isTestCall } from './helpers';
 
-type Status = { tone: 'green' | 'amber' | 'red' | 'neutral'; text: string; icon: React.ReactNode };
+export type Status = { tone: 'green' | 'amber' | 'red' | 'neutral'; text: string; icon: React.ReactNode };
 
 const DAY = 86400000;
 
@@ -19,12 +19,17 @@ function isToday(iso?: string) {
   return !Number.isNaN(d.getTime()) && d.toDateString() === new Date().toDateString();
 }
 
-function parentStatus(parent: ParentProfile, details?: ParentDetails): Status {
+export function parentStatus(parent: ParentProfile, details?: ParentDetails): Status {
   if (parent.isPaused) return { tone: 'amber', text: 'Calls paused', icon: <Pause size={12} /> };
   const stats = computeCallStats(details?.callLogs || [], parent.callSchedule || []);
   const urgent = (details?.alerts || []).some(a => a.level >= 3 && a.status !== 'resolved' && isToday(a.createdAt || a.timestamp));
   if (urgent) return { tone: 'red', text: 'Needs a look', icon: <AlertTriangle size={12} /> };
-  const last = stats.latestToday;
+  // Latest attempt of each scheduled call today (newest first); any of them going wrong outranks a later good call.
+  const seen = new Set<string>();
+  const perSlot = stats.todayCalls
+    .filter(c => c.status !== 'scheduled' && c.status !== 'placed' && !isTestCall(c))
+    .filter(c => { const k = c.slotId || c.id; if (seen.has(k)) return false; seen.add(k); return true; });
+  const last = perSlot.find(c => !(c.status === 'answered' && c.medicationConfirmed)) ?? perSlot[0] ?? stats.latestToday;
   if (last) {
     const time = new Date(last.createdAt || last.scheduledTime).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
     if (last.status === 'answered') {
@@ -56,6 +61,8 @@ export function FamilyOverview({ userName, parents, detailsById, selectedId, onS
   const [nowMs] = useState(() => Date.now());
 
   let callsToday = 0;
+  let answeredToday = 0;
+  let missedToday = 0;
   let confirmedToday = 0;
   let needsLook = 0;
   let next: { name: string; time: string; mins: number } | null = null;
@@ -66,6 +73,8 @@ export function FamilyOverview({ userName, parents, detailsById, selectedId, onS
     const stats = computeCallStats(d?.callLogs || [], p.callSchedule || []);
     const today = stats.completedCalls.filter(c => isToday(c.createdAt || c.scheduledTime));
     callsToday += today.length;
+    answeredToday += today.filter(c => c.status === 'answered').length;
+    missedToday += today.filter(c => c.status !== 'answered').length;
     confirmedToday += today.filter(c => c.status === 'answered' && c.medicationConfirmed).length;
     needsLook += (d?.alerts || []).filter(a => a.level >= 2 && a.status !== 'resolved' && nowMs - new Date(a.createdAt || a.timestamp).getTime() < DAY).length;
     if (!p.isPaused && stats.nextSlot) {
@@ -74,54 +83,62 @@ export function FamilyOverview({ userName, parents, detailsById, selectedId, onS
     }
   }
 
-  const tiles = [
-    { icon: Users, value: parents.length, label: parents.length === 1 ? 'Parent' : 'Parents' },
-    { icon: PhoneCall, value: callsToday, label: 'Calls today' },
+  const tiles: { icon: typeof PhoneCall; value: number; of?: number; label: string; warn?: boolean }[] = [
+    { icon: PhoneCall, value: answeredToday, of: callsToday || undefined, label: 'Calls answered' },
     { icon: Pill, value: confirmedToday, label: 'Medicines confirmed' },
+    { icon: PhoneMissed, value: missedToday, label: 'Calls missed', warn: missedToday > 0 },
     { icon: Bell, value: needsLook, label: 'Needs a look', warn: needsLook > 0 },
   ];
 
+  const nextText = next ? `Next check-in: ${next.name} at ${next.time}.` : '';
+  const summary = callsToday === 0
+    ? (next ? `No calls yet today. ${nextText}` : 'No more calls today.')
+    : `${answeredToday} of ${callsToday} call${callsToday === 1 ? '' : 's'} answered today.${nextText ? ` ${nextText}` : ''}`;
+
   return (
     <section className="family" aria-label="Your family today">
-      <div className="family-hero">
-        <div className="family-hero-top">
-          <div>
-            <h1>
-              Namaste{firstName ? ` ${firstName}` : ''} <span aria-hidden="true">👋</span>
-            </h1>
-            <p>
-              <span className="dot live" />
-              {next ? `Next check-in: ${next.name} at ${next.time}` : 'Here’s how your parents are today'}
-            </p>
-          </div>
-          {canAddMore ? (
-            <Link href="/onboarding" className="btn btn-sm family-add">
-              <Plus size={15} /> Add a parent
-            </Link>
-          ) : upgradeHref ? (
-            <Link href={upgradeHref} className="btn btn-sm family-add" title="Your plan is full. Upgrade to add another parent.">
-              <Plus size={15} /> Upgrade to add a parent
-            </Link>
-          ) : null}
+      <div className="family-head">
+        <div>
+          <p className="family-date">
+            {new Date(nowMs).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
+          <h1>Namaste{firstName ? `, ${firstName}` : ''}</h1>
+          <p className="family-summary">{summary}</p>
         </div>
-
-        <div className="family-tiles">
-          {tiles.map((t, i) => (
-            <motion.div
-              key={t.label}
-              className={`family-tile${t.warn ? ' warn' : ''}`}
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.08 * i, type: 'spring', stiffness: 300, damping: 28 }}
-            >
-              <t.icon size={18} />
-              <div className="family-num"><CountUp value={t.value} /></div>
-              <span>{t.label}</span>
-            </motion.div>
-          ))}
-        </div>
+        {canAddMore ? (
+          <Link href="/onboarding" className="btn btn-ghost btn-sm">
+            <Plus size={15} /> Add a parent
+          </Link>
+        ) : upgradeHref ? (
+          <Link href={upgradeHref} className="btn btn-ghost btn-sm" title="Your plan is full. Upgrade to add another parent.">
+            <Plus size={15} /> Upgrade to add a parent
+          </Link>
+        ) : null}
       </div>
 
+      <div className="family-stats">
+        {tiles.map((t, i) => (
+          <motion.div
+            key={t.label}
+            className={`family-stat${t.warn ? ' warn' : ''}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.06 * i, type: 'spring', stiffness: 300, damping: 30 }}
+          >
+            <span className={`icon-tile${t.warn ? ' gold' : ''}`}><t.icon size={17} /></span>
+            <div>
+              <b>
+                <CountUp value={t.value} />
+                {t.of !== undefined && <small> / {t.of}</small>}
+              </b>
+              <span>{t.label}</span>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* One parent: their status sits in the detail header below, so the picker would only repeat it. */}
+      {parents.length > 1 && <>
       <div className="family-list-head">
         <h2>Your parents</h2>
         <span>Tap a parent to see their day</span>
@@ -152,6 +169,7 @@ export function FamilyOverview({ userName, parents, detailsById, selectedId, onS
           );
         })}
       </div>
+      </>}
     </section>
   );
 }

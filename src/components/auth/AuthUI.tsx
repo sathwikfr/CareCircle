@@ -2,10 +2,13 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Check, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Check, CheckCheck, Eye, EyeOff, MessageCircle } from 'lucide-react';
 import { Brand } from '@/components/Navbar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { PHONE_COUNTRIES } from '@/lib/phone';
+
+/** No SMS provider yet: phone OTP only works under `next dev` (the API answers 503 elsewhere), so the tab is hidden there. */
+export const phoneOtpAvailable = process.env.NODE_ENV === 'development';
 
 type AuthShellProps = {
   children: React.ReactNode;
@@ -27,7 +30,7 @@ export function AuthShell({ children, asideTitle, asidePoints = DEFAULT_POINTS }
       <main id="main" className="auth-main">
         <div className="auth-top">
           <Brand />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div className="auth-top-actions">
             <ThemeToggle />
             <Link href="/" className="btn btn-quiet btn-sm">
               <ArrowLeft size={15} /> Home
@@ -39,11 +42,11 @@ export function AuthShell({ children, asideTitle, asidePoints = DEFAULT_POINTS }
 
       <aside className="auth-aside" aria-hidden="true">
         <div>
-          <span className="eyebrow" style={{ color: '#7dd3fc' }}>Aaptha</span>
+          <span className="eyebrow auth-aside-eyebrow">Aaptha</span>
           <h2>{asideTitle ?? <>Stay close to your parents, <em>even from far away.</em></>}</h2>
         </div>
 
-        <ExampleCallCard />
+        <ExampleMorning />
 
         <ul className="auth-points">
           {asidePoints.map((p) => (
@@ -55,43 +58,35 @@ export function AuthShell({ children, asideTitle, asidePoints = DEFAULT_POINTS }
   );
 }
 
-function ExampleCallCard() {
+/** An example morning: Saathi's call, then the family's WhatsApp update (wording follows the real template). */
+function ExampleMorning() {
   return (
-    <div
-      style={{
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: 'var(--r-lg)',
-        padding: '20px',
-        maxWidth: '400px',
-        backdropFilter: 'blur(6px)'
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span
-            style={{
-              width: '36px', height: '36px', borderRadius: '50%',
-              background: 'linear-gradient(145deg, #60a5fa, #1d4ed8)', color: '#fff',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: 'var(--font-serif)', fontWeight: 600
-            }}
-          >
-            A
-          </span>
-          <div>
-            <div style={{ color: '#fff', fontWeight: 600, fontSize: '0.92rem' }}>Amma · Morning check-in</div>
-            <div style={{ fontSize: '0.76rem', color: 'rgba(255,255,255,0.55)' }}>Example · 8:30 AM · Telugu</div>
+    <ol className="auth-day">
+      <li>
+        <span className="auth-day-time">8:30 AM</span>
+        <div className="auth-day-card">
+          <div className="auth-day-head">
+            <span className="auth-day-avatar">A</span>
+            <div>
+              <div className="auth-day-name">Saathi calls Amma</div>
+              <div className="auth-day-meta">Morning check-in · Telugu · 2 min</div>
+            </div>
+            <span className="auth-day-badge">Taken</span>
           </div>
+          <p className="auth-day-quote">“Took my BP tablet after breakfast. Feeling well, went for a short walk.”</p>
         </div>
-        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#86d9a8', background: 'rgba(134,217,168,0.12)', padding: '4px 10px', borderRadius: '999px' }}>
-          Taken
-        </span>
-      </div>
-      <p style={{ fontSize: '0.9rem', lineHeight: 1.55, color: 'rgba(255,255,255,0.85)', fontStyle: 'italic', fontFamily: 'var(--font-serif)' }}>
-        “Took my BP tablet after breakfast. Feeling well, went for a short walk.”
-      </p>
-    </div>
+      </li>
+      <li>
+        <span className="auth-day-time">8:33 AM</span>
+        <div className="auth-day-card">
+          <div className="auth-day-label"><MessageCircle size={14} /> Update on your WhatsApp</div>
+          <p className="auth-day-wa">
+            Your scheduled check-in call with Amma has ended. Result: BP tablet taken. She sounded well.
+            <span className="auth-day-ticks"><CheckCheck size={14} /> 8:33</span>
+          </p>
+        </div>
+      </li>
+    </ol>
   );
 }
 

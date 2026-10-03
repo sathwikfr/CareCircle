@@ -3,7 +3,7 @@
 import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { AuthShell, Modal, PasswordField, PhoneField } from '@/components/auth/AuthUI';
+import { AuthShell, Modal, PasswordField, PhoneField, phoneOtpAvailable } from '@/components/auth/AuthUI';
 import { useAuth } from '@/context/AuthContext';
 import { GoogleSignInButton, isGoogleSignInEnabled } from '@/components/GoogleSignInButton';
 import { safeRedirectPath } from '@/lib/redirect';
@@ -254,14 +254,16 @@ function LoginContent() {
         </>
       )}
 
-      <div className="segmented" role="group" aria-label="Login method" style={{ marginBottom: '24px' }}>
-        <button type="button" aria-pressed={activeTab === 'password'} onClick={() => switchTab('password')}>
-          <KeyRound size={15} /> Password
-        </button>
-        <button type="button" aria-pressed={activeTab === 'otp'} onClick={() => switchTab('otp')}>
-          <Phone size={15} /> Phone OTP
-        </button>
-      </div>
+      {phoneOtpAvailable && (
+        <div className="segmented" role="group" aria-label="Login method" style={{ marginBottom: '24px' }}>
+          <button type="button" aria-pressed={activeTab === 'password'} onClick={() => switchTab('password')}>
+            <KeyRound size={15} /> Password
+          </button>
+          <button type="button" aria-pressed={activeTab === 'otp'} onClick={() => switchTab('otp')}>
+            <Phone size={15} /> Phone OTP
+          </button>
+        </div>
+      )}
 
       {accountNotFound && (
         <div className="notice amber" role="alert">

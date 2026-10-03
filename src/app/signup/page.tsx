@@ -3,13 +3,13 @@
 import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { AuthShell, PasswordField, PhoneField, StrengthMeter } from '@/components/auth/AuthUI';
+import { AuthShell, PasswordField, PhoneField, StrengthMeter, phoneOtpAvailable } from '@/components/auth/AuthUI';
 import { useAuth } from '@/context/AuthContext';
 import { GoogleSignInButton, isGoogleSignInEnabled } from '@/components/GoogleSignInButton';
 import { getPlan } from '@/lib/plans';
 import { normalizePhone } from '@/lib/phone';
 import { PlanId } from '@/lib/types';
-import { AlertCircle, ArrowRight, CheckCircle2, Phone, Mail, UserCheck, MessageSquareCode } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, Phone, Mail, UserCheck, MessageSquareCode, Sparkles } from 'lucide-react';
 
 function SignUpContent() {
   const router = useRouter();
@@ -221,32 +221,21 @@ function SignUpContent() {
 
   return (
     <>
-      <p style={{ fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-subtle)', marginBottom: '10px' }}>
-        Step 1 of 4 · Your account
-      </p>
+      <div className="auth-steps">
+        <div className="auth-steps-bar" aria-hidden="true">
+          <i className="on" /><i /><i /><i />
+        </div>
+        <p className="auth-steps-label">Step 1 of 4 · Your account</p>
+      </div>
       <h1 className="auth-title">Create your account</h1>
       <p className="auth-sub">It takes a couple of minutes. Next, you&apos;ll add your parent.</p>
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          padding: '14px 16px',
-          marginBottom: '24px',
-          background: 'var(--panel-elevated)',
-          border: '1px solid var(--line-subtle)',
-          borderRadius: 'var(--r-md)',
-          boxShadow: 'var(--shadow-xs)'
-        }}
-      >
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: '0.94rem' }}>{selectedPlan.name}</div>
-          <div style={{ fontSize: '0.82rem', color: 'var(--ink-muted)' }}>
-            {selectedPlan.priceMonthly > 0
-              ? `${selectedPlan.trialDays}-day free trial, then ₹${selectedPlan.priceMonthly}/month`
-              : 'Free for 7 days · 1 parent'}
+      <div className="auth-plan">
+        <span className="auth-plan-icon" aria-hidden="true"><Sparkles size={18} /></span>
+        <div className="auth-plan-text">
+          <div className="auth-plan-name">{selectedPlan.name}</div>
+          <div className="auth-plan-price">
+            {selectedPlan.trialDays}-day free trial, then ₹{selectedPlan.priceMonthly.toLocaleString('en-IN')}/month
           </div>
         </div>
         <Link href="/#plans" className="btn btn-ghost btn-sm">Change</Link>
@@ -259,14 +248,16 @@ function SignUpContent() {
         </>
       )}
 
-      <div className="segmented" role="group" aria-label="Sign-up method" style={{ marginBottom: '24px' }}>
-        <button type="button" aria-pressed={signupMode === 'standard'} onClick={() => switchMode('standard')}>
-          <Mail size={15} /> Email
-        </button>
-        <button type="button" aria-pressed={signupMode === 'otp'} onClick={() => switchMode('otp')}>
-          <Phone size={15} /> Mobile OTP
-        </button>
-      </div>
+      {phoneOtpAvailable && (
+        <div className="segmented" role="group" aria-label="Sign-up method" style={{ marginBottom: '24px' }}>
+          <button type="button" aria-pressed={signupMode === 'standard'} onClick={() => switchMode('standard')}>
+            <Mail size={15} /> Email
+          </button>
+          <button type="button" aria-pressed={signupMode === 'otp'} onClick={() => switchMode('otp')}>
+            <Phone size={15} /> Mobile OTP
+          </button>
+        </div>
+      )}
 
       {accountExists && (
         <div className="notice blue" role="alert">
@@ -432,8 +423,8 @@ function SignUpContent() {
         </div>
       )}
 
-      <p style={{ fontSize: '0.8rem', color: 'var(--ink-subtle)', marginTop: '18px', textAlign: 'center', lineHeight: 1.5 }}>
-        By continuing you agree to Aaptha&apos;s terms of service and privacy policy.
+      <p className="auth-legal">
+        By continuing you agree to Aaptha&apos;s <Link href="/terms">Terms</Link> and <Link href="/privacy">Privacy Policy</Link>.
       </p>
 
       <p className="auth-foot" style={{ marginTop: '16px' }}>

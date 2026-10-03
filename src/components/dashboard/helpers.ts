@@ -69,6 +69,32 @@ export function shortSlotLabel(label?: string) {
   return (label || 'Check-in call').split(/\s+[—–-]\s+/)[0].trim();
 }
 
+/** "+918309426043" -> "+91 83094 26043"; other numbers are left as stored. */
+export function formatPhone(phone?: string) {
+  const m = /^\+91(\d{5})(\d{5})$/.exec(phone || '');
+  return m ? `+91 ${m[1]} ${m[2]}` : phone || '';
+}
+
+/** Owner-requested calls (not part of the daily schedule). */
+export function isTestCall(c: CallLog) {
+  return c.slot === 'test' || c.slot === 'manual';
+}
+
+export type SlotOutcome = { tone: 'good' | 'warn' | 'live' | 'muted'; text: string };
+
+/** What happened today at one scheduled call time, from that slot's latest call log (retries included). */
+export function slotOutcome(calls: CallLog[], slotId: string, isPast: boolean): SlotOutcome | null {
+  const c = calls.find(l => l.slotId === slotId);
+  if (!c) return isPast ? { tone: 'muted', text: 'No call' } : null;
+  if (c.status === 'scheduled' || c.status === 'placed') return { tone: 'live', text: 'Calling…' };
+  if (c.status === 'answered') {
+    return c.medicationConfirmed ? { tone: 'good', text: 'Taken' } : { tone: 'warn', text: 'Not confirmed' };
+  }
+  if (c.status === 'busy') return { tone: 'warn', text: 'Line busy' };
+  if (c.status === 'failed') return { tone: 'warn', text: 'Couldn’t connect' };
+  return { tone: 'warn', text: 'No answer' };
+}
+
 export function initial(name?: string) {
   return (name || '?').trim().charAt(0).toUpperCase() || '?';
 }
@@ -85,6 +111,8 @@ export type DayBar = { day: string; total: number; pct: number; mood?: string; c
 export type CallStats = {
   now: Date;
   completedCalls: CallLog[];
+  /** Every call log from today, newest first, including ones still in progress. */
+  todayCalls: CallLog[];
   latestToday?: CallLog;
   activeSlots: ScheduledCallSlot[];
   nextSlot?: ScheduledCallSlot;
@@ -104,6 +132,7 @@ export function computeCallStats(callLogs: CallLog[], schedule: ScheduledCallSlo
   // Calls still being placed / waiting for a result are not outcomes yet.
   const completedCalls = callLogs.filter(c => c.status !== 'scheduled' && c.status !== 'placed');
   const latestToday = completedCalls.find(c => sameDay(callDate(c), now));
+  const todayCalls = callLogs.filter(c => sameDay(callDate(c), now));
   const activeSlots = [...schedule]
     .filter(s => s.isActive)
     .sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
@@ -145,6 +174,7 @@ export function computeCallStats(callLogs: CallLog[], schedule: ScheduledCallSlo
   return {
     now,
     completedCalls,
+    todayCalls,
     latestToday,
     activeSlots,
     nextSlot,
