@@ -79,7 +79,7 @@ function detailRows(rows: Array<[string, string]>): string {
 
 /**
  * Base email layout matching Aaptha visual style:
- * Cream/Paper background (#f7f3ec), Deep Teal (#2f4a45) branding, Gold (#c98a3a) accents.
+ * Cream/Paper background (#f7f3ec), Ocean blue (#006baa) branding, Gold (#c98a3a) accents.
  */
 function renderAapthaTemplate({
   title,
@@ -128,7 +128,7 @@ function renderAapthaTemplate({
       box-shadow: 0 4px 20px rgba(43, 38, 33, 0.05);
     }
     .header {
-      background: linear-gradient(135deg, #243b37 0%, #2f4a45 100%);
+      background: linear-gradient(135deg, #002038 0%, #006baa 100%);
       padding: 32px 32px 28px;
       text-align: center;
     }
@@ -144,7 +144,7 @@ function renderAapthaTemplate({
       color: #c98a3a;
     }
     .tagline {
-      color: #d1dfdc;
+      color: #c4e7fe;
       font-size: 13px;
       margin-top: 4px;
     }
@@ -160,8 +160,8 @@ function renderAapthaTemplate({
       border-radius: 20px;
       font-size: 12px;
       font-weight: 600;
-      background-color: #eaf1ef;
-      color: #2f4a45;
+      background-color: #e4f5ff;
+      color: #006baa;
       margin-bottom: 16px;
     }
     .title {
@@ -179,7 +179,7 @@ function renderAapthaTemplate({
     .btn {
       display: inline-block;
       padding: 14px 28px;
-      background-color: #2f4a45;
+      background-color: #006baa;
       color: #ffffff !important;
       text-decoration: none;
       font-weight: 600;
@@ -229,7 +229,7 @@ function renderAapthaTemplate({
           </div>
           <p style="font-size: 12px; color: #7a7267; word-break: break-all; margin-top: 12px;">
             If the button above does not work, copy and paste this link into your browser:<br />
-            <a href="${ctaUrl}" style="color: #2f4a45;">${ctaUrl}</a>
+            <a href="${ctaUrl}" style="color: #006baa;">${ctaUrl}</a>
           </p>
           `
               : ''
@@ -449,8 +449,8 @@ export async function sendOtpEmail({
   const contentHtml = `
     <p>Hi ${recipientName},</p>
     <p>Here is your one-time verification code to sign in to Aaptha:</p>
-    <div style="background-color: #f7f3ec; border: 2px dashed #2f4a45; border-radius: 12px; padding: 18px; text-align: center; margin: 24px 0;">
-      <span style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #2f4a45; font-family: monospace;">${code}</span>
+    <div style="background-color: #f7f3ec; border: 2px dashed #006baa; border-radius: 12px; padding: 18px; text-align: center; margin: 24px 0;">
+      <span style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #006baa; font-family: monospace;">${code}</span>
     </div>
     <p style="font-size: 13px; color: #7a7267;">This code is valid for <strong>${expiresInMinutes} minutes</strong>. Do not share this code with anyone.</p>
   `;
@@ -510,7 +510,7 @@ export async function sendPaymentReceiptEmail({
         </tr>
         <tr>
           <td style="padding: 6px 0; color: #7a7267;">Amount Paid:</td>
-          <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #2f4a45;">₹${amount}</td>
+          <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #006baa;">₹${amount}</td>
         </tr>
         <tr>
           <td style="padding: 6px 0; color: #7a7267;">Payment Method:</td>

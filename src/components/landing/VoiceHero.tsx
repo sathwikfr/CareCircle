@@ -317,7 +317,7 @@ export function VoiceHero({ primaryHref, primaryLabel, trialDays }: { primaryHre
           </div>
 
           <div className={`${s.ctas} anim-load d4`}>
-            <Link href={primaryHref} className={s.btnSolid}>{primaryLabel} <ArrowRight size={18} /></Link>
+            <Link href={primaryHref} className={`${s.btnSolid} btn-glow`}>{primaryLabel} <ArrowRight size={18} /></Link>
             <Link href="#how" className={s.btnGhost}>See how it works</Link>
           </div>
         </div>

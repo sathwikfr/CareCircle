@@ -1,6 +1,6 @@
 /* ==========================================================================
    Aaptha design system
-   Warm and human: ivory paper, deep peacock-teal brand, marigold accent.
+   Warm and human: ivory paper, ocean-blue brand, marigold accent.
    Headings in Bricolage Grotesque, body in Figtree (next/font, layout.tsx).
    Token names (--teal, --gold, --font-serif) are legacy; the values are what count.
    ========================================================================== */
@@ -21,14 +21,18 @@
   --panel-sunken: #e9e2d6;
   --header-bg: rgba(248, 245, 239, 0.84);
 
-  /* Brand: peacock teal */
-  --teal: #0d6b63;
-  --teal-hover: #0a5952;
-  --teal-deep: #0e2f2b;
-  --teal-text: #0c3f3a;
-  --teal-light: #e2f0ec;
-  --teal-soft: rgba(13, 107, 99, 0.08);
-  --teal-glow: rgba(13, 107, 99, 0.26);
+  /* Brand: ocean blue (was peacock teal until 2026-10-03; token names kept).
+     --teal is for text, borders and icons; --teal-fill is for solid backgrounds
+     with --on-teal text (in dark mode the two differ). */
+  --teal: #006baa;
+  --teal-hover: #005187;
+  --teal-fill: #006baa;
+  --teal-fill-hover: #005187;
+  --teal-deep: #002038;
+  --teal-text: #003860;
+  --teal-light: #e4f5ff;
+  --teal-soft: rgba(0, 107, 170, 0.08);
+  --teal-glow: rgba(0, 107, 170, 0.26);
   --on-teal: #ffffff;
 
   /* Accent: marigold. --gold is text-safe; --marigold is for fills and decoration. */
@@ -40,8 +44,8 @@
   --on-marigold: #2a1a05;
 
   /* Dark band (landing sections, auth aside) */
-  --band: #0e2f2b;
-  --band-2: #0a2421;
+  --band: #011a2e;
+  --band-2: #010d16;
   --on-band: #f4efe6;
   --on-band-muted: rgba(244, 239, 230, 0.72);
   --band-line: rgba(244, 239, 230, 0.14);
@@ -102,7 +106,7 @@
   --shadow-xs: 0 1px 2px rgba(41, 30, 15, 0.05);
   --shadow-sm: 0 1px 2px rgba(41, 30, 15, 0.04), 0 4px 12px -4px rgba(41, 30, 15, 0.08);
   --shadow-md: 0 2px 4px rgba(41, 30, 15, 0.04), 0 18px 36px -14px rgba(41, 30, 15, 0.16);
-  --shadow-lg: 0 4px 8px rgba(41, 30, 15, 0.04), 0 40px 72px -28px rgba(14, 47, 43, 0.32);
+  --shadow-lg: 0 4px 8px rgba(41, 30, 15, 0.04), 0 40px 72px -28px rgba(0, 32, 56, 0.32);
   --card-shadow: var(--shadow-xs);
   --card-hover-shadow: var(--shadow-md);
 
@@ -125,21 +129,23 @@
   --panel-elevated: #221f1b;
   --panel-sunken: #0d0c0a;
   --header-bg: rgba(19, 18, 15, 0.82);
-  --teal: #5cc2b5;
-  --teal-hover: #84d4ca;
-  --teal-deep: #0b201e;
-  --teal-text: #cdeee8;
-  --teal-light: rgba(92, 194, 181, 0.14);
-  --teal-soft: rgba(92, 194, 181, 0.10);
-  --teal-glow: rgba(92, 194, 181, 0.24);
-  --on-teal: #07211e;
+  --teal: #8ccdf7;
+  --teal-hover: #c4e7fe;
+  --teal-fill: #006baa;
+  --teal-fill-hover: #0074b8;
+  --teal-deep: #00182b;
+  --teal-text: #c4e7fe;
+  --teal-light: rgba(71, 172, 229, 0.14);
+  --teal-soft: rgba(71, 172, 229, 0.10);
+  --teal-glow: rgba(71, 172, 229, 0.24);
+  --on-teal: #ffffff;
   --gold: #f2a94e;
   --gold-hover: #f7c27e;
   --gold-soft: rgba(242, 169, 78, 0.12);
   --gold-border: rgba(242, 169, 78, 0.3);
   --marigold: #f2a94e;
-  --band: #0f2724;
-  --band-2: #0a1c1a;
+  --band: #00182b;
+  --band-2: #010d16;
   --line: #322e28;
   --line-subtle: #27241f;
   --line-strong: #443f37;
@@ -251,7 +257,7 @@ button, input, select, textarea {
   left: 16px;
   top: -48px;
   z-index: 300;
-  background: var(--teal);
+  background: var(--teal-fill);
   color: var(--on-teal);
   padding: 10px 16px;
   border-radius: var(--r-sm);
@@ -417,15 +423,73 @@ button, input, select, textarea {
 }
 
 .btn-primary {
-  background: var(--teal);
+  background: var(--teal-fill);
   color: var(--on-teal);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset, 0 6px 16px -8px var(--teal-glow);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--teal-hover);
+  background: var(--teal-fill-hover);
   transform: translateY(-1px);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 12px 26px -8px var(--teal-glow);
+}
+
+/* Animated gradient CTA (after codefronts.com "CSS Gradient CTA Button", MIT):
+   a slowly turning violet/blue/pink face with a soft bloom underneath.
+   Only for the one main call to action on a view. */
+@property --glow-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 135deg;
+}
+
+.btn-glow {
+  position: relative;
+  isolation: isolate;
+  border: 0;
+  color: #ffffff;
+  --glow-1: var(--teal-fill);
+  --glow-2: #2563eb;
+  --glow-3: #db2777;
+  background: var(--teal-fill);
+  text-shadow: 0 1px 2px rgba(0, 32, 56, 0.35);
+}
+
+.btn-glow::before,
+.btn-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: conic-gradient(from var(--glow-angle), var(--glow-1), var(--glow-2), var(--glow-3), var(--glow-1));
+  animation: glowSpin 4.5s linear infinite;
+}
+
+.btn-glow::after {
+  inset: 3px;
+  filter: blur(18px);
+  opacity: 0.45;
+  transition: opacity 0.35s ease;
+}
+
+.btn-glow:hover {
+  transform: translateY(-2px);
+}
+
+.btn-glow:hover::after {
+  opacity: 0.8;
+}
+
+@keyframes glowSpin {
+  to { --glow-angle: 495deg; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-glow::before,
+  .btn-glow::after {
+    animation: none;
+  }
 }
 
 .btn-gold {
@@ -622,7 +686,7 @@ textarea.form-input {
 }
 
 .checkbox-custom.checked {
-  background: var(--teal);
+  background: var(--teal-fill);
   border-color: var(--teal);
   color: var(--on-teal);
 }
@@ -729,7 +793,7 @@ textarea.form-input {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--teal);
+  background: var(--teal-fill);
   flex-shrink: 0;
 }
 
@@ -834,7 +898,7 @@ textarea.form-input {
 
 .step-node.active .step-circle {
   border-color: var(--teal);
-  background: var(--teal);
+  background: var(--teal-fill);
   color: var(--on-teal);
   box-shadow: 0 0 0 4px var(--teal-soft);
 }
@@ -939,7 +1003,7 @@ header.app-header.scrolled {
   width: 30px;
   height: 30px;
   border-radius: 10px;
-  background: linear-gradient(145deg, #178074, #0b4a44);
+  background: linear-gradient(145deg, #0a7cc4, #003860);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1098,7 +1162,7 @@ header.app-header.scrolled {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(145deg, #178074, #0b4a44);
+  background: linear-gradient(145deg, #0a7cc4, #003860);
   color: #fff;
   display: inline-flex;
   align-items: center;
@@ -1226,9 +1290,9 @@ header.app-header.scrolled {
 }
 
 @keyframes pulse {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(13, 107, 99, 0.4); }
-  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(13, 107, 99, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(13, 107, 99, 0); }
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 107, 170, 0.4); }
+  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(0, 107, 170, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 107, 170, 0); }
 }
 
 @keyframes shimmer {
@@ -1399,7 +1463,7 @@ header.app-header.scrolled {
   inset: auto auto -25% -20%;
   width: 520px;
   height: 520px;
-  background: radial-gradient(closest-side, rgba(92, 194, 181, 0.2), transparent 70%);
+  background: radial-gradient(closest-side, rgba(71, 172, 229, 0.2), transparent 70%);
   z-index: -1;
 }
 
@@ -1788,7 +1852,7 @@ a.link:hover {
 }
 
 .wizard-step.current b {
-  background: var(--teal);
+  background: var(--teal-fill);
   border-color: var(--teal);
   color: var(--on-teal);
 }
@@ -1952,7 +2016,7 @@ a.link:hover {
 
 .pill-toggle[aria-pressed="true"],
 .pill-toggle[aria-checked="true"] {
-  background: var(--teal);
+  background: var(--teal-fill);
   border-color: var(--teal);
   color: var(--on-teal);
 }
@@ -2190,7 +2254,7 @@ a.link:hover {
   width: 56px;
   height: 56px;
   border-radius: 18px;
-  background: linear-gradient(145deg, #1a8a7f, #0b4f48);
+  background: linear-gradient(145deg, #0a7cc4, #003860);
   color: #fff;
   display: flex;
   align-items: center;
@@ -2199,7 +2263,7 @@ a.link:hover {
   font-size: 1.5rem;
   font-weight: 600;
   flex-shrink: 0;
-  box-shadow: 0 8px 20px -8px rgba(13, 107, 99, 0.5);
+  box-shadow: 0 8px 20px -8px rgba(0, 107, 170, 0.5);
 }
 
 .parent-avatar.sm {
@@ -2295,7 +2359,7 @@ a.link:hover {
   bottom: -1px;
   height: 2px;
   border-radius: 2px;
-  background: var(--teal);
+  background: var(--teal-fill);
 }
 
 .tab .count {
@@ -2378,7 +2442,7 @@ a.link:hover {
   inset: -40% -20% auto auto;
   width: 360px;
   height: 360px;
-  background: radial-gradient(closest-side, var(--today-glow, rgba(13, 107, 99, 0.08)), transparent 70%);
+  background: radial-gradient(closest-side, var(--today-glow, rgba(0, 107, 170, 0.08)), transparent 70%);
   z-index: -1;
 }
 
@@ -2512,7 +2576,7 @@ a.link:hover {
 
 .timeline li.next .node {
   border-color: var(--teal);
-  background: var(--teal);
+  background: var(--teal-fill);
   box-shadow: 0 0 0 4px var(--teal-soft);
 }
 
@@ -2630,7 +2694,7 @@ a.link:hover {
   display: block;
   height: 100%;
   border-radius: 6px;
-  background: var(--teal);
+  background: var(--teal-fill);
   transition: width 700ms var(--ease-out);
 }
 
@@ -2658,7 +2722,7 @@ a.link:hover {
   width: 100%;
   max-width: 44px;
   border-radius: 8px 8px 3px 3px;
-  background: var(--teal);
+  background: var(--teal-fill);
   transition: height 600ms var(--ease-out);
   min-height: 4px;
 }
@@ -2933,7 +2997,7 @@ a.link:hover {
 
 .toast.success svg { color: #7fd3a2; }
 .toast.error svg { color: #f3a097; }
-.toast.info svg { color: #8fd6cc; }
+.toast.info svg { color: #8ccdf7; }
 
 .toast button {
   margin-left: auto;
@@ -3275,7 +3339,7 @@ a.link:hover {
 }
 
 .switch[aria-checked="true"] {
-  background: var(--teal);
+  background: var(--teal-fill);
 }
 
 .switch[aria-checked="true"]::after {
@@ -3551,7 +3615,7 @@ table.data tr:hover td {
   gap: 4px;
   padding: 6px 6px 6px 8px;
   border-radius: var(--r-full);
-  background: var(--teal);
+  background: var(--teal-fill);
   color: var(--on-teal);
   box-shadow: var(--shadow-lg);
   transform: translateY(24px) scale(0.96);
@@ -3741,7 +3805,7 @@ svg .steam + .steam {
   bottom: -1px;
   height: 2px;
   border-radius: 2px;
-  background: var(--teal);
+  background: var(--teal-fill);
 }
 
 /* ==========================================================================
@@ -3760,7 +3824,7 @@ svg .steam + .steam {
   border-radius: 24px;
   background: linear-gradient(150deg, var(--band) 0%, var(--band-2) 100%);
   color: #fff;
-  box-shadow: 0 30px 60px -30px rgba(14, 47, 43, 0.55);
+  box-shadow: 0 30px 60px -30px rgba(0, 32, 56, 0.55);
 }
 
 .family-hero::before {
@@ -3779,7 +3843,7 @@ svg .steam + .steam {
   inset: auto auto -60% -10%;
   width: 380px;
   height: 380px;
-  background: radial-gradient(closest-side, rgba(92, 194, 181, 0.3), transparent 70%);
+  background: radial-gradient(closest-side, rgba(71, 172, 229, 0.3), transparent 70%);
   z-index: -1;
 }
 

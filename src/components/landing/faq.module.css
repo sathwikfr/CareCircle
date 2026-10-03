@@ -141,7 +141,7 @@
 
 .item[open] .toggle {
   transform: rotate(45deg);
-  background: var(--teal);
+  background: var(--teal-fill);
   color: var(--on-teal);
 }
 

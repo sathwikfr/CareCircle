@@ -24,7 +24,7 @@
   inset: auto auto -30% -15%;
   width: 640px;
   height: 640px;
-  background: radial-gradient(closest-side, rgba(13, 107, 99, 0.10), transparent 70%);
+  background: radial-gradient(closest-side, rgba(0, 107, 170, 0.10), transparent 70%);
   z-index: -1;
   pointer-events: none;
 }
@@ -132,7 +132,7 @@
 
 .compareHead > div:last-child {
   color: var(--on-teal);
-  background: var(--teal);
+  background: var(--teal-fill);
 }
 
 .compareRow > div {
@@ -274,7 +274,7 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: var(--teal);
+  background: var(--teal-fill);
   color: var(--on-teal);
   display: flex;
   align-items: center;
@@ -344,7 +344,7 @@
 }
 
 .day.today {
-  background: var(--teal);
+  background: var(--teal-fill);
   border-color: var(--teal);
   color: var(--on-teal);
 }
@@ -519,7 +519,7 @@
   inset: auto -10% -60% auto;
   width: 520px;
   height: 520px;
-  background: radial-gradient(closest-side, rgba(13, 107, 99, 0.12), transparent 70%);
+  background: radial-gradient(closest-side, rgba(0, 107, 170, 0.12), transparent 70%);
   z-index: -1;
 }
 

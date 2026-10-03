@@ -68,7 +68,7 @@ function SuccessContent() {
       </div>
 
       <section className="panel" style={{ background: 'linear-gradient(160deg, var(--teal-light), var(--panel-elevated) 65%)', borderColor: 'var(--teal-soft)', textAlign: 'center', padding: '32px 24px' }}>
-        <span className="icon-tile" style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'var(--teal)', color: 'var(--on-teal)', marginBottom: '14px' }}>
+        <span className="icon-tile" style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'var(--teal-fill)', color: 'var(--on-teal)', marginBottom: '14px' }}>
           <UserPlus size={24} />
         </span>
         {roomForMore ? (

@@ -40,8 +40,7 @@
   --chip-on-bg: #ffffff;
   --chip-on-ink: #151413;
   --chip-on-shadow: 0 1px 3px rgba(21, 20, 19, 0.12);
-  --solid-bg: #151413;
-  --solid-ink: #f8f5ef;
+  --solid-ink: #ffffff;
   --ghost-edge: rgba(21, 20, 19, 0.55);
   --ghost-hover: rgba(21, 20, 19, 0.05);
   --who-saathi: #0a6fc2;              /* cyan-blue, like the orb when Saathi speaks */
@@ -81,8 +80,6 @@
   --chip-on-bg: rgba(244, 239, 230, 0.14);
   --chip-on-ink: #f4efe6;
   --chip-on-shadow: none;
-  --solid-bg: #f4efe6;
-  --solid-ink: #0b0c10;
   --ghost-edge: rgba(244, 239, 230, 0.4);
   --ghost-hover: rgba(244, 239, 230, 0.08);
   --who-saathi: #7fd6ff;
@@ -204,7 +201,6 @@
 }
 
 .btnSolid {
-  background: var(--solid-bg);
   color: var(--solid-ink);
 }
 

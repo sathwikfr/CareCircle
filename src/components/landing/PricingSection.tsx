@@ -72,7 +72,7 @@ export function PricingSection({ planHref }: { planHref: (id: PlanId) => string 
                   ))}
                 </ul>
 
-                <Link href={planHref(id)} className={`btn btn-block ${featured ? 'btn-primary' : 'btn-ghost'} ${x.cta}`}>
+                <Link href={planHref(id)} className={`btn btn-block ${featured ? 'btn-primary btn-glow' : 'btn-ghost'} ${x.cta}`}>
                   Start {plan.trialDays}-day free trial
                 </Link>
               </Reveal>

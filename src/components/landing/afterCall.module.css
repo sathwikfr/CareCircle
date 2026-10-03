@@ -134,7 +134,7 @@
   justify-content: center;
   font-family: var(--font-serif);
   font-weight: 600;
-  background: var(--teal);
+  background: var(--teal-fill);
   color: var(--on-teal);
 }
 
@@ -251,7 +251,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--teal);
+  background: var(--teal-fill);
   color: var(--on-teal);
 }
 
