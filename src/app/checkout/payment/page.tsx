@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CheckoutShell, PageTitle, SummaryRow } from '@/components/checkout/CheckoutUI';
@@ -8,6 +8,13 @@ import { getPlan } from '@/lib/plans';
 import { PlanId } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 import { Lock, ShieldCheck, AlertTriangle, ArrowRight } from 'lucide-react';
+
+interface CreateSubscriptionResponse {
+  subscriptionId?: string;
+  keyId?: string;
+  isSandbox?: boolean;
+  error?: string;
+}
 
 interface RazorpaySuccessResponse {
   razorpay_payment_id: string;
@@ -60,36 +67,51 @@ function PaymentContent() {
   // Sandbox-only outcome simulator (local development without Razorpay keys)
   const [simulateOutcome, setSimulateOutcome] = useState<'success' | 'declined' | 'network'>('success');
 
+  // One Razorpay subscription per user + plan on this page. The effect re-runs when the auth user
+  // object refreshes (and twice under StrictMode); each run reuses the same request instead of
+  // creating another subscription in Razorpay.
+  const userId = user?.id;
+  const subscriptionRequest = useRef<{ key: string; result: Promise<{ ok: boolean; data: CreateSubscriptionResponse }> } | null>(null);
+
   useEffect(() => {
     if (plan.priceMonthly === 0) {
       router.replace('/checkout/confirm?plan=free');
       return;
     }
-    if (authLoading || !user) return;
+    if (authLoading || !userId) return;
 
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch('/api/razorpay/create-subscription', {
+    const key = `${userId}:${plan.id}`;
+    if (subscriptionRequest.current?.key !== key) {
+      subscriptionRequest.current = {
+        key,
+        result: fetch('/api/razorpay/create-subscription', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ planId: plan.id })
-        });
-        const data = await res.json();
+        }).then(async res => ({ ok: res.ok, data: (await res.json()) as CreateSubscriptionResponse }))
+      };
+    }
+    const request = subscriptionRequest.current;
+
+    let cancelled = false;
+    request.result
+      .then(({ ok, data }) => {
         if (cancelled) return;
-        if (res.ok && data.subscriptionId) {
-          setSubscriptionData({ subscriptionId: data.subscriptionId, keyId: data.keyId, isSandbox: Boolean(data.isSandbox) });
+        if (ok && data.subscriptionId) {
+          setSubscriptionData({ subscriptionId: data.subscriptionId, keyId: data.keyId || '', isSandbox: Boolean(data.isSandbox) });
         } else {
           setInitError(data.error || 'Could not start checkout. Please try again.');
         }
-      } catch {
+      })
+      .catch(() => {
+        // Let a later run (or a reload) try again.
+        if (subscriptionRequest.current === request) subscriptionRequest.current = null;
         if (!cancelled) setInitError('Network error while starting checkout. Please retry.');
-      }
-    })();
+      });
     return () => {
       cancelled = true;
     };
-  }, [plan.id, plan.priceMonthly, user, authLoading, router]);
+  }, [plan.id, plan.priceMonthly, userId, authLoading, router]);
 
   const verifyWithServer = async (resp: RazorpaySuccessResponse, brand: string) => {
     const res = await fetch('/api/razorpay/verify', {
@@ -199,7 +221,11 @@ function PaymentContent() {
     <CheckoutShell step={3}>
       <PageTitle
         title={plan.hasTrial ? 'Set up AutoPay for your trial' : 'Payment'}
-        sub={plan.hasTrial ? `Nothing is charged today. Your first ₹${plan.priceMonthly} payment is on ${firstCharge}.` : `₹${plan.priceMonthly} will be charged today.`}
+        sub={
+          plan.hasTrial
+            ? `Your first ₹${plan.priceMonthly} payment is on ${firstCharge}. To set up AutoPay, Razorpay takes a small amount now (usually ₹5) and refunds it.`
+            : `₹${plan.priceMonthly} will be charged today.`
+        }
       />
 
       <div className="checkout-grid">
@@ -228,7 +254,7 @@ function PaymentContent() {
           <div className="notice teal" style={{ marginBottom: '20px' }}>
             <Lock size={18} />
             <span>
-              You&apos;ll choose UPI AutoPay, card or netbanking in Razorpay&apos;s secure window. Aaptha never sees your card number, UPI PIN or CVV.
+              You&apos;ll set up AutoPay with your card or bank account in Razorpay&apos;s secure window. Aaptha never sees your card number, CVV or bank login.
             </span>
           </div>
 
