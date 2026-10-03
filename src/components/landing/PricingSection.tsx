@@ -44,7 +44,7 @@ export function PricingSection({ planHref }: { planHref: (id: PlanId) => string 
         <Reveal className={s.head}>
           <span className={s.pill}><BadgeIndianRupee size={14} /> Pricing</span>
           <WordReveal>Simple plans. <span className={s.grad}>Cancel anytime.</span></WordReveal>
-          <p>Try it free for {FREE_TRIAL_DAYS} days, no card needed. Then pick the plan that fits your family.</p>
+          <p>Every plan starts with {FREE_TRIAL_DAYS} days free. Set up AutoPay to begin; nothing is charged until the trial ends, and you can cancel any time.</p>
         </Reveal>
 
         <div className={x.plans}>

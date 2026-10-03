@@ -52,8 +52,9 @@ export default function TermsPage() {
       <h2>4. Plans and payment</h2>
       <ul>
         <li>
-          <b>{PLANS.free.name}:</b> {FREE_TRIAL_DAYS} days from when you sign up, one parent, one call a day, no card needed.
-          When it ends the calls stop until you choose a plan. Your parent&apos;s details and history stay in your account.
+          <b>Free trial:</b> every plan starts with {FREE_TRIAL_DAYS} free days. To start it you choose a plan and set up
+          Razorpay AutoPay; Razorpay may take a small amount (about ₹5) to check your card or bank and refunds it. You can only
+          add a parent once AutoPay is set up. The first monthly payment is taken when the trial ends unless you cancel before then.
         </li>
         <li>
           <b>{PLANS.solo.name}:</b> {inr(PLANS.solo.priceMonthly)} a month for {PLANS.solo.parentsIncluded} parent

@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { canAddParents, getEffectivePlan } from '@/lib/plans';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Heart, User as UserIcon, LogOut, CreditCard, ChevronDown, LayoutDashboard, UserPlus, Menu, X, ShieldCheck } from 'lucide-react';
 
@@ -39,7 +40,9 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const links = user ? APP_LINKS : MARKETING_LINKS;
+  // "Add a parent" only appears once a plan's AutoPay is set up (payment details come first).
+  const canAdd = user ? canAddParents(getEffectivePlan(user.subscription, user.createdAt)) : false;
+  const links = user ? APP_LINKS.filter(l => l.href !== '/onboarding' || canAdd) : MARKETING_LINKS;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -113,9 +116,11 @@ export function Navbar() {
                   <Link href="/dashboard" className="menu-item" role="menuitem">
                     <LayoutDashboard size={16} /> Dashboard
                   </Link>
-                  <Link href="/onboarding" className="menu-item" role="menuitem">
-                    <UserPlus size={16} /> Add a parent
-                  </Link>
+                  {canAdd && (
+                    <Link href="/onboarding" className="menu-item" role="menuitem">
+                      <UserPlus size={16} /> Add a parent
+                    </Link>
+                  )}
                   <Link href="/account/profile" className="menu-item" role="menuitem">
                     <UserIcon size={16} /> Profile & notifications
                   </Link>

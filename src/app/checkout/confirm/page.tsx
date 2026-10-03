@@ -5,16 +5,16 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PLANS, getPlan } from '@/lib/plans';
 import { PlanId } from '@/lib/types';
-import { useAuth } from '@/context/AuthContext';
 import { Check, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
 import { CheckoutShell, PageTitle, CheckRow, SummaryRow } from '@/components/checkout/CheckoutUI';
 
 function ConfirmContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialPlan = (searchParams.get('plan') as PlanId) || 'family';
+  // Only paid plans are offered: each starts with a 7-day trial once AutoPay is set up (old ?plan=free links land on Family).
+  const requestedPlan = searchParams.get('plan');
+  const initialPlan: PlanId = requestedPlan === 'solo' || requestedPlan === 'extended' ? requestedPlan : 'family';
 
-  const { user } = useAuth();
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId>(initialPlan);
   const [parentConsentChecked, setParentConsentChecked] = useState(false);
   const [termsChecked, setTermsChecked] = useState(false);
@@ -44,26 +44,8 @@ function ConfirmContent() {
       return;
     }
 
-    if (plan.id === 'free') {
-      // Free plan skips payment step completely
-      setLoading(true);
-      try {
-        if (user) {
-          await fetch('/api/account/billing', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'switch-plan', newPlanId: 'free' })
-          });
-        }
-        router.push('/checkout/success?plan=free');
-      } catch {
-        router.push('/checkout/success?plan=free');
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      router.push(`/checkout/payment?plan=${plan.id}`);
-    }
+    setLoading(true);
+    router.push(`/checkout/payment?plan=${plan.id}`);
   };
 
   return (
@@ -163,8 +145,6 @@ function ConfirmContent() {
           <button onClick={handleProceed} disabled={loading} className="btn btn-primary btn-block btn-lg" style={{ marginTop: '18px' }}>
             {loading ? (
               <><span className="spinner" /> Setting up…</>
-            ) : plan.id === 'free' ? (
-              <>Start with Free <ArrowRight size={18} className="arrow" /></>
             ) : (
               <>Continue to payment <ArrowRight size={18} className="arrow" /></>
             )}

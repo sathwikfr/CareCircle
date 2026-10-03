@@ -18,7 +18,9 @@ export const PLANS: Record<PlanId, Plan> = {
   free: {
     id: 'free',
     name: 'Free Trial',
-    tagline: `${FREE_TRIAL_DAYS} days of daily check-in calls, no card needed`,
+    // Since 2026-10-03 a parent can only be added on a paid plan (its 7-day trial needs AutoPay set up
+    // first). Accounts that already added a parent on this plan keep their calls until day 7.
+    tagline: `Choose a plan to start your ${FREE_TRIAL_DAYS}-day free trial`,
     priceMonthly: 0,
     currency: '₹',
     hasTrial: false,
@@ -101,6 +103,14 @@ export function getPlan(planId: string | null | undefined): Plan {
     return PLANS[planId];
   }
   return PLANS.family; // Default to popular plan
+}
+
+/**
+ * Adding a parent needs payment details on file: a paid plan (trialing counts, its AutoPay is set up).
+ * Free / ended-trial accounts are sent to checkout first.
+ */
+export function canAddParents(plan: Plan): boolean {
+  return plan.priceMonthly > 0 && !plan.expired;
 }
 
 /** Cheapest paid plan that covers this many parents (null when none does). */

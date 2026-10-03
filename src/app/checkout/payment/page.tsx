@@ -75,7 +75,7 @@ function PaymentContent() {
 
   useEffect(() => {
     if (plan.priceMonthly === 0) {
-      router.replace('/checkout/confirm?plan=free');
+      router.replace('/checkout/confirm');
       return;
     }
     if (authLoading || !userId) return;

@@ -53,19 +53,22 @@ function OnboardingContent() {
   const [parentLimit, setParentLimit] = useState<{
     canAddMore: boolean;
     expired: boolean;
+    paymentRequired: boolean;
     allowedParents: number;
     currentCount: number;
     planName: string;
     upgradePlanId: PlanId | null;
-  } | null>(null);
+  } | null | undefined>(undefined); // undefined = still checking, null = check failed (the server still enforces it)
   useEffect(() => {
     let cancelled = false;
     fetch('/api/parents')
       .then(res => (res.ok ? res.json() : null))
       .then(data => {
-        if (!cancelled && data?.planLimits) setParentLimit(data.planLimits);
+        if (!cancelled) setParentLimit(data?.planLimits ?? null);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setParentLimit(null);
+      });
     return () => {
       cancelled = true;
     };
@@ -508,7 +511,7 @@ function OnboardingContent() {
       const data = await res.json();
       if (!res.ok) {
         setErrorMsg(data.error || 'Failed to create parent profile');
-        if (data.code === 'PARENT_LIMIT' || data.code === 'TRIAL_ENDED') {
+        if (data.code === 'PARENT_LIMIT' || data.code === 'PAYMENT_REQUIRED') {
           setErrorUpgradeHref(`/checkout/confirm?plan=${data.upgradePlanId || 'family'}`);
         }
         setSubmitting(false);
@@ -550,26 +553,45 @@ function OnboardingContent() {
     return <Heart size={19} />;
   };
 
+  if (parentLimit === undefined) {
+    return (
+      <WizardShell step={1}>
+        <div className="skeleton" style={{ height: '320px', borderRadius: 'var(--r-xl)' }} aria-label="Loading" />
+      </WizardShell>
+    );
+  }
+
   if (parentLimit && !parentLimit.canAddMore && step < 6) {
     const upgradePlan = parentLimit.upgradePlanId ? getPlan(parentLimit.upgradePlanId) : null;
+    // No plan yet: payment details come first, even though the first 7 days are free.
+    const paymentFirst = parentLimit.paymentRequired && !parentLimit.expired;
+    const trialDays = upgradePlan?.trialDays || 7;
     return (
       <WizardShell step={1}>
         <div className="animate-fade-in">
           <StepHeader
             eyebrow="Add a parent"
-            title={parentLimit.expired ? 'Your free trial has ended' : `Your ${parentLimit.planName} plan is full`}
+            title={
+              parentLimit.expired
+                ? 'Your free trial has ended'
+                : paymentFirst
+                  ? `Start your ${trialDays}-day free trial first`
+                  : `Your ${parentLimit.planName} plan is full`
+            }
           >
             {parentLimit.expired
               ? 'Choose a plan to add a parent and restart the daily check-in calls.'
-              : `It includes ${parentLimit.allowedParents} parent${parentLimit.allowedParents === 1 ? '' : 's'} and you've added ${parentLimit.currentCount}. ` +
-                (upgradePlan
-                  ? `${upgradePlan.name} covers up to ${upgradePlan.parentsIncluded}. Once your payment is confirmed you can add another parent here.`
-                  : 'To add someone new, archive a parent from the dashboard first.')}
+              : paymentFirst
+                ? `Pick a plan and set up AutoPay with Razorpay. Nothing is charged for ${trialDays} days (Razorpay checks your card or bank with about ₹5 and refunds it), and you can cancel any time before then. Once AutoPay is set up you can add your parent here.`
+                : `It includes ${parentLimit.allowedParents} parent${parentLimit.allowedParents === 1 ? '' : 's'} and you've added ${parentLimit.currentCount}. ` +
+                  (upgradePlan
+                    ? `${upgradePlan.name} covers up to ${upgradePlan.parentsIncluded}. Once your payment is confirmed you can add another parent here.`
+                    : 'To add someone new, archive a parent from the dashboard first.')}
           </StepHeader>
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             {upgradePlan && (
               <Link href={`/checkout/confirm?plan=${upgradePlan.id}`} className="btn btn-primary btn-lg">
-                Upgrade to {upgradePlan.name} <ArrowRight size={18} className="arrow" />
+                {parentLimit.expired || paymentFirst ? 'Choose a plan' : `Upgrade to ${upgradePlan.name}`} <ArrowRight size={18} className="arrow" />
               </Link>
             )}
             <Link href="/dashboard" className="btn btn-ghost">Back to dashboard</Link>

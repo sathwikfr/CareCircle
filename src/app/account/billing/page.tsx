@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { AccountShell } from '@/components/account/AccountUI';
 import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/context/AuthContext';
-import { PLANS, getEffectivePlan, freeTrialDaysLeft } from '@/lib/plans';
+import { PLANS, getEffectivePlan } from '@/lib/plans';
 import { PlanId, Invoice, UserSubscription } from '@/lib/types';
 import { CreditCard, AlertTriangle, CheckCircle, Download, ArrowUpRight, Shield, X, HeartCrack } from 'lucide-react';
 
@@ -153,7 +153,7 @@ export default function AccountBillingPage() {
             ? { cls: 'badge-green', text: 'Active' }
             : currentPlan.expired
               ? { cls: 'badge-red', text: 'Trial ended' }
-              : { cls: 'badge-gold', text: `Free trial · ${freeTrialDaysLeft(user?.createdAt)} day${freeTrialDaysLeft(user?.createdAt) === 1 ? '' : 's'} left` };
+              : { cls: 'badge-gold', text: 'No plan yet' };
 
   const hasMethod = !!(subscription?.paymentMethodBrand || subscription?.paymentMethodLast4);
 
@@ -189,7 +189,7 @@ export default function AccountBillingPage() {
                   <div style={{ fontFamily: 'var(--font-serif)', fontSize: '2.2rem', fontWeight: 500, letterSpacing: '-0.03em', lineHeight: 1 }}>
                     ₹{currentPlan.priceMonthly}
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '4px' }}>{isFree ? 'no card needed' : 'per month'}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '4px' }}>{isFree ? 'no plan yet' : 'per month'}</div>
                 </div>
               </div>
 
@@ -225,7 +225,7 @@ export default function AccountBillingPage() {
 
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '20px' }}>
                 <button onClick={() => setShowSwitchModal(true)} className="btn btn-primary btn-sm">
-                  {isFree ? 'Upgrade' : 'Change plan'} <ArrowUpRight size={14} />
+                  {isFree ? 'Choose a plan' : 'Change plan'} <ArrowUpRight size={14} />
                 </button>
                 {status === 'cancelled' ? (
                   <button onClick={handleReactivate} className="btn btn-ghost btn-sm">Keep my subscription</button>
@@ -255,7 +255,7 @@ export default function AccountBillingPage() {
                 </div>
               ) : (
                 <p style={{ fontSize: '0.92rem', color: 'var(--ink-muted)', marginBottom: '14px' }}>
-                  {isFree ? 'None needed on the free trial.' : 'Your AutoPay details are held by Razorpay.'}
+                  {isFree ? 'None yet. You set up AutoPay when you choose a plan; its 7-day trial is free.' : 'Your AutoPay details are held by Razorpay.'}
                 </p>
               )}
 
@@ -274,7 +274,7 @@ export default function AccountBillingPage() {
 
             {invoices.length === 0 ? (
               <p style={{ fontSize: '0.92rem', color: 'var(--ink-muted)' }}>
-                {isFree ? 'No payments yet. The free trial never charges you.' : 'No payments yet. Your first one will appear here.'}
+                {isFree ? 'No payments yet.' : 'No payments yet. Your first one will appear here.'}
               </p>
             ) : (
               <div className="table-wrap">

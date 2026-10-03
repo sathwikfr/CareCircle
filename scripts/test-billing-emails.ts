@@ -131,9 +131,13 @@ async function partA() {
 const stamp = Date.now();
 const mkEmail = (tag: string) => `billing-test-${tag}-${stamp}@example.com`;
 
-async function mkUser(tag: string, createdDaysAgo: number) {
+/** A throwaway account. By default it has one parent (free-trial reminders only go to accounts with a parent). */
+async function mkUser(tag: string, createdDaysAgo: number, withParent = true) {
   const u = await createUser({ name: `Billing Tester ${tag}`, email: mkEmail(tag), phone: null });
   await prisma.user.update({ where: { id: u.id }, data: { createdAt: new Date(Date.now() - createdDaysAgo * DAY) } });
+  if (withParent) {
+    await prisma.parentProfile.create({ data: { userId: u.id, name: `Parent of ${tag}`, relationship: 'Mother', phone: '+919000000000', consentGiven: false } });
+  }
   return u;
 }
 
@@ -182,7 +186,8 @@ async function partB() {
     const old = await mkUser('old', 30); // ended weeks ago: must not be emailed
     const paid = await mkUser('paid', 5.5); // same age as `ending` but on a paid plan
     await makePaid(paid.id, { subId: `sub_test_paid_${stamp}`, trialEndsInDays: 10, status: 'active' });
-    const scope = [ending.id, early.id, ended.id, old.id, paid.id];
+    const noParent = await mkUser('noparent', 5.5, false); // same age as `ending` but never added a parent
+    const scope = [ending.id, early.id, ended.id, old.id, paid.id, noParent.id];
 
     const sent: Array<{ variant: string; to: string }> = [];
     const okSend = async (input: TrialEmailInput) => {
@@ -195,6 +200,7 @@ async function partB() {
     check('ending user got free_ending', sent.some(s => s.to === ending.email && s.variant === 'free_ending'));
     check('ended user got free_ended', sent.some(s => s.to === ended.email && s.variant === 'free_ended'));
     check('too-early, long-ago and paid accounts got nothing', !sent.some(s => [early.email, old.email, paid.email].includes(s.to)), sent);
+    check('an account that never added a parent gets no "calls will stop" email', !sent.some(s => s.to === noParent.email), sent);
 
     const r2 = await runLifecycleEmails({ userIds: scope, send: okSend });
     check('a second run sends nothing new (exactly once)', r2.freeEnding === 0 && r2.freeEnded === 0 && sent.length === 2, { r2, sent });

@@ -49,8 +49,14 @@ export async function runLifecycleEmails(opts: LifecycleOptions = {}): Promise<L
   // ---- Free trial (7 days from account creation) ----
   const newest = new Date(now.getTime() - (FREE_TRIAL_DAYS * DAY_MS - FREE_ENDING_WINDOW_MS));
   const oldest = new Date(now.getTime() - (FREE_TRIAL_DAYS * DAY_MS + FREE_ENDED_GRACE_MS));
+  // Only accounts with a parent on the free plan (added before payment details were required) have
+  // calls to lose; an account that never added a parent gets no "calls will stop" email.
   const freeUsers = await prisma.user.findMany({
-    where: { createdAt: { gte: oldest, lte: newest }, ...(scope ? { id: scope } : {}) },
+    where: {
+      createdAt: { gte: oldest, lte: newest },
+      parents: { some: { isDeleted: false } },
+      ...(scope ? { id: scope } : {})
+    },
     include: { subscription: true }
   });
 

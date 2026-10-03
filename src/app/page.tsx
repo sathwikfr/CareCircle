@@ -37,8 +37,8 @@ export default function LandingPage() {
   const { user } = useAuth();
 
   const getPlanLink = (planId: PlanId) => (user ? `/checkout/confirm?plan=${planId}` : `/signup?plan=${planId}`);
-  const primaryHref = user ? '/dashboard' : '/signup?plan=free';
-  const primaryLabel = user ? 'Go to your dashboard' : 'Start free';
+  const primaryHref = user ? '/dashboard' : '/signup';
+  const primaryLabel = user ? 'Go to your dashboard' : 'Start free trial';
 
   return (
     <>

@@ -8,7 +8,7 @@ import {
   newId
 } from '@/lib/db';
 import { requireUser } from '@/lib/access';
-import { getEffectivePlan, smallestPlanFor } from '@/lib/plans';
+import { canAddParents, getEffectivePlan, smallestPlanFor } from '@/lib/plans';
 import { Medicine, EmergencyContact, MedicineTimingSlot, FoodRelation } from '@/lib/types';
 import { normalizePhone } from '@/lib/phone';
 
@@ -32,8 +32,9 @@ export async function GET() {
       planName: plan.name,
       allowedParents: plan.parentsIncluded,
       currentCount: list.length,
-      canAddMore: !plan.expired && list.length < plan.parentsIncluded,
+      canAddMore: canAddParents(plan) && list.length < plan.parentsIncluded,
       expired: Boolean(plan.expired),
+      paymentRequired: !canAddParents(plan),
       upgradePlanId: smallestPlanFor(list.length + 1)?.id || null
     }
   });
@@ -116,10 +117,17 @@ export async function POST(req: Request) {
     // Check plan limits
     const existing = await getParentsForUser(user.id);
     const plan = getEffectivePlan(user.subscription, user.createdAt);
-    if (plan.expired) {
+    // Payment details first: a parent can only be added once a plan's AutoPay is set up (its 7-day trial included).
+    if (!canAddParents(plan)) {
       return NextResponse.json(
-        { error: 'Your free trial has ended. Please choose a plan to add a parent and restart the calls.', code: 'TRIAL_ENDED' },
-        { status: 403 }
+        {
+          error: plan.expired
+            ? 'Your free trial has ended. Please choose a plan to add a parent and restart the calls.'
+            : 'Choose a plan and set up AutoPay to start your 7-day free trial, then add your parent. Nothing is charged until the trial ends.',
+          code: 'PAYMENT_REQUIRED',
+          upgradePlanId: smallestPlanFor(existing.length + 1)?.id || null
+        },
+        { status: 402 }
       );
     }
     if (existing.length >= plan.parentsIncluded) {

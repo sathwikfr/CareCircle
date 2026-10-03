@@ -9,7 +9,7 @@ import { Medicine, FoodRelation, ExtractedMedicineCandidate, ParentProfile } fro
 import { Heart, Pause, Plus, ArrowRight, Sparkles, CheckCircle2, AlertTriangle, Info, X, Phone, Languages, CalendarClock } from 'lucide-react';
 import { SAMPLE_PRESCRIPTIONS } from '@/lib/medicineExtractor';
 import { formatScheduleSummary } from '@/lib/scheduleGenerator';
-import { getEffectivePlan, freeTrialDaysLeft, smallestPlanFor } from '@/lib/plans';
+import { canAddParents, getEffectivePlan, freeTrialDaysLeft, smallestPlanFor } from '@/lib/plans';
 import {
   ParentDetails, Toast, computeCallStats, formatCallTime, initial, downloadFile, safeFileName, displayName
 } from '@/components/dashboard/helpers';
@@ -419,6 +419,8 @@ function DashboardContent() {
 
   // EMPTY STATE: NO PARENTS ADDED YET
   if (parentsList.length === 0) {
+    // Payment details come first: without a plan the next step is checkout, not the parent form.
+    const needsPlan = !canAddParents(getEffectivePlan(user?.subscription, user?.createdAt));
     return (
       <div className="wrap dash-page">
         <div className="panel empty" style={{ maxWidth: '560px', margin: '48px auto 0', padding: '56px 32px' }}>
@@ -426,12 +428,25 @@ function DashboardContent() {
           <h3 style={{ fontSize: '1.7rem', letterSpacing: '-0.02em' }}>
             {user?.name ? `Welcome, ${user.name.split(' ')[0]}` : 'Welcome to Aaptha'}
           </h3>
-          <p style={{ marginBottom: '28px' }}>
-            Add your parent, their medicines and the times that suit them. It takes a few minutes, and Saathi takes it from there.
-          </p>
-          <Link href="/onboarding" className="btn btn-primary btn-lg">
-            Add your first parent <ArrowRight size={18} className="arrow" />
-          </Link>
+          {needsPlan ? (
+            <>
+              <p style={{ marginBottom: '28px' }}>
+                Pick a plan and set up AutoPay to start your 7-day free trial. Nothing is charged until the trial ends, and you can cancel any time. Then add your parent.
+              </p>
+              <Link href="/checkout/confirm?plan=solo" className="btn btn-primary btn-lg">
+                Start your free trial <ArrowRight size={18} className="arrow" />
+              </Link>
+            </>
+          ) : (
+            <>
+              <p style={{ marginBottom: '28px' }}>
+                Add your parent, their medicines and the times that suit them. It takes a few minutes, and Saathi takes it from there.
+              </p>
+              <Link href="/onboarding" className="btn btn-primary btn-lg">
+                Add your first parent <ArrowRight size={18} className="arrow" />
+              </Link>
+            </>
+          )}
         </div>
       </div>
     );
@@ -513,7 +528,7 @@ function DashboardContent() {
           setSelectedParentId(id);
           setActiveTab('overview');
         }}
-        canAddMore={!effectivePlan.expired && parentsList.length < effectivePlan.parentsIncluded}
+        canAddMore={canAddParents(effectivePlan) && parentsList.length < effectivePlan.parentsIncluded}
         upgradeHref={upgradeForParent ? `/checkout/confirm?plan=${upgradeForParent.id}` : undefined}
       />
 

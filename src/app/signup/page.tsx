@@ -14,7 +14,9 @@ import { AlertCircle, ArrowRight, CheckCircle2, Phone, Mail, UserCheck, MessageS
 function SignUpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const planParam = (searchParams.get('plan') as PlanId) || 'family';
+  // Only paid plans (each with a 7-day trial) are offered; old ?plan=free links get Family.
+  const requestedPlan = searchParams.get('plan');
+  const planParam: PlanId = requestedPlan === 'solo' || requestedPlan === 'extended' ? requestedPlan : 'family';
   const selectedPlan = getPlan(planParam);
   const identifierParam = searchParams.get('identifier') || '';
 
