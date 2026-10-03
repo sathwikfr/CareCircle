@@ -12,6 +12,7 @@ const MODES: { mode: OrbMode; label: string }[] = [
   { mode: 'ringing', label: 'Ringing' },
   { mode: 'saathi', label: 'Saathi speaks' },
   { mode: 'family', label: 'Amma speaks' },
+  { mode: 'thinking', label: 'Thinking' },
   { mode: 'ended', label: 'Ended' },
 ];
 
@@ -59,7 +60,10 @@ export function OrbPlayground() {
         u.pitch = line.pitch;
         u.rate = 0.95;
         u.onboundary = (e) => orb.current?.say(/^\S+/.exec(line.text.slice(e.charIndex))?.[0] ?? '');
-        u.onend = () => window.setTimeout(() => say(i + 1), 350);
+        u.onend = () => {
+          if (line.who === 'family' && i + 1 < SCRIPT.length) setMode('thinking');
+          window.setTimeout(() => say(i + 1), line.who === 'family' ? 650 : 350);
+        };
         u.onerror = () => say(i + 1);
         synth.speak(u);
       };

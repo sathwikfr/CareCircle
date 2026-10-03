@@ -104,6 +104,7 @@ function chunk(text: string): Chunk[] {
 }
 
 const CHARS_PER_SEC = 13;            // estimate when a browser voice doesn't report word timing
+const THINK_MS = 650;                // after Amma answers, Saathi 'thinks' this long before replying
 
 /* The site theme (<html data-theme>): the orb glows on dark pages and uses ink on light ones (no dark backing). */
 const subscribeTheme = (cb: () => void) => {
@@ -238,12 +239,20 @@ export function VoiceHero({ primaryHref, primaryLabel, trialDays }: { primaryHre
         lines.forEach((l, i) => {
           timers.current.push(window.setTimeout(() => begin(i, l), at));
           at += Math.max(2200, (l.text.length / CHARS_PER_SEC) * 1000);
+          if (l.to === 'reply' && i < lines.length - 1) {
+            timers.current.push(window.setTimeout(() => { if (id === runId.current) setOrbMode('thinking'); }, at));
+            at += THINK_MS;
+          }
         });
         timers.current.push(window.setTimeout(finish, at));
         return;
       }
       synth.cancel();
-      lines.forEach((l, i) => {
+      // One line at a time, so Saathi can pause to think after Amma answers.
+      const speakLine = (i: number) => {
+        if (id !== runId.current) return;
+        if (i >= lines.length) { finish(); return; }
+        const l = lines[i];
         const u = new SpeechSynthesisUtterance(l.text);
         u.lang = l.lang;
         if (l.voice) u.voice = l.voice;
@@ -257,10 +266,19 @@ export function VoiceHero({ primaryHref, primaryLabel, trialDays }: { primaryHre
           orb.current?.say(word);
           setSpokenTo(e.charIndex + (e.charLength || word.length));
         };
-        u.onend = () => { if (i === lines.length - 1) finish(); };
+        u.onend = () => {
+          if (id !== runId.current) return;
+          if (l.to === 'reply' && i < lines.length - 1) {
+            setOrbMode('thinking');
+            timers.current.push(window.setTimeout(() => speakLine(i + 1), THINK_MS));
+          } else {
+            speakLine(i + 1);
+          }
+        };
         u.onerror = () => { if (id === runId.current) finish(); };
         synth.speak(u);
-      });
+      };
+      speakLine(0);
     });
   }, [stop]);
 

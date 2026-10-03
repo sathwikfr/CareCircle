@@ -28,7 +28,8 @@ import React, { useEffect, useImperativeHandle, useRef } from 'react';
  *                                  // while it keeps coming it overrides the word rhythm
  */
 
-export type OrbMode = 'idle' | 'ringing' | 'saathi' | 'family' | 'ended';
+/** 'thinking' = the pause between turns (SaathiBlob shows it; the older looks treat it as idle). */
+export type OrbMode = 'idle' | 'ringing' | 'saathi' | 'family' | 'thinking' | 'ended';
 export type OrbSide = 'saathi' | 'family';
 export type SaathiOrbHandle = {
   setMode: (m: OrbMode) => void;

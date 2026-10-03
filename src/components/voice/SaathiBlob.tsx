@@ -18,6 +18,9 @@ import { NOISE, syllables, type OrbMode, type SaathiOrbHandle } from './SaathiOr
  * - Ribbons: two translucent ribbons of light twist slowly inside the glass, a
  *   cyan one for Saathi and a pink one for the family; the speaker's ribbon
  *   brightens and turns faster.
+ * - Inner light: a soft glow inside the glass (a pastel glow on light pages)
+ *   that swells with every syllable, and the whole ball breathes a little larger
+ *   on each word, so you can see it talking from across the room.
  * - Glow: the orb is also drawn small offscreen and blurred at two sizes (a tight
  *   glow and a wide halo), behind the crisp, anti-aliased orb.
  * - Dust: twinkling dots drift around it; the nearest are bigger and softer,
@@ -26,7 +29,9 @@ import { NOISE, syllables, type OrbMode, type SaathiOrbHandle } from './SaathiOr
  * Colours run blue -> violet -> magenta across the ball. The voice drives it:
  * while Saathi talks the bumps grow and roll with every syllable and the colour
  * leans cyan, and each word sends a ripple and a band of light across from left
- * to right; while the family talks it leans pink and runs right to left. Ringing
+ * to right; while the family talks it leans pink and runs right to left. Between
+ * turns ('thinking') it draws in a little, its ribbons spin up and an arc of light
+ * circles the net, like an assistant working out its answer. Ringing
  * makes it shiver and puff out dust; when the call ends it settles and dims. On
  * light pages ('day') the same orb is laid down as deeper ink with a coloured haze.
  *
@@ -54,7 +59,7 @@ uniform mat3 uRot;
 uniform float uTime; uniform float uScale; uniform float uAspect;
 uniform float uAmp; uniform float uFine; uniform float uFlow; uniform float uBreath;
 uniform float uRipple; uniform float uRippleAge; uniform float uDir; uniform float uPoint; uniform float uPx;
-uniform vec3 uPointer; uniform float uPull; uniform vec3 uGrad; uniform float uFireAmt;
+uniform vec3 uPointer; uniform float uPull; uniform vec3 uGrad; uniform float uFireAmt; uniform float uThink;
 uniform vec3 uC1; uniform vec3 uC2; uniform vec3 uC3; uniform vec3 uSpeak; uniform float uSpeakMix;
 varying vec3 vCol; varying float vFres; varying float vFront; varying float vSeed; varying float vWisp; varying float vFire; varying vec3 vN;
 ${NOISE}
@@ -106,7 +111,9 @@ void main() {
   float act = snoise(d * 2.2 + vec3(uTime * 0.32, -uTime * 0.21, uFlow * 0.7));
   float front = (-1.2 + uRippleAge * 2.4) * uDir;
   float sweep = uRipple * exp(-pow(normalize(pr).x - front, 2.0) * 40.0) * exp(-uRippleAge * 1.4);
-  vFire = clamp(smoothstep(0.55, 0.85, act) * uFireAmt + sweep, 0.0, 1.0);
+  // While Saathi thinks, an arc of light circles the net, like a loader.
+  float arc = uThink * pow(max(cos(atan(pr.y, pr.x) - uTime * 4.5), 0.0), 18.0);
+  vFire = clamp(smoothstep(0.55, 0.85, act) * uFireAmt + sweep + arc, 0.0, 1.0);
 
   float k = cam / (cam - pr.z);                  // perspective
   gl_Position = vec4(pr.x * k * uScale / uAspect, pr.y * k * uScale, 0.0, 1.0);
@@ -303,6 +310,34 @@ void main() {
   c += (texture2D(uTex, vUv + uStep * 3.0) + texture2D(uTex, vUv - uStep * 3.0)) * 0.054;
   c += (texture2D(uTex, vUv + uStep * 4.0) + texture2D(uTex, vUv - uStep * 4.0)) * 0.0162;
   gl_FragColor = c;
+}`;
+
+// Three soft lobes of light drifting round each other a little below the centre (the
+// captions sit above it). Dark pages: light inside the glass; light pages: a pastel glow.
+const CORE_FRAG = `
+precision mediump float;
+varying vec2 vUv;
+uniform float uCAspect; uniform float uCScale; uniform float uCSwirl; uniform float uCAmt; uniform float uCR; uniform float uCInk;
+uniform vec3 uK1; uniform vec3 uK2; uniform vec3 uK3;
+void main() {
+  vec2 p = vec2((vUv.x * 2.0 - 1.0) * uCAspect, vUv.y * 2.0 - 1.0) / uCScale + vec2(0.0, 0.1);
+  float sw = uCSwirl;
+  vec2 c1 = 0.2 * vec2(cos(sw), sin(sw * 1.3));
+  vec2 c2 = 0.2 * vec2(cos(sw * 0.8 + 2.1), sin(sw * 1.1 + 2.1));
+  vec2 c3 = 0.2 * vec2(cos(sw * 1.2 + 4.2), sin(sw * 0.9 + 4.2));
+  float r2 = uCR * uCR;
+  float g1 = exp(-dot(p - c1, p - c1) / r2);
+  float g2 = exp(-dot(p - c2, p - c2) / r2);
+  float g3 = exp(-dot(p - c3, p - c3) / r2);
+  float g = g1 + g2 + g3;
+  vec3 col = (uK1 * g1 + uK2 * g2 + uK3 * g3) / max(g, 1e-4);
+  if (uCInk > 0.5) {
+    float a = clamp(g * 0.45 * uCAmt, 0.0, 0.7);
+    gl_FragColor = vec4(col * a, a);
+  } else {
+    vec3 c = col * g * 0.45 * uCAmt;
+    gl_FragColor = vec4(c, max(c.r, max(c.g, c.b)));
+  }
 }`;
 
 const GLOW_FRAG = `
@@ -507,7 +542,8 @@ export function SaathiBlob({ mode = 'idle', scale = 0.6, variant = 'night', clas
     const downProg = gl && link(gl, QUAD_VERT, DOWN_FRAG);
     const blurProg = gl && link(gl, QUAD_VERT, BLUR_FRAG);
     const glowProg = gl && link(gl, QUAD_VERT, GLOW_FRAG);
-    if (!gl || !skinProg || !lineProg || !nodeProg || !ribbonProg || !dustProg || !downProg || !blurProg || !glowProg) {
+    const coreProg = gl && link(gl, QUAD_VERT, CORE_FRAG);
+    if (!gl || !skinProg || !lineProg || !nodeProg || !ribbonProg || !dustProg || !downProg || !blurProg || !glowProg || !coreProg) {
       canvas.dataset.fallback = 'true';
       return;
     }
@@ -542,7 +578,7 @@ export function SaathiBlob({ mode = 'idle', scale = 0.6, variant = 'night', clas
     const locs = (prog: WebGLProgram, names: string[]) =>
       Object.fromEntries(names.map((n) => [n, gl.getUniformLocation(prog, n)])) as Record<string, WebGLUniformLocation | null>;
     const MESH_U = ['uRot', 'uTime', 'uScale', 'uAspect', 'uAmp', 'uFine', 'uFlow', 'uBreath', 'uRipple', 'uRippleAge', 'uDir', 'uPoint', 'uPx',
-      'uPointer', 'uPull', 'uGrad', 'uFireAmt', 'uC1', 'uC2', 'uC3', 'uSpeak', 'uSpeakMix', 'uFTime', 'uFAlpha', 'uFInk', 'uFVoice', 'uFGloss'];
+      'uPointer', 'uPull', 'uGrad', 'uFireAmt', 'uThink', 'uC1', 'uC2', 'uC3', 'uSpeak', 'uSpeakMix', 'uFTime', 'uFAlpha', 'uFInk', 'uFVoice', 'uFGloss'];
     const meshProgs = [skinProg, lineProg, nodeProg].map((prog) => ({ prog, u: locs(prog, MESH_U), aV: gl.getAttribLocation(prog, 'aV') }));
     const [skin, lines, nodes] = meshProgs;
     const ru = locs(ribbonProg, ['uRot', 'uRib', 'uScale', 'uAspect', 'uRad', 'uWidth', 'uTwist', 'uPhase', 'uWob', 'uCa', 'uCb', 'uFAlpha', 'uFInk']);
@@ -553,6 +589,8 @@ export function SaathiBlob({ mode = 'idle', scale = 0.6, variant = 'night', clas
     const blurU = locs(blurProg, ['uTex', 'uStep']);
     const glowU = locs(glowProg, ['uTight', 'uWide', 'uTightAmt', 'uWideAmt']);
     const quadA = [downProg, blurProg, glowProg].map((p) => gl.getAttribLocation(p, 'aQ'));
+    const cu = locs(coreProg, ['uCAspect', 'uCScale', 'uCSwirl', 'uCAmt', 'uCR', 'uCInk', 'uK1', 'uK2', 'uK3']);
+    const coreA = gl.getAttribLocation(coreProg, 'aQ');
 
     gl.disable(gl.DEPTH_TEST);
     gl.clearColor(0, 0, 0, 0);
@@ -599,6 +637,7 @@ export function SaathiBlob({ mode = 'idle', scale = 0.6, variant = 'night', clas
     const st = {
       voice: 0.05, vSaathi: 0, vFamily: 0, amp: 0.13, fine: 0.025, flow: 0, spin: 0, dir: 1, glow: 0.9, push: 0, swirl: 0,
       speakMix: 0, fire: 0.35, speak: [...PALETTE.night.saathi], ribPhase: [0, 2.1], nextRing: 0, ringStep: 0, lastT: 0,
+      think: 0, core: 0.24, coreSwirl: 0, swell: 0,
     };
     const e = engine.current;
     const start = performance.now();
@@ -613,6 +652,7 @@ export function SaathiBlob({ mode = 'idle', scale = 0.6, variant = 'night', clas
       e.now = t;
       const m = e.mode;
       const speaking = m === 'saathi' || m === 'family';
+      const thinking = m === 'thinking';
       const day = dayRef.current;
       const pal = day ? PALETTE.day : PALETTE.night;
 
@@ -626,10 +666,13 @@ export function SaathiBlob({ mode = 'idle', scale = 0.6, variant = 'night', clas
         talk = 0.25 + 0.6 * Math.pow(Math.sin(Math.PI * (k - Math.floor(k))), 0.7) * (k < 1 ? 1 : 0.8);
       } else if (sinceWord < 0.9) talk = 0.2;
       else talk = 0.35 + 0.5 * Math.abs(Math.sin(t * 7.1) * Math.sin(t * 2.7)) * (Math.sin(t * 1.7) > -0.55 ? 1 : 0.15);
-      const vTarget = speaking ? talk : m === 'ringing' ? 0.15 : m === 'ended' ? 0 : 0.05;
+      const vTarget = speaking ? talk : m === 'ringing' ? 0.15 : thinking ? 0.1 : m === 'ended' ? 0 : 0.05;
       st.voice += (vTarget - st.voice) * ease(vTarget > st.voice ? 14 : 8);
       st.vSaathi += ((m === 'saathi' ? st.voice : 0) - st.vSaathi) * ease(6);
       st.vFamily += ((m === 'family' ? st.voice : 0) - st.vFamily) * ease(6);
+      st.think += ((thinking ? 1 : 0) - st.think) * ease(6);
+      // The whole ball swells a little with each syllable.
+      st.swell += ((speaking ? st.voice : 0) - st.swell) * ease(12);
 
       // Ringing: ring-ring … pause; each ring makes the ball shiver and puff out dust.
       if (m === 'ringing' && t > st.nextRing) {
@@ -640,20 +683,20 @@ export function SaathiBlob({ mode = 'idle', scale = 0.6, variant = 'night', clas
       e.rings = e.rings.filter((s0) => t - s0 < 1.2);
       const shiver = e.rings.reduce((acc, s0) => acc + Math.exp(-(t - s0) * 6), 0);
 
-      const ampT = speaking ? 0.15 + 0.12 * st.voice : m === 'ringing' ? 0.14 + 0.05 * shiver : m === 'ended' ? 0.08 : 0.13;
+      const ampT = speaking ? 0.15 + 0.12 * st.voice : m === 'ringing' ? 0.14 + 0.05 * shiver : thinking ? 0.11 : m === 'ended' ? 0.08 : 0.13;
       st.amp += (ampT - st.amp) * ease(6);
       const fineT = speaking ? 0.03 + 0.07 * st.voice : m === 'ringing' ? 0.03 + 0.04 * shiver : 0.025;
       st.fine += (fineT - st.fine) * ease(8);
       if (m === 'family') st.dir = -1;
       else if (m === 'saathi') st.dir = 1;
       st.flow += dt * (0.1 + 0.6 * st.voice) * st.dir;
-      st.spin += dt * (0.12 + 0.2 * st.voice);
+      st.spin += dt * (0.12 + 0.2 * st.voice + 0.25 * st.think);
       st.swirl += dt * (0.04 + 0.5 * st.voice);
       const glowT = speaking ? 0.92 + 0.2 * st.voice : m === 'ringing' ? 0.95 + 0.4 * shiver : m === 'ended' ? 0.55 : 0.85;
       st.glow += (glowT - st.glow) * ease(4);
       const fireT = speaking ? 0.5 + 0.3 * st.voice : m === 'ringing' ? 0.5 + 0.4 * shiver : m === 'ended' ? 0.12 : 0.35;
       st.fire += (fireT - st.fire) * ease(5);
-      const pushT = speaking ? 0.12 * st.voice : 0;
+      const pushT = speaking ? 0.12 * st.voice : thinking ? -0.06 : 0;
       st.push += (pushT + 0.18 * shiver - st.push) * ease(5);
       // the speaker's colour leans in (less on light pages, where it reads as darker ink)
       st.speakMix += ((speaking ? (day ? 0.28 : 0.4) : 0) - st.speakMix) * ease(5);
@@ -662,13 +705,18 @@ export function SaathiBlob({ mode = 'idle', scale = 0.6, variant = 'night', clas
       ptr.pull += ((reduced ? 0 : ptr.target) - ptr.pull) * ease(4);
       RIBBONS.forEach((r, i) => {
         const v = r.who === 'saathi' ? st.vSaathi : st.vFamily;
-        st.ribPhase[i] += dt * r.speed * (1 + 2.5 * v);
+        st.ribPhase[i] += dt * r.speed * (1 + 2.5 * v + 3 * st.think);
       });
 
       const aspect = width / height;
       const T = reduced ? 3 : t;
       const rot = rotation(reduced ? 0.6 : st.spin, 0.3 + (reduced ? 0 : 0.06 * Math.sin(t * 0.21)), reduced ? 0 : 0.08 * Math.sin(t * 0.17));
-      const breath = 1 + (reduced ? 0 : 0.015 * Math.sin(t * 1.3));
+      // The inner light: swells with every syllable, pulses gently while thinking.
+      const coreT = speaking ? 0.2 + 0.3 * st.voice : thinking ? 0.27 + 0.08 * Math.sin(t * 5.5)
+        : m === 'ringing' ? 0.22 + 0.2 * shiver : m === 'ended' ? 0.08 : 0.21;
+      st.core += (coreT - st.core) * ease(speaking ? 12 : 5);
+      st.coreSwirl += dt * (0.35 + 1.1 * st.voice + 2.4 * st.think);
+      const breath = 1 + (reduced ? 0 : 0.015 * Math.sin(t * 1.3) + 0.05 * st.swell) - 0.025 * st.think;
       const gAng = -0.72 + (reduced ? 0 : 0.25 * Math.sin(t * 0.07));
       const grad = [Math.cos(gAng) * 0.88, Math.sin(gAng) * 0.88, 0.35];
       const gLen = Math.hypot(grad[0], grad[1], grad[2]);
@@ -700,6 +748,27 @@ export function SaathiBlob({ mode = 'idle', scale = 0.6, variant = 'night', clas
         gl.uniform1f(du.uFAlpha, (day ? 0.55 : 0.7) * (m === 'ended' ? 0.5 : 1));
         gl.uniform1f(du.uFInk, day ? 1 : 0);
         gl.drawArrays(gl.POINTS, 0, dust.length / 4);
+
+        // the inner light: its colours lean to the speaker's; pastel on light pages
+        const tint = (c: number[]) => {
+          const k = Math.min(0.6, st.speakMix * 1.3);
+          const out = c.map((v, i) => v + (st.speak[i] - v) * k);
+          return day ? out.map((v) => v * 0.55 + 0.45) : out;
+        };
+        gl.useProgram(coreProg);
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+        gl.enableVertexAttribArray(coreA);
+        gl.vertexAttribPointer(coreA, 2, gl.FLOAT, false, 0, 0);
+        gl.uniform1f(cu.uCAspect, aspect);
+        gl.uniform1f(cu.uCScale, scaleRef.current);
+        gl.uniform1f(cu.uCSwirl, reduced ? 1 : st.coreSwirl);
+        gl.uniform1f(cu.uCAmt, st.core * dim * (day ? 1.6 : 1) * (px < 1 ? 0.3 : 1));
+        gl.uniform1f(cu.uCR, 0.36 + 0.1 * st.swell);
+        gl.uniform1f(cu.uCInk, day ? 1 : 0);
+        gl.uniform3fv(cu.uK1, tint(pal.blue));
+        gl.uniform3fv(cu.uK2, tint(pal.violet));
+        gl.uniform3fv(cu.uK3, tint(pal.magenta));
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         // ribbons, inside the glass
         gl.useProgram(ribbonProg);
@@ -749,6 +818,7 @@ export function SaathiBlob({ mode = 'idle', scale = 0.6, variant = 'night', clas
           gl.uniform1f(u.uPull, ptr.pull);
           gl.uniform3fv(u.uGrad, gradN);
           gl.uniform1f(u.uFireAmt, reduced ? 0.3 : st.fire * (day ? 0.6 : 1));
+          gl.uniform1f(u.uThink, st.think);
           gl.uniform3fv(u.uC1, pal.blue);
           gl.uniform3fv(u.uC2, pal.violet);
           gl.uniform3fv(u.uC3, pal.magenta);
@@ -760,13 +830,13 @@ export function SaathiBlob({ mode = 'idle', scale = 0.6, variant = 'night', clas
           gl.uniform1f(u.uFVoice, st.voice);
           gl.uniform1f(u.uFGloss, day ? 0 : 1);
         };
-        setMesh(skin, (day ? 0.7 : 0.55) * dim);
+        setMesh(skin, (day ? 0.6 : 0.55) * dim);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triIbo);
         gl.drawElements(gl.TRIANGLES, ball.tris.length, gl.UNSIGNED_SHORT, 0);
-        setMesh(lines, (day ? 0.85 : 0.75) * dim);
+        setMesh(lines, (day ? 0.62 : 0.75) * dim);   // lighter lines on light pages, so it reads as a glowing orb
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, edgeIbo);
         gl.drawElements(gl.LINES, ball.edges.length, gl.UNSIGNED_SHORT, 0);
-        setMesh(nodes, (day ? 0.9 : 0.8) * dim);
+        setMesh(nodes, (day ? 0.72 : 0.8) * dim);
         gl.drawArrays(gl.POINTS, 0, nodeCount);
       };
 
@@ -869,7 +939,7 @@ export function SaathiBlob({ mode = 'idle', scale = 0.6, variant = 'night', clas
       document.removeEventListener('pointerleave', onLeave);
       [src, tA, tB, wA, wB].forEach((tg) => dropTarget(gl, tg));
       [vbo, triIbo, edgeIbo, ribVbo, ribIbo, dustBuf, quadBuf].forEach((b) => gl.deleteBuffer(b));
-      [skinProg, lineProg, nodeProg, ribbonProg, dustProg, downProg, blurProg, glowProg].forEach((p) => gl.deleteProgram(p));
+      [skinProg, lineProg, nodeProg, ribbonProg, dustProg, downProg, blurProg, glowProg, coreProg].forEach((p) => gl.deleteProgram(p));
     };
   }, []);
 

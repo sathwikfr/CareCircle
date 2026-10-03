@@ -119,7 +119,7 @@ src/components/landing/LiveCallPhone.tsx   "How it works": scripted example call
 src/components/voice/SaathiBlob.tsx    the hero's voice orb (raw WebGL1, no three.js): a living glass blob. Bumpy
                               geodesic net of dots + lines, glass rim/glint, two inner ribbons (cyan = Saathi,
                               pink = family), offscreen bloom (two blur sizes), drifting dust, leans toward the mouse.
-                              Modes idle/ringing/saathi/family/ended; 'day' variant = ink on light pages. Handle
+                              Modes idle/ringing/saathi/family/thinking/ended; inner light swells per syllable; 'day' variant = ink on light pages. Handle
                               (setMode/pulse/say/level/echo) shared with the older SaathiOrb (red/blue ring, also
                               exports NOISE + syllables) and SaathiSphere (wave-line sheet); those two are only used
                               by src/app/dev/orb, the dev-only playground ("Look" button cycles; 404 outside `next dev`)
